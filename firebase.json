@@ -21,10 +21,10 @@
         "scripts",
         "coverage",
         "*.traineddata",
-        "check*.js",
-        "check*.cjs",
-        "verificar_*.cjs",
-        "npm_audit*.json"
+        "/check*.js",
+        "/check*.cjs",
+        "/verificar_*.cjs",
+        "/npm_audit*.json"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run build"
