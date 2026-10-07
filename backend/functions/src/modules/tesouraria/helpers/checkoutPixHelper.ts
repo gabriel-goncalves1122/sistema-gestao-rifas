@@ -10,6 +10,7 @@ import {
 } from "../types/checkoutPixTypes";
 import { Bilhete, Comprador, PagamentoPix } from "../../types/models";
 import { somenteNumeros } from "../../../shared/utils/formatadores";
+import { mapearStatusMercadoPagoParaCanonico } from "./statusPagamentoPixHelper";
 
 export const VALOR_RIFA_REAIS = 10;
 
@@ -35,7 +36,12 @@ export const CHECKOUT_PIX_IDEMPOTENCIA_JANELA_MS = 5 * 60 * 1000;
 export function isRifaDisponivelParaPix(
   dados: Partial<Bilhete>,
   sessaoCheckoutId?: string,
+  vendedorIdEsperado?: string,
 ): boolean {
+  if (vendedorIdEsperado && dados.vendedor_id && dados.vendedor_id !== vendedorIdEsperado) {
+    return false;
+  }
+
   let disponivel = dados.status === "disponivel";
 
   if (!disponivel && dados.data_expiracao) {
@@ -146,10 +152,9 @@ export function normalizarQrCodeMercadoPago(resposta: any): MercadoPagoQrCodeNor
 }
 
 export function mapearStatusCheckoutPix(status: string): CheckoutPixStatus {
-  const s = String(status).toLowerCase();
-  if (["approved", "authorized", "paid"].includes(s)) return "pago";
-  if (["rejected", "cancelled", "canceled", "declined", "cancelado"].includes(s)) return "cancelado";
-
+  const canonico = mapearStatusMercadoPagoParaCanonico(status);
+  if (canonico === "pago") return "pago";
+  if (canonico === "cancelado") return "cancelado";
   return "aguardando_pagamento";
 }
 
@@ -192,14 +197,31 @@ export async function liberarBilhetesNaTransacao(
   statusBanco: string,
   motivo: string | null,
   reterReserva = false,
-  sessaoCheckoutId?: string
+  sessaoCheckoutId?: string,
+  referenciaParaValidar?: string // Optional reference_id from the pagamento
 ) {
   if (!numerosRifas || numerosRifas.length === 0) return;
 
   const refs = numerosRifas.map((numero) => db.collection("bilhetes").doc(numero));
-  await transaction.getAll(...refs);
+  const bilhetesSnaps = await transaction.getAll(...refs);
 
-  refs.forEach((ref) => {
+  bilhetesSnaps.forEach((snap: any) => {
+    if (!snap.exists) return;
+    
+    const bilhete = snap.data();
+    
+    // GUARDA DE POSSE: Se tivermos uma referência para validar, só libera o bilhete
+    // se ele ainda pertencer àquela transação/carrinho original.
+    if (referenciaParaValidar && bilhete.pix_reference_id && bilhete.pix_reference_id !== referenciaParaValidar) {
+      return; // Este bilhete pertence a outro checkout! Não mexa!
+    }
+    
+    // GUARDA ADICIONAL: Nunca sobrescreva um bilhete que já foi "pago" no banco 
+    // ou validado pela tesouraria, a menos que o novo status do banco seja aprovado.
+    if (bilhete.status === "pago" && statusBanco !== "approved" && statusBanco !== "authorized" && statusBanco !== "paid") {
+      return; 
+    }
+
     const atualizacao: any = {
       pix_order_id: FieldValueDelete,
       pix_qr_code_id: FieldValueDelete,
@@ -227,7 +249,7 @@ export async function liberarBilhetesNaTransacao(
       atualizacao.motivo_recusa = motivo || FieldValueDelete;
     }
 
-    transaction.set(ref, atualizacao, { merge: true });
+    transaction.set(snap.ref, atualizacao, { merge: true });
   });
 }
 
@@ -276,6 +298,7 @@ export function montarPagamentoPix(params: {
     copia_e_cola: null,
     qr_code_imagem_url: null,
     qr_code_base64: null,
+    sessao_checkout_id: params.dados.sessaoCheckoutId || null,
     data_criacao: params.agora,
     data_expiracao: params.expiraEm,
     raw_mercadopago: null,

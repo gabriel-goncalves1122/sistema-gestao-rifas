@@ -9,7 +9,12 @@ jest.mock("firebase-admin", () => {
   const deleteMock = jest.fn(() => "DELETE_TOKEN");
   const runTransactionMock = jest.fn();
   const firestoreMock = {
-    collection: jest.fn(() => ({ doc: jest.fn(() => ({ id: "mock_doc" })) })),
+    collection: jest.fn(() => ({ 
+      doc: jest.fn(() => ({ 
+        id: "mock_doc",
+        get: jest.fn().mockResolvedValue({ exists: true, data: () => ({}) })
+      })) 
+    })),
     runTransaction: runTransactionMock,
   };
   return {
@@ -79,9 +84,11 @@ describe("CancelarCheckoutPixService", () => {
       expect.anything(),
       expect.anything(),
       ["001"],
-      "CANCELADO",
+      "cancelled",
       "Cancelado pelo usuário.",
-      false
+      false,
+      undefined,
+      undefined
     );
   });
 
@@ -146,7 +153,7 @@ describe("CancelarCheckoutPixService", () => {
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.anything(), // pagamentoRef
       {
-        status_pagamento_banco: "CANCELADO",
+        status_pagamento_banco: "cancelled",
         erro_criacao: "Cancelado pelo usuário.",
       }
     );
@@ -156,9 +163,11 @@ describe("CancelarCheckoutPixService", () => {
       expect.anything(), // db
       expect.anything(), // FieldValue.delete()
       ["001"],
-      "CANCELADO",
+      "cancelled",
       "Cancelado pelo usuário.",
-      false
+      false,
+      undefined,
+      undefined
     );
 
     expect(MercadoPagoPixClient.cancelarPedidoPix).toHaveBeenCalledWith("order_123");

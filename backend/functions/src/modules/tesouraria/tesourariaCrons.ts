@@ -7,6 +7,8 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 
 import { MercadoPagoPixClient } from "../../shared/services/mercadoPagoPixClient";
 import { liberarBilhetesNaTransacao } from "./helpers/checkoutPixHelper";
+import { aprovarOuRejeitarPixNoFirestore } from "./helpers/checkoutPixWebhookHelper";
+import { mapearStatusMercadoPagoParaCanonico } from "./helpers/statusPagamentoPixHelper";
 import { PagamentoPix } from "../types/models";
 
 /**
@@ -56,11 +58,13 @@ export const limparPixExpirados = onSchedule(
           // 2. Consulta o status real no Mercado Pago para ter 100% de certeza
           const pagamentoMP = await MercadoPagoPixClient.consultarPedido(orderId);
           const statusMP = pagamentoMP?.status || "";
+          const statusCanonico = mapearStatusMercadoPagoParaCanonico(statusMP);
 
-          // Se o banco disser que foi pago/autorizado (ex: approved, authorized), aborta o cancelamento.
-          // O fluxo de webhook atrasado poderá lidar com o sucesso (ou a própria consulta atualizaria).
-          if (["approved", "authorized"].includes(statusMP)) {
-            console.log(`[CRON] Pagamento ${pagamentoId} está pago no MP. Ignorando.`);
+          // Se o banco disser que foi pago/autorizado (ex: approved, authorized), aplicamos o pagamento
+          // usando o mesmo helper do webhook, para não deixá-lo no vácuo se o webhook falhou.
+          if (statusCanonico === "pago") {
+            console.log(`[CRON] Pagamento ${pagamentoId} está pago no MP. Sincronizando aprovação...`);
+            await aprovarOuRejeitarPixNoFirestore(db, pagamentoMP);
             return;
           }
 
@@ -83,15 +87,25 @@ export const limparPixExpirados = onSchedule(
               trPagamento.numeros_rifas || [],
               "cancelled", // Status fictício para liberação
               "Pagamento expirado (limpeza automática por inatividade).",
-              false
+              false,
+              undefined,
+              trPagamento.reference_id
             );
 
-            // 4. Marca como cancelado
+            // 4. Marca como cancelado com status consistente (minúsculo)
             transaction.update(docSnap.ref, {
-              status_pagamento_banco: "CANCELADO",
+              status_pagamento_banco: "cancelled",
               erro_criacao: "Expirado automaticamente (CRON).",
             });
           });
+
+          // 5. Cancela fisicamente o QR Code no Mercado Pago para não permitir pagamento atrasado
+          try {
+            await MercadoPagoPixClient.cancelarPedidoPix(orderId);
+            console.log(`[CRON] Pedido Pix cancelado ativamente na API do Mercado Pago (orderId: ${orderId}).`);
+          } catch (mpError: any) {
+            console.warn(`[CRON] Falha ao cancelar Pedido Pix no Mercado Pago (orderId: ${orderId}). Erro:`, mpError?.message);
+          }
 
           console.log(`[CRON] Pagamento ${pagamentoId} expirado com sucesso e rifas liberadas.`);
         } catch (error: any) {

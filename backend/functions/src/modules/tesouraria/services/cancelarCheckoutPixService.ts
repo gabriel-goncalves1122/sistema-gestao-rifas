@@ -26,6 +26,30 @@ export class CancelarCheckoutPixService {
 
     console.log(`[DEBUG] CancelarCheckoutPixService: Iniciando para pagamentoId=${pagamentoId}`);
 
+    // Pre-check: Consultar MP fora da transação para evitar cancelar algo recém-pago
+    const pagamentoSnap = await pagamentoRef.get();
+    if (!pagamentoSnap.exists) throw new Error("PAGAMENTO_NOT_FOUND");
+    const pag = pagamentoSnap.data() as PagamentoPix;
+
+    if (pag.pix_order_id && ["WAITING", "pending", "CRIANDO"].includes(String(pag.status_pagamento_banco))) {
+      try {
+        const pagamentoMP = await MercadoPagoPixClient.consultarPedido(pag.pix_order_id);
+        const statusMP = pagamentoMP?.status || "";
+        
+        // Use a imported helper ou faça check manual simples
+        if (["approved", "authorized", "paid"].includes(String(statusMP).toLowerCase())) {
+          console.log(`[DEBUG] CancelarCheckoutPixService: Pagamento já estava aprovado no MP! Abortando cancelamento.`);
+          // Sincronizar approval
+          const { aprovarOuRejeitarPixNoFirestore } = require("../helpers/checkoutPixWebhookHelper");
+          await aprovarOuRejeitarPixNoFirestore(db, pagamentoMP);
+          throw new Error("PAGAMENTO_JA_APROVADO");
+        }
+      } catch (err: any) {
+        if (err.message === "PAGAMENTO_JA_APROVADO") throw err;
+        console.warn(`[DEBUG] CancelarCheckoutPixService: Falha ao pre-checar MP. Ignorando e prosseguindo. Erro: ${err.message}`);
+      }
+    }
+
     await db.runTransaction(async (transaction) => {
       console.log(`[DEBUG] CancelarCheckoutPixService: Dentro da transação`);
       const snap = await transaction.get(pagamentoRef);
@@ -77,9 +101,11 @@ export class CancelarCheckoutPixService {
             db,
             FieldValue.delete(),
             pagamento.numeros_rifas || [],
-            String(pagamento.status_pagamento_banco),
+            "cancelled",
             "Cancelado pelo usuário.",
-            false
+            false,
+            undefined,
+            pagamento.reference_id
           );
         }
         return; 
@@ -99,9 +125,11 @@ export class CancelarCheckoutPixService {
         db,
         FieldValue.delete(),
         pagamento.numeros_rifas || [],
-        "CANCELADO",
+        "cancelled",
         "Cancelado pelo usuário.",
-        reterReserva
+        reterReserva,
+        undefined,
+        pagamento.reference_id
       );
 
       console.log(`[DEBUG] CancelarCheckoutPixService: liberarBilhetesNaTransacao concluído com sucesso.`);
@@ -110,7 +138,7 @@ export class CancelarCheckoutPixService {
 
       // Cancela o pagamento (apenas escrita agora)
       transaction.update(pagamentoRef, {
-        status_pagamento_banco: "CANCELADO",
+        status_pagamento_banco: "cancelled",
         erro_criacao: "Cancelado pelo usuário.",
       });
 

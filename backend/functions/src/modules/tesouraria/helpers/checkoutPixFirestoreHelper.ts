@@ -13,7 +13,8 @@ export function erroMensagem(error: unknown) {
 export async function verificarDisponibilidadeRifasPix(
   db: admin.firestore.Firestore,
   numeros: string[],
-  sessaoCheckoutId?: string
+  sessaoCheckoutId?: string,
+  vendedorIdEsperado?: string
 ): Promise<void> {
   for (const numero of numeros) {
     const ref = db.collection("bilhetes").doc(numero);
@@ -24,7 +25,7 @@ export async function verificarDisponibilidadeRifasPix(
     }
 
     const dados = snap.data() as Bilhete;
-    const disponivel = isRifaDisponivelParaPix(dados, sessaoCheckoutId);
+    const disponivel = isRifaDisponivelParaPix(dados, sessaoCheckoutId, vendedorIdEsperado);
 
     if (!disponivel) {
       throw new Error("RIFA_INDISPONIVEL");
@@ -167,6 +168,10 @@ export async function persistirPedidoMercadoPagoNoFirestore(params: {
 
     const expiraEm = params.qrCode.expiraEm || params.expiraEmFallback;
 
+    const pagamento = pagamentoSnap.data() as PagamentoPix;
+    const isJaResolvido = pagamento.status_pagamento_banco !== "CRIANDO" && pagamento.status_pagamento_banco !== "WAITING";
+    const statusBancoParaSalvar = isJaResolvido ? pagamento.status_pagamento_banco : "WAITING";
+
     transaction.set(
       params.pagamentoRef,
       {
@@ -176,23 +181,36 @@ export async function persistirPedidoMercadoPagoNoFirestore(params: {
         qr_code_imagem_url: params.qrCode.qrCodeImagemUrl || null,
         qr_code_base64: params.qrCode.qrCodeBase64 || null,
         data_expiracao: expiraEm,
-        status_pagamento_banco: "WAITING",
+        status_pagamento_banco: statusBancoParaSalvar,
         raw_mercadopago: params.respostaMercadoPago,
       },
       { merge: true },
     );
 
     params.numerosRifas.forEach((numero) => {
-      transaction.set(
-        params.db.collection("bilhetes").doc(numero),
-        {
-          pix_order_id: params.orderId,
-          pix_qr_code_id: params.qrCode.id,
-          data_expiracao: expiraEm,
-          status_pagamento_banco: "WAITING",
-        },
-        { merge: true },
-      );
+      // Se o status já foi resolvido, o webhook já deve ter alterado o bilhete de acordo (pra pendente ou disponível).
+      // Apenas gravamos a orderId e o qrCode. Se não foi resolvido, garantimos o WAITING no bilhete.
+      if (!isJaResolvido) {
+        transaction.set(
+          params.db.collection("bilhetes").doc(numero),
+          {
+            pix_order_id: params.orderId,
+            pix_qr_code_id: params.qrCode.id,
+            data_expiracao: expiraEm,
+            status_pagamento_banco: "WAITING",
+          },
+          { merge: true },
+        );
+      } else {
+        transaction.set(
+          params.db.collection("bilhetes").doc(numero),
+          {
+            pix_order_id: params.orderId,
+            pix_qr_code_id: params.qrCode.id,
+          },
+          { merge: true },
+        );
+      }
     });
   });
 }

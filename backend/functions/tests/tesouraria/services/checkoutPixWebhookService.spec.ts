@@ -32,6 +32,7 @@ function makeRef(collectionName: CollectionName, id: string): MockRef {
     get: async () => ({
       exists: store.has(id),
       data: () => store.get(id),
+      ref: makeRef(collectionName, id),
     }),
     set: async (data: any, options?: { merge?: boolean }) => {
       const atual = store.get(id) || {};

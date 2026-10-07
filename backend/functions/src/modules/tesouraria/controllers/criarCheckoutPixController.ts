@@ -24,6 +24,10 @@ export async function criarCheckoutPix(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: "Dados incompletos para Pix." });
     }
 
+    if (error.message === "MERCADOPAGO_DOCUMENTO_INVALIDO") {
+      return res.status(400).json({ error: "O CPF ou CNPJ informado é inválido." });
+    }
+
     if (error.message === "USER_NOT_FOUND") {
       return res
         .status(404)

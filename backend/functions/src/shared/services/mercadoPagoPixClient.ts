@@ -20,6 +20,7 @@ export interface MercadoPagoPaymentResponse {
   id: number | string;
   status: string;
   status_detail?: string;
+  external_reference?: string;
   date_of_expiration?: string;
   date_approved?: string;
   last_updated?: string;
@@ -90,15 +91,26 @@ export class MercadoPagoPixClient {
 
     const idempotencyKey = randomUUID();
 
-    const resposta = await axios.post("https://api.mercadopago.com/v1/payments", payload, {
-      headers: {
-        Authorization: `Bearer ${obterTokenApi()}`,
-        "X-Idempotency-Key": idempotencyKey,
-        "Content-Type": "application/json",
-      },
-    });
+    try {
+      const resposta = await axios.post("https://api.mercadopago.com/v1/payments", payload, {
+        headers: {
+          Authorization: `Bearer ${obterTokenApi()}`,
+          "X-Idempotency-Key": idempotencyKey,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
 
-    return resposta.data;
+      return resposta.data;
+    } catch (error: any) {
+      if (
+        error.response?.status === 400 &&
+        error.response?.data?.message === "Invalid user identification number"
+      ) {
+        throw new Error("MERCADOPAGO_DOCUMENTO_INVALIDO");
+      }
+      throw error;
+    }
   }
 
   static async consultarPedido(orderId: string): Promise<MercadoPagoPaymentResponse | null> {
@@ -108,6 +120,7 @@ export class MercadoPagoPixClient {
           Authorization: `Bearer ${obterTokenApi()}`,
           "Content-Type": "application/json",
         },
+        timeout: 10000,
       });
 
       return resposta.data;
@@ -129,6 +142,7 @@ export class MercadoPagoPixClient {
             Authorization: `Bearer ${obterTokenApi()}`,
             "Content-Type": "application/json",
           },
+          timeout: 10000,
         }
       );
       return resposta.data;

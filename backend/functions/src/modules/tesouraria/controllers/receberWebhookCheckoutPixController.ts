@@ -14,6 +14,8 @@ export async function receberWebhookCheckoutPix(
   res: Response,
 ) {
   try {
+    // Debug logs removidos para produção
+
     const mergedPayload = { ...req.query, ...req.body };
     // Suporte para quando 'data.id' vem parseado como string literal no query params (Express)
     if (req.query?.["data.id"]) {

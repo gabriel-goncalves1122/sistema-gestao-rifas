@@ -53,7 +53,7 @@ export class CriarCheckoutPixService {
     if (pagamentoAtivo) return montarRespostaPagamentoPix(pagamentoAtivo);
 
     // Pre-check rápido fora da transação
-    await verificarDisponibilidadeRifasPix(db, dados.numerosRifas, payload.sessaoCheckoutId);
+    await verificarDisponibilidadeRifasPix(db, dados.numerosRifas, payload.sessaoCheckoutId, contextoAderido.idAderido);
 
     const agora = new Date().toISOString();
     const valorBruto = calcularValorPixReais(dados.numerosRifas);
@@ -96,7 +96,7 @@ export class CriarCheckoutPixService {
         const snap = await transaction.get(ref);
         if (!snap.exists) throw new Error("RIFA_NOT_FOUND");
         const data = snap.data() as Bilhete;
-        const disponivel = isRifaDisponivelParaPix(data, payload.sessaoCheckoutId);
+        const disponivel = isRifaDisponivelParaPix(data, payload.sessaoCheckoutId, contextoAderido.idAderido);
 
         if (!disponivel) throw new Error("RIFA_INDISPONIVEL");
       }
