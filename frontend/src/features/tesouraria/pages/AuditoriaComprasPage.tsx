@@ -10,6 +10,7 @@ import { AuditoriaComprasEmptyState } from "../components/auditoriaCompras/share
 import { AuditoriaComprasFiltros } from "../components/auditoriaCompras/shared/AuditoriaComprasFiltros";
 import { AuditoriaComprasHeader } from "../components/auditoriaCompras/shared/AuditoriaComprasHeader";
 import { AuditoriaComprasResumo } from "../components/auditoriaCompras/shared/AuditoriaComprasResumo";
+import { AuditoriaCompraRecusaDialog } from "../components/auditoriaCompras/shared/AuditoriaCompraRecusaDialog";
 import { useAuditoriaComprasController } from "../hooks/useAuditoriaComprasController";
 import { useTesourariaLayout } from "../hooks/useTesourariaLayout";
 
@@ -41,6 +42,14 @@ export function AuditoriaComprasPage() {
     salvarEdicaoComprador,
     reenviarEmailComprovante,
     fecharFeedbackEmailComprovante,
+    processandoAcaoId,
+    feedbackAcao,
+    fecharFeedbackAcao,
+    aceitarCompraManual,
+    negarCompraManual,
+    compraRecusa,
+    abrirRecusa,
+    fecharRecusa,
   } = useAuditoriaComprasController();
 
   if (carregando) {
@@ -74,6 +83,9 @@ export function AuditoriaComprasPage() {
           onVerDetalhes={abrirDetalhes}
           onReenviarEmailComprovante={reenviarEmailComprovante}
           reenviandoEmailComprovanteId={reenviandoEmailComprovanteId}
+          onAceitar={aceitarCompraManual}
+          onNegar={abrirRecusa}
+          processandoAcaoId={processandoAcaoId}
         />
       ) : (
         <AuditoriaComprasTable
@@ -83,6 +95,9 @@ export function AuditoriaComprasPage() {
           onVerDetalhes={abrirDetalhes}
           onReenviarEmailComprovante={reenviarEmailComprovante}
           reenviandoEmailComprovanteId={reenviandoEmailComprovanteId}
+          onAceitar={aceitarCompraManual}
+          onNegar={abrirRecusa}
+          processandoAcaoId={processandoAcaoId}
         />
       )}
 
@@ -96,6 +111,12 @@ export function AuditoriaComprasPage() {
         erro={erroEdicao}
         onClose={fecharEdicao}
         onSalvar={salvarEdicaoComprador}
+      />
+      <AuditoriaCompraRecusaDialog
+        compra={compraRecusa}
+        salvando={Boolean(processandoAcaoId)}
+        onClose={fecharRecusa}
+        onConfirmar={negarCompraManual}
       />
       <ModalImagemPix url={comprovanteUrl} onClose={fecharComprovante} />
       <Snackbar
@@ -112,6 +133,24 @@ export function AuditoriaComprasPage() {
             sx={{ borderRadius: 2, fontWeight: 850 }}
           >
             {feedbackEmailComprovante.mensagem}
+          </Alert>
+        ) : undefined}
+      </Snackbar>
+
+      <Snackbar
+        open={Boolean(feedbackAcao)}
+        autoHideDuration={3600}
+        onClose={fecharFeedbackAcao}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        {feedbackAcao ? (
+          <Alert
+            severity={feedbackAcao.tipo}
+            variant="filled"
+            onClose={fecharFeedbackAcao}
+            sx={{ borderRadius: 2, fontWeight: 850 }}
+          >
+            {feedbackAcao.mensagem}
           </Alert>
         ) : undefined}
       </Snackbar>

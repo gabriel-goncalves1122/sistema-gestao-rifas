@@ -1,3 +1,4 @@
+// Deploy force: 12345
 rules_version = '2';
 
 service cloud.firestore {
@@ -75,20 +76,10 @@ service cloud.firestore {
     // 5. PAGAMENTOS PIX (Para checkout em tempo real)
     // ========================================================================
     match /pagamentos_pix/{pagamentoId} {
-      // 1. Snapshot inicial (documento não existe ainda)
-      allow read: if request.auth != null && resource == null;
-      
-      // 2. Aderido criador
-      allow read: if request.auth != null && resource != null 
-                  && 'vendedor_id' in resource.data 
-                  && resource.data.vendedor_id == request.auth.uid;
-      
-      // 3. Admin mapeado
-      allow read: if request.auth != null && resource != null 
-                  && 'vendedor_id' in resource.data
-                  && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) 
-                  && 'id_aderido' in get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data
-                  && resource.data.vendedor_id == get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.id_aderido;
+      // 1. Snapshot inicial e Membros da Comissão
+      // Todos os usuários autenticados (Aderidos, Membros, Admins) podem ler 
+      // o status dos pagamentos pix. Somente a comissão possui contas no sistema.
+      allow read: if request.auth != null;
       
       allow write: if false;
     }

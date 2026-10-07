@@ -29,6 +29,10 @@ jest.mock("../../../src/modules/tesouraria/tesourariaController", () => ({
       res.status(200).json({ acao: "aceitar_pix_transacao" }),
     negarPixTransacao: (_req: any, res: any) =>
       res.status(200).json({ acao: "negar_pix_transacao" }),
+    aceitarCompraManual: (_req: any, res: any) =>
+      res.status(200).json({ acao: "aceitar_compra_manual" }),
+    negarCompraManual: (_req: any, res: any) =>
+      res.status(200).json({ acao: "negar_compra_manual" }),
   },
 }));
 

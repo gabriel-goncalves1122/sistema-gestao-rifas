@@ -23,11 +23,7 @@ export function useAuditoriaComprasData() {
   const queryHistorico = useQuery({
     queryKey: ["tesouraria", "auditoria-historico"],
     queryFn: async () => {
-      try {
-        return await auditoriaComprasService.buscarHistoricoDetalhado();
-      } catch {
-        return [];
-      }
+      return await auditoriaComprasService.buscarHistoricoDetalhado();
     },
     staleTime: QUERY_STALE_TIME,
     gcTime: 600_000,
@@ -87,5 +83,6 @@ export function useAuditoriaComprasData() {
     resumo,
     baixarCSV,
     carregarHistorico,
+    erro: queryHistorico.error,
   };
 }

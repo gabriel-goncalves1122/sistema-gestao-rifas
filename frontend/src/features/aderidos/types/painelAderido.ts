@@ -31,6 +31,8 @@ export interface RifaAderido {
 
   comprovante_url?: string | null;
   motivo_recusa?: string | null;
+  pix_order_id?: string | null;
+  comprador_id?: string | null;
 }
 
 export type NotificacaoAderido = NotificacaoRifa;

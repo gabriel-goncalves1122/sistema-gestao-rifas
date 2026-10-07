@@ -10,6 +10,7 @@ const mockUsuariosGet = jest.fn<any>();
 
 const bilhetesCollectionMock = {
   where: mockBilhetesWhere.mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
   get: mockBilhetesGet,
 };
 
@@ -35,6 +36,7 @@ jest.mock("firebase-admin", () => ({
 
       return {
         where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         get: jest.fn().mockResolvedValue({ docs: [] }),
       };
     }),

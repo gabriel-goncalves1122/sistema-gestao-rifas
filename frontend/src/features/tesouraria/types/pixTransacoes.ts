@@ -5,13 +5,15 @@ export type StatusPagamentoPix =
   | "AUTHORIZED"
   | "IN_ANALYSIS"
   | "DECLINED"
-  | "CANCELED";
+  | "CANCELED"
+  | "ERROR";
 
-export type StatusValidacaoPix =
+export type StatusValidacaoPix = "aceita" | "negada";
+
+export type StatusValidacaoUI =
+  | StatusValidacaoPix
   | "sem_confirmacao_bancaria"
-  | "pendente_validacao"
-  | "aceita"
-  | "negada";
+  | "pendente_validacao";
 
 export interface AderidoResumoTransacao {
   id?: string;
@@ -69,13 +71,26 @@ export interface PixTransacoesResumo {
   totalRecebido: number;
   totalPendente: number;
   totalCancelado: number;
+  totalErros: number;
 
   quantidadePagas: number;
   quantidadeAguardando: number;
   quantidadeCanceladas: number;
-  quantidadeComRifas: number;
+  quantidadeErros: number;
+  totalTransacoes: number;
 
   ticketMedio: number;
+}
+
+export interface PixTransacoesResumoUI extends PixTransacoesResumo {
+  quantidadeAguardandoValidacao?: number;
+  quantidadeAceitas?: number;
+  quantidadeNegadas?: number;
+  quantidadeSemConfirmacaoBancaria?: number;
+  quantidadeComRifas?: number;
+  quantidadeSemVinculo?: number;
+  totalDivergente?: number;
+  quantidadeNaoIdentificadas?: number;
 }
 
 export interface PixTransacoesSerieTemporal {

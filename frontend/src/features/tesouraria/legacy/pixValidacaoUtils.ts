@@ -1,7 +1,8 @@
 import {
   PixTransacao,
   PixTransacoesResumo,
-  StatusValidacaoPix,
+  PixTransacoesResumoUI,
+  StatusValidacaoUI,
 } from "../types/pixTransacoes";
 
 interface PixValidacaoVisual {
@@ -13,7 +14,7 @@ interface PixValidacaoVisual {
 }
 
 export const PIX_VALIDACAO_VISUAL: Record<
-  StatusValidacaoPix,
+  StatusValidacaoUI,
   PixValidacaoVisual
 > = {
   sem_confirmacao_bancaria: {
@@ -96,9 +97,9 @@ export function pixPagamentoConfirmadoBanco(transacao: PixTransacao) {
   );
 }
 
-export function obterStatusValidacaoPix(
+export function obterStatusValidacaoUI(
   transacao: PixTransacao,
-): StatusValidacaoPix {
+): StatusValidacaoUI {
   if (!pixPagamentoConfirmadoBanco(transacao)) {
     return "sem_confirmacao_bancaria";
   }
@@ -110,12 +111,12 @@ export function obterStatusValidacaoPix(
   return "pendente_validacao";
 }
 
-export function obterVisualStatusValidacaoPix(status: StatusValidacaoPix) {
+export function obterVisualStatusValidacaoUI(status: StatusValidacaoUI) {
   return PIX_VALIDACAO_VISUAL[status];
 }
 
 export function obterMensagemBloqueioValidacaoPix(transacao: PixTransacao) {
-  const status = obterStatusValidacaoPix(transacao);
+  const status = obterStatusValidacaoUI(transacao);
 
   if (!pixPagamentoConfirmadoBanco(transacao)) {
     return "Aguardando confirmação bancária do Pix.";
@@ -139,13 +140,13 @@ export function obterMensagemBloqueioValidacaoPix(transacao: PixTransacao) {
 export function podeValidarPixTransacao(transacao: PixTransacao) {
   return (
     pixPagamentoConfirmadoBanco(transacao) &&
-    obterStatusValidacaoPix(transacao) === "pendente_validacao"
+    obterStatusValidacaoUI(transacao) === "pendente_validacao"
   );
 }
 
 export function obterAuditoriaValidacaoPix(transacao: PixTransacao) {
-  const status = obterStatusValidacaoPix(transacao);
-  const visual = obterVisualStatusValidacaoPix(status);
+  const status = obterStatusValidacaoUI(transacao);
+  const visual = obterVisualStatusValidacaoUI(status);
   const pagamentoConfirmadoBanco = pixPagamentoConfirmadoBanco(transacao);
   const podeValidar = podeValidarPixTransacao(transacao);
   const mensagemBloqueio = obterMensagemBloqueioValidacaoPix(transacao);
@@ -164,7 +165,7 @@ export function obterAuditoriaValidacaoPix(transacao: PixTransacao) {
 export function calcularResumoValidacaoPix(transacoes: PixTransacao[]) {
   return transacoes.reduce(
     (acc, transacao) => {
-      const status = obterStatusValidacaoPix(transacao);
+      const status = obterStatusValidacaoUI(transacao);
 
       if (status === "pendente_validacao") {
         acc.quantidadeAguardandoValidacao += 1;
@@ -206,7 +207,7 @@ export function calcularResumoValidacaoPix(transacoes: PixTransacao[]) {
 export function aplicarResumoValidacaoPix(
   resumo: PixTransacoesResumo,
   transacoes: PixTransacao[],
-): PixTransacoesResumo {
+): PixTransacoesResumoUI {
   return {
     ...resumo,
     ...calcularResumoValidacaoPix(transacoes),

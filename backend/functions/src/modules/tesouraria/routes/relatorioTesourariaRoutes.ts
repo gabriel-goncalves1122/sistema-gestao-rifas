@@ -46,4 +46,18 @@ relatorioTesourariaRoutes.post(
   tesourariaController.notificarCorrecaoDados,
 );
 
+relatorioTesourariaRoutes.post(
+  "/historico/compras/:chave/aceitar",
+  validateToken,
+  requireTesourariaOrAdmin,
+  tesourariaController.aceitarCompraManual,
+);
+
+relatorioTesourariaRoutes.post(
+  "/historico/compras/:chave/negar",
+  validateToken,
+  requireTesourariaOrAdmin,
+  tesourariaController.negarCompraManual,
+);
+
 export default relatorioTesourariaRoutes;

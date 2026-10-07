@@ -38,7 +38,7 @@ export function useAuditoriaComprasMutations(
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tesouraria", "auditoria-historico"] });
-      queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix-transacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] });
     }
   });
 

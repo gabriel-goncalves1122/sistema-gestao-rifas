@@ -72,4 +72,19 @@ export const auditoriaComprasService = {
       envio: ResultadoReenvioEmailComprovanteAuditoria;
     }>;
   },
+
+  async aceitarCompra(chave: string) {
+    return fetchAPI(
+      `/tesouraria/historico/compras/${encodeURIComponent(chave)}/aceitar`,
+      "POST",
+    );
+  },
+
+  async negarCompra(chave: string, motivo: string) {
+    return fetchAPI(
+      `/tesouraria/historico/compras/${encodeURIComponent(chave)}/negar`,
+      "POST",
+      { motivo },
+    );
+  },
 };

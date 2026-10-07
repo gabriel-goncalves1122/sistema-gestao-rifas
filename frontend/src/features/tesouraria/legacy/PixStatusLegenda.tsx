@@ -3,13 +3,13 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { Box, Chip, IconButton, Popover, Stack, Typography, Tooltip } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
-import { StatusValidacaoPix } from "@/types/pixTransacoes";
+import { StatusValidacaoUI } from "@/types/pixTransacoes";
 import {
   PIX_VALIDACAO_VISUAL,
-  obterVisualStatusValidacaoPix,
+  obterVisualStatusValidacaoUI,
 } from "./pixValidacaoUtils";
 
-const STATUS_LEGENDA: StatusValidacaoPix[] = [
+const STATUS_LEGENDA: StatusValidacaoUI[] = [
   "pendente_validacao",
   "aceita",
   "negada",
@@ -68,7 +68,7 @@ export function PixStatusLegenda() {
         </Typography>
         <Stack spacing={1}>
           {STATUS_LEGENDA.map((status) => {
-            const visual = obterVisualStatusValidacaoPix(status);
+            const visual = obterVisualStatusValidacaoUI(status);
 
             return (
               <Chip

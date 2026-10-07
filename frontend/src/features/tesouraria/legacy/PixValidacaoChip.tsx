@@ -2,8 +2,8 @@ import { Chip } from "@mui/material";
 
 import { PixTransacao } from "../../../../types/pixTransacoes";
 import {
-  obterStatusValidacaoPix,
-  obterVisualStatusValidacaoPix,
+  obterStatusValidacaoUI,
+  obterVisualStatusValidacaoUI,
 } from "../../../../utils/pixValidacaoUtils";
 
 interface PixValidacaoChipProps {
@@ -11,8 +11,8 @@ interface PixValidacaoChipProps {
 }
 
 export function PixValidacaoChip({ transacao }: PixValidacaoChipProps) {
-  const status = obterStatusValidacaoPix(transacao);
-  const visual = obterVisualStatusValidacaoPix(status);
+  const status = obterStatusValidacaoUI(transacao);
+  const visual = obterVisualStatusValidacaoUI(status);
 
   return (
     <Chip

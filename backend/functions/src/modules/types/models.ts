@@ -179,6 +179,7 @@ export interface PagamentoPix {
   copia_e_cola?: string | null;
   qr_code_imagem_url?: string | null;
   qr_code_base64?: string | null;
+  sessao_checkout_id?: string | null;
   data_criacao: string;
   data_pagamento?: string | null;
   data_expiracao?: string | null;
@@ -188,6 +189,8 @@ export interface PagamentoPix {
   raw_mercadopago?: Record<string, unknown> | null;
   idempotency_key?: string | null;
   erro_criacao?: string | null;
+  necessita_reembolso?: boolean;
+  observacao_reembolso?: string | null;
 }
 
 // ----------------------------------------------------------------------------

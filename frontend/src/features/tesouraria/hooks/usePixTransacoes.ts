@@ -101,6 +101,7 @@ export function usePixTransacoes() {
 
       try {
         await pixTransacoesService.aceitarTransacao(transacaoId);
+        queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
       } catch (error) {
         queryClient.setQueryData(["tesouraria", "pix"], previousData);
         console.error("Erro ao aceitar transação:", error);
@@ -121,6 +122,7 @@ export function usePixTransacoes() {
 
       try {
         await pixTransacoesService.negarTransacao(transacaoId, motivo);
+        queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
       } catch (error) {
         queryClient.setQueryData(["tesouraria", "pix"], previousData);
         console.error("Erro ao negar transação:", error);

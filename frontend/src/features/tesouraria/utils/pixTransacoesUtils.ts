@@ -10,6 +10,7 @@ import {
   PixTransacoesSerieTemporal,
   StatusPagamentoPix,
   StatusValidacaoPix,
+  StatusValidacaoUI,
 } from "../types/pixTransacoes";
 
 export function pixTransacaoTemRifas(transacao: PixTransacao) {
@@ -20,7 +21,7 @@ export function pixPagamentoConfirmadoBanco(transacao: PixTransacao) {
   return ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento);
 }
 
-export function obterStatusValidacaoPix(transacao: PixTransacao): StatusValidacaoPix {
+export function obterStatusValidacaoPix(transacao: PixTransacao): StatusValidacaoUI {
   if (!pixPagamentoConfirmadoBanco(transacao)) {
     return "sem_confirmacao_bancaria";
   }
@@ -45,10 +46,12 @@ export const RESUMO_PIX_TRANSACOES_VAZIO: PixTransacoesResumo = {
   totalRecebido: 0,
   totalPendente: 0,
   totalCancelado: 0,
+  totalErros: 0,
   quantidadePagas: 0,
   quantidadeAguardando: 0,
   quantidadeCanceladas: 0,
-  quantidadeComRifas: 0,
+  quantidadeErros: 0,
+  totalTransacoes: 0,
   ticketMedio: 0,
 };
 
@@ -112,7 +115,9 @@ export function calcularResumoPixTransacoes(
     (transacao) => transacao.statusPagamento === "CANCELED",
   );
 
-  const comRifas = transacoes.filter(pixTransacaoTemRifas);
+  const erros = transacoes.filter(
+    (transacao) => transacao.statusPagamento === "ERROR",
+  );
 
   const totalRecebido = pagas.reduce(
     (acc, transacao) => acc + transacao.valorPago,
@@ -129,14 +134,21 @@ export function calcularResumoPixTransacoes(
     0,
   );
 
+  const totalErros = erros.reduce(
+    (acc, transacao) => acc + transacao.valorBruto,
+    0,
+  );
+
   return {
     totalRecebido,
     totalPendente,
     totalCancelado,
+    totalErros,
     quantidadePagas: pagas.length,
     quantidadeAguardando: aguardando.length,
     quantidadeCanceladas: canceladas.length,
-    quantidadeComRifas: comRifas.length,
+    quantidadeErros: erros.length,
+    totalTransacoes: transacoes.length,
     ticketMedio: pagas.length > 0 ? totalRecebido / pagas.length : 0,
   };
 }

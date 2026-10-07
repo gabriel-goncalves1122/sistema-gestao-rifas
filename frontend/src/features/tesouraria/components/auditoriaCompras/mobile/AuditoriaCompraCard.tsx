@@ -19,6 +19,9 @@ interface AuditoriaComprasCardProps {
   onVerDetalhes: (compra: TransacaoTesouraria) => void;
   onReenviarEmailComprovante: (compra: TransacaoTesouraria) => void;
   reenviandoEmailComprovante?: boolean;
+  onAceitar?: (compra: TransacaoTesouraria) => void;
+  onNegar?: (compra: TransacaoTesouraria) => void;
+  processandoAcaoId?: string | null;
 }
 
 export function AuditoriaCompraCard({
@@ -28,6 +31,9 @@ export function AuditoriaCompraCard({
   onVerDetalhes,
   onReenviarEmailComprovante,
   reenviandoEmailComprovante = false,
+  onAceitar,
+  onNegar,
+  processandoAcaoId,
 }: AuditoriaComprasCardProps) {
   return (
     <Paper
@@ -125,6 +131,9 @@ export function AuditoriaCompraCard({
             onVerDetalhes={onVerDetalhes}
             onReenviarEmailComprovante={onReenviarEmailComprovante}
             reenviandoEmailComprovante={reenviandoEmailComprovante}
+            onAceitar={onAceitar}
+            onNegar={onNegar}
+            processandoAcaoId={processandoAcaoId}
           />
         </Stack>
       </Stack>

@@ -1,3 +1,5 @@
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
@@ -15,6 +17,9 @@ interface AuditoriaCompraActionsProps {
   onVerDetalhes: (compra: TransacaoTesouraria) => void;
   onReenviarEmailComprovante: (compra: TransacaoTesouraria) => void;
   reenviandoEmailComprovante?: boolean;
+  onAceitar?: (compra: TransacaoTesouraria) => void;
+  onNegar?: (compra: TransacaoTesouraria) => void;
+  processandoAcaoId?: string | null;
 }
 
 function ActionIcon({
@@ -62,6 +67,9 @@ export function AuditoriaCompraActions({
   onVerDetalhes,
   onReenviarEmailComprovante,
   reenviandoEmailComprovante = false,
+  onAceitar,
+  onNegar,
+  processandoAcaoId = null,
 }: AuditoriaCompraActionsProps) {
   const compraPaga = normalizarTexto(compra.status) === "pago";
   const possuiCompradorId = Boolean(compra.compradorId);
@@ -131,6 +139,44 @@ export function AuditoriaCompraActions({
           onVerDetalhes(compra);
         }}
       />
+
+      {onAceitar && (compra.status === "pendente" || compra.status === "reservado") && (
+        <ActionIcon
+          tooltip="Aprovar compra"
+          label="Aprovar compra"
+          disabled={processandoAcaoId === compra.id}
+          icon={
+            processandoAcaoId === compra.id ? (
+              <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+            ) : (
+              <CheckCircleOutlinedIcon fontSize="small" />
+            )
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            onAceitar(compra);
+          }}
+        />
+      )}
+
+      {onNegar && (compra.status === "pendente" || compra.status === "reservado" || compra.status === "pago") && (
+        <ActionIcon
+          tooltip="Recusar compra"
+          label="Recusar compra"
+          disabled={processandoAcaoId === compra.id}
+          icon={
+            processandoAcaoId === compra.id ? (
+              <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+            ) : (
+              <CancelOutlinedIcon fontSize="small" />
+            )
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            onNegar(compra);
+          }}
+        />
+      )}
     </Stack>
   );
 }

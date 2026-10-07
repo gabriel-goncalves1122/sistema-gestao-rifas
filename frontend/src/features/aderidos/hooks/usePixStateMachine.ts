@@ -55,12 +55,15 @@ export function usePixStateMachine({
     checkoutStorage.update({ cobrancaPix });
   }, [cobrancaPix]);
 
-  const resetarFluxo = useCallback(() => {
+  const resetarFluxo = useCallback((limparSessao: boolean = false) => {
     setCobrancaPix(null);
     setErro(null);
     setStatus("idle");
     setCancelando(false);
     checkoutStorage.update({ cobrancaPix: null });
+    if (limparSessao) {
+      checkoutStorage.update({ sessaoCheckoutId: null });
+    }
   }, []);
 
   // POLLING REALTIME COM FIRESTORE
@@ -158,16 +161,17 @@ export function usePixStateMachine({
     try {
       await checkoutPixService.cancelarCobrancaPix(cobrancaPix.id, reterReserva);
       if (isMounted.current) {
-        resetarFluxo();
+        resetarFluxo(true);
       }
       invalidarDadosPainel?.();
     } catch (error: any) {
       if (!isMounted.current) return;
       
-      const isJaAprovado = error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") || error?.message?.includes("approved");
+      const isJaAprovado = error?.message?.includes("PAGAMENTO_JA_APROVADO") || error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") || error?.message?.includes("approved");
       
       if (isJaAprovado) {
-        resetarFluxo();
+        setStatus("sucesso");
+        setCobrancaPix(prev => prev ? { ...prev, status: "pago" } : null);
         invalidarDadosPainel?.();
         return;
       }
@@ -184,14 +188,14 @@ export function usePixStateMachine({
   const liberarReservaTotal = useCallback(async () => {
     if (cobrancaPix && cobrancaPix.status !== "sucesso") {
       const idParaCancelar = cobrancaPix.id;
-      resetarFluxo();
+      resetarFluxo(true);
       try {
         await checkoutPixService.cancelarCobrancaPix(idParaCancelar, false);
       } catch (error) {
         console.error("Erro ao liberar reserva completa:", error);
       }
     } else {
-      resetarFluxo();
+      resetarFluxo(true);
     }
     invalidarDadosPainel?.();
   }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);

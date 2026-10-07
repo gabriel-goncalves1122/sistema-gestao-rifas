@@ -23,6 +23,12 @@ export function useAuditoriaComprasAcoes(
     mensagem: string;
   } | null>(null);
 
+  const [processandoAcaoId, setProcessandoAcaoId] = useState<string | null>(null);
+  const [feedbackAcao, setFeedbackAcao] = useState<{
+    tipo: "success" | "error";
+    mensagem: string;
+  } | null>(null);
+
   const salvarEdicaoComprador = useCallback(
     async (compraEdicao: TransacaoTesouraria | null, dados: DadosEdicaoComprador) => {
       if (!compraEdicao?.compradorId) {
@@ -111,6 +117,38 @@ export function useAuditoriaComprasAcoes(
     }
   }, []);
 
+  const aceitarCompraManual = useCallback(async (compra: TransacaoTesouraria) => {
+    setProcessandoAcaoId(compra.id);
+    setFeedbackAcao(null);
+    try {
+      await auditoriaComprasService.aceitarCompra(compra.id);
+      setFeedbackAcao({ tipo: "success", mensagem: "Compra aceita com sucesso!" });
+      await carregarHistorico();
+      return true;
+    } catch (error: any) {
+      setFeedbackAcao({ tipo: "error", mensagem: error?.message || "Erro ao aceitar compra." });
+      return false;
+    } finally {
+      setProcessandoAcaoId(null);
+    }
+  }, [carregarHistorico]);
+
+  const negarCompraManual = useCallback(async (compra: TransacaoTesouraria, motivo: string) => {
+    setProcessandoAcaoId(compra.id);
+    setFeedbackAcao(null);
+    try {
+      await auditoriaComprasService.negarCompra(compra.id, motivo);
+      setFeedbackAcao({ tipo: "success", mensagem: "Compra recusada com sucesso!" });
+      await carregarHistorico();
+      return true;
+    } catch (error: any) {
+      setFeedbackAcao({ tipo: "error", mensagem: error?.message || "Erro ao recusar compra." });
+      return false;
+    } finally {
+      setProcessandoAcaoId(null);
+    }
+  }, [carregarHistorico]);
+
   return {
     salvandoEdicao,
     erroEdicao,
@@ -120,5 +158,10 @@ export function useAuditoriaComprasAcoes(
     setFeedbackEmailComprovante,
     salvarEdicaoComprador,
     reenviarEmailComprovante,
+    processandoAcaoId,
+    feedbackAcao,
+    setFeedbackAcao,
+    aceitarCompraManual,
+    negarCompraManual,
   };
 }

@@ -7,12 +7,7 @@ import {
 } from "../types/pixTransacoes";
 import { RESUMO_PIX_TRANSACOES_VAZIO } from "../utils/pixTransacoesUtils";
 
-const STATUS_VALIDACAO_PIX: StatusValidacaoPix[] = [
-  "sem_confirmacao_bancaria",
-  "pendente_validacao",
-  "aceita",
-  "negada",
-];
+const STATUS_VALIDACAO_PIX: StatusValidacaoPix[] = ["aceita", "negada"];
 
 function valorNumericoSeguro(valor: unknown) {
   return typeof valor === "number" && Number.isFinite(valor) ? valor : 0;
@@ -71,23 +66,12 @@ function normalizarResumo(resposta: unknown): PixTransacoesResumo {
     totalRecebido: valorNumericoSeguro(resumo.totalRecebido),
     totalPendente: valorNumericoSeguro(resumo.totalPendente),
     totalCancelado: valorNumericoSeguro(resumo.totalCancelado),
-    totalDivergente: valorNumericoSeguro(resumo.totalDivergente),
+    totalErros: valorNumericoSeguro(resumo.totalErros),
     quantidadePagas: valorNumericoSeguro(resumo.quantidadePagas),
     quantidadeAguardando: valorNumericoSeguro(resumo.quantidadeAguardando),
     quantidadeCanceladas: valorNumericoSeguro(resumo.quantidadeCanceladas),
-    quantidadeNaoIdentificadas: valorNumericoSeguro(
-      resumo.quantidadeNaoIdentificadas,
-    ),
-    quantidadeAguardandoValidacao: valorNumericoSeguro(
-      resumo.quantidadeAguardandoValidacao,
-    ),
-    quantidadeAceitas: valorNumericoSeguro(resumo.quantidadeAceitas),
-    quantidadeNegadas: valorNumericoSeguro(resumo.quantidadeNegadas),
-    quantidadeSemConfirmacaoBancaria: valorNumericoSeguro(
-      resumo.quantidadeSemConfirmacaoBancaria,
-    ),
-    quantidadeComRifas: valorNumericoSeguro(resumo.quantidadeComRifas),
-    quantidadeSemVinculo: valorNumericoSeguro(resumo.quantidadeSemVinculo),
+    quantidadeErros: valorNumericoSeguro(resumo.quantidadeErros),
+    totalTransacoes: valorNumericoSeguro(resumo.totalTransacoes),
     ticketMedio: valorNumericoSeguro(resumo.ticketMedio),
   };
 }

@@ -22,6 +22,7 @@ export class PixTransacoesService {
     const bilhetesSnap = await db
       .collection("bilhetes")
       .where("status", "in", ["pago", "pendente", "recusado", "reservado"])
+      .limit(5000)
       .get();
 
     const grupos = new Map<string, BilheteComNumero[]>();
@@ -59,7 +60,7 @@ export class PixTransacoesService {
     const db = admin.firestore();
     const pagamentosSnap = await db
       .collection("pagamentos_pix")
-      .where("status_pagamento_banco", "in", ["WAITING", "IN_ANALYSIS"])
+      .where("status_pagamento_banco", "in", ["WAITING", "IN_ANALYSIS", "pending"])
       .get();
 
     if (pagamentosSnap.empty) {

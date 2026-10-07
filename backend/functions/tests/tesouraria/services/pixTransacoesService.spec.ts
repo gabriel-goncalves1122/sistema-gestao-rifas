@@ -9,6 +9,7 @@ const mockGet = jest.fn<any>();
 jest.mock("firebase-admin", () => {
   const collectionMock = {
     where: mockWhere.mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
     get: mockGet,
   };
 

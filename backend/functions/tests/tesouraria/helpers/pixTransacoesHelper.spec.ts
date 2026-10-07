@@ -52,7 +52,7 @@ describe("Helper: pixTransacoesHelper", () => {
           status: "pendente",
         }),
       ),
-    ).toBe("manual-Maria-2026-01-01T10:00:00.000Z-pendente");
+    ).toBe("manual|Maria|2026-01-01T10:00:00.000Z|pendente");
   });
 
   it("Deve normalizar IDs removendo caracteres incompatíveis", () => {

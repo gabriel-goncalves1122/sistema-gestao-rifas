@@ -135,6 +135,7 @@ export interface Bilhete {
   data_reserva?: string | null;
   data_pagamento?: string | null;
   data_expiracao?: string | null;
+  sessao_checkout_id?: string | null;
 
   // Comprovante e auditoria
   comprovante_url?: string | null;

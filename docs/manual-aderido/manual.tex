@@ -1,0 +1,125 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{amssymb}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{fancyhdr}
+% Configurações de Margens
+\geometry{
+    a4paper,
+    left=20mm,
+    right=20mm,
+    top=25mm,
+    bottom=25mm
+}
+
+% Configurações de Cores
+\definecolor{primary}{HTML}{0B2F24}
+\definecolor{secondary}{HTML}{CBA64D}
+\definecolor{statusDisp}{HTML}{AFC7BD}
+\definecolor{statusRes}{HTML}{C7A95A}
+\definecolor{statusPago}{HTML}{7FB195}
+
+% Configurações de Links
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=secondary
+}
+
+% Cabeçalho e Rodapé
+\setlength{\headheight}{15.2pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{COMISSÃO 26}}
+\fancyhead[R]{\textit{Manual do Aderido}}
+\fancyfoot[C]{\textbf{\thepage}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Títulos
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{primary}}{\thesubsection}{1em}{}
+
+\begin{document}
+
+\begin{center}
+    {\Huge \textbf{COMISSÃO 26}} \\[0.5cm]
+    {\LARGE \textbf{Manual de Uso - Portal do Aderido (Sistema de Rifas)}} \\[1cm]
+\end{center}
+
+\section{Informações Iniciais e Acesso}
+
+\subsection{Primeiro Acesso (Cadastro)}
+\begin{enumerate}
+    \item Acesse o link oficial do portal da Comissão.
+    \item Clique em \textbf{"Registe-se aqui"} na tela inicial.
+    \item Preencha seus dados. \textbf{Atenção:} Utilize o \textbf{mesmo e-mail} cadastrado na plataforma Keeper para que o sistema sincronize suas rifas automaticamente.
+    \item Crie uma senha de acesso.
+\end{enumerate}
+
+\begin{center}
+    \includegraphics[width=0.6\textwidth]{imagens/print-login.jpeg}
+\end{center}
+
+\newpage
+\section{Conhecendo o Portal (Minhas Rifas)}
+
+\begin{itemize}
+    \item \textbf{Arrecadação Confirmada:} No topo da tela, um painel mostrará o valor total em reais (R\$) das rifas que você já vendeu e que foram aprovadas pela tesouraria.
+    \item \textbf{Filtro:} Você pode usar a caixa de seleção para filtrar a visualização por "Todas as Rifas", "Disponíveis", "Em Análise", ou "Pagas".
+\end{itemize}
+
+\begin{center}
+    \includegraphics[width=0.45\textwidth]{imagens/print-dashboard.jpeg}
+\end{center}
+
+\section{Como Vender uma Rifa (Passo a Passo)}
+
+\begin{enumerate}
+    \item \textbf{Selecione as cotas:} Clique sobre os números desejados pelo comprador. Apenas os números com o status \textbf{"Disponível"} estarão habilitados para seleção.
+    \item \textbf{Carrinho Flutuante:} Ao selecionar as cotas, um carrinho aparecerá na parte inferior da tela detalhando a quantidade de rifas e o valor total. Clique no botão dourado \textbf{"Vender"}.
+    \item \textbf{Dados do Pagamento:} Preencha os dados no formulário. \textbf{Atenção:} O Nome e Telefone devem ser do dono da rifa (quem está comprando). Já o E-mail e o CPF devem ser, obrigatoriamente, da pessoa que irá efetuar o pagamento do PIX. 
+    
+    \begin{center}
+        \begin{minipage}{0.48\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{imagens/print-checkout1.jpeg}
+        \end{minipage}\hfill
+        \begin{minipage}{0.48\textwidth}
+            \centering
+            \includegraphics[width=\linewidth]{imagens/print-checkout2.jpeg}
+        \end{minipage}
+    \end{center}
+
+    \item \textbf{Pagamento PIX:} O sistema gera automaticamente um QR Code Dinâmico e a chave "Copia e Cola" na mesma tela para facilitar o pagamento imediato.
+    \item \textbf{Finalização:} Após a geração da cobrança, as rifas ficarão temporariamente reservadas. Quando a transação for concluída ou o comprovante processado, elas mudarão para o status "Em Análise", e em seguida para "Paga", assim que a Tesouraria confirmar.
+\end{enumerate}
+
+\newpage
+\section{Status (Legenda de Cores)}
+
+Para facilitar o acompanhamento, cada botão de rifa possui uma cor específica:
+
+\begin{itemize}
+    \item \textcolor{statusDisp}{\textbf{$\blacksquare$}} \textbf{Contorno Verde (Fundo Branco): Disponível.} A rifa está livre para ser vendida.
+    \item \textcolor{statusRes}{\textbf{$\blacksquare$}} \textbf{Amarelo (Mostarda): Em Análise.} A cobrança foi gerada e está aguardando a conferência e aprovação automática do banco ou da Tesouraria.
+    \item \textcolor{statusPago}{\textbf{$\blacksquare$}} \textbf{Verde Claro: Paga.} A venda foi concluída e o valor foi repassado com sucesso!
+\end{itemize}
+
+\section{Aba de Prêmios}
+
+Nesta seção, você pode consultar todos os itens que estão sendo sorteados na campanha atual, visualizar fotos dos prêmios e verificar a data e o link oficial do sorteio.
+
+\begin{center}
+    \includegraphics[width=0.5\textwidth]{imagens/print-premios.jpeg}
+\end{center}
+
+\end{document}

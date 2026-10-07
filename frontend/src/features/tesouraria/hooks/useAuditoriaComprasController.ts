@@ -24,6 +24,7 @@ export function useAuditoriaComprasController() {
   // Modals state
   const [compraSelecionada, setCompraSelecionada] = useState<TransacaoTesouraria | null>(null);
   const [compraEdicao, setCompraEdicao] = useState<TransacaoTesouraria | null>(null);
+  const [compraRecusa, setCompraRecusa] = useState<TransacaoTesouraria | null>(null);
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
 
   const carregarHistorico = useCallback(async () => {
@@ -61,6 +62,11 @@ export function useAuditoriaComprasController() {
     setFeedbackEmailComprovante,
     salvarEdicaoComprador,
     reenviarEmailComprovante,
+    processandoAcaoId,
+    feedbackAcao,
+    setFeedbackAcao,
+    aceitarCompraManual,
+    negarCompraManual,
   } = useAuditoriaComprasAcoes(carregarHistorico);
 
   const resumo = useMemo(
@@ -115,6 +121,17 @@ export function useAuditoriaComprasController() {
     [compraEdicao, salvarEdicaoComprador]
   );
 
+  const wrapperNegarCompra = useCallback(
+    async (compra: TransacaoTesouraria, motivo: string) => {
+      const sucesso = await negarCompraManual(compra, motivo);
+      if (sucesso) {
+        setCompraRecusa(null);
+      }
+      return sucesso;
+    },
+    [negarCompraManual]
+  );
+
   return {
     carregando,
     filtros,
@@ -142,5 +159,13 @@ export function useAuditoriaComprasController() {
     reenviarEmailComprovante,
     fecharFeedbackEmailComprovante: () => setFeedbackEmailComprovante(null),
     carregarHistorico,
+    processandoAcaoId,
+    feedbackAcao,
+    fecharFeedbackAcao: () => setFeedbackAcao(null),
+    aceitarCompraManual,
+    negarCompraManual: wrapperNegarCompra,
+    compraRecusa,
+    abrirRecusa: setCompraRecusa,
+    fecharRecusa: () => setCompraRecusa(null),
   };
 }

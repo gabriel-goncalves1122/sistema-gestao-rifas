@@ -37,14 +37,10 @@ app.use(helmet());
 const criarCorsOptions = (req: express.Request): cors.CorsOptions => ({
   origin(origin, callback) {
     if (!origin) {
-      if (req.path === "/tesouraria/checkout/pix/webhook") {
-        callback(null, true);
-        return;
-      }
-
-      // Bloqueia scripts automatizados nas rotas de navegador, mas permite
-      // webhooks server-to-server no endpoint Pix acima.
-      callback(new Error(`Origem ausente / bloqueada pelo CORS.`));
+      // Quando o frontend acessa a API via Firebase Hosting rewrites (/api/...),
+      // a requisição é same-origin e pode não ter o cabeçalho Origin.
+      // Além disso, chamadas de webhook server-to-server também não possuem Origin.
+      callback(null, true);
       return;
     }
 
@@ -147,14 +143,19 @@ app.use(apiLimiter);
 // ROTAS
 // ============================================================================
 
-app.get("/status", (_req, res) => {
+const coreRouter = express.Router();
+
+coreRouter.get("/status", (_req, res) => {
   res.json({
     status: "API da Comissão Online",
     timestamp: new Date().toISOString(),
   });
 });
 
-app.use("/", masterRouter);
+coreRouter.use("/", masterRouter);
+
+app.use("/api", coreRouter);
+app.use("/", coreRouter);
 
 // ============================================================================
 // MIDDLEWARE GLOBAL DE ERRO
@@ -171,6 +172,7 @@ export const api = onRequest(
     region: "southamerica-east1",
     timeoutSeconds: 180,
     memory: "512MiB",
+    invoker: "public",
 
     // O CORS fica centralizado no Express.
     cors: false,

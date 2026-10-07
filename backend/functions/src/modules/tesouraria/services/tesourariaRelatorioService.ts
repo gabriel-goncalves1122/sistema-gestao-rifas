@@ -6,7 +6,8 @@ import {
   CARGOS_SECRETARIA_OU_ADMIN,
 } from "../../../shared/middlewares/authMiddleware";
 import { Bilhete, Usuario } from "../../types/models";
-import { DadosAtualizacaoCompradorCompra, TransacaoTesouraria } from "../types/tesourariaTypes";
+import { BilheteComNumero, DadosAtualizacaoCompradorCompra, TransacaoTesouraria } from "../types/tesourariaTypes";
+import { chaveCompra } from "../helpers/pixTransacoesHelper";
 
 export class TesourariaRelatorioService {
   static async obterRelatorioTesouraria() {
@@ -81,6 +82,7 @@ export class TesourariaRelatorioService {
     const bilhetesSnap = await db
       .collection("bilhetes")
       .where("status", "in", ["pago", "pendente", "reservado"])
+      .limit(5000)
       .get();
 
     // Map para agrupar as compras por comprador
@@ -90,14 +92,13 @@ export class TesourariaRelatorioService {
       const data = doc.data() as Bilhete;
       const numero = doc.id;
 
-      // Cria a chave de agrupamento (mesma lógica antiga do frontend)
-      let chave = `fallback:${data.data_reserva || "-"}:${
-        (data.comprador_nome || "").toLowerCase().trim()
-      }:${data.vendedor_cpf || "-"}`;
-      
-      if (data.comprador_id) {
-        chave = `comprador:${data.comprador_id}`;
-      }
+      const bilheteComNumero: BilheteComNumero = {
+        ...data,
+        numero,
+      };
+
+      // Cria a chave unificada de agrupamento
+      const chave = chaveCompra(bilheteComNumero);
 
       if (!agrupado[chave]) {
         agrupado[chave] = {
@@ -114,7 +115,7 @@ export class TesourariaRelatorioService {
           status: data.status,
           comprovanteUrl: data.comprovante_url || null,
           bilhetes: [numero],
-          valorTotal: 10,
+          valorTotal: data.valor_bruto || 10,
         };
       } else {
         if (!agrupado[chave].bilhetes.includes(numero)) {
@@ -152,7 +153,13 @@ export class TesourariaRelatorioService {
       throw new Error("COMPRA_NAO_ENCONTRADA");
     }
 
-    const compradorAtualizado = {
+    const bilheteAtualizado = {
+      comprador_nome: dados.nome,
+      comprador_email: dados.email || null,
+      comprador_telefone: dados.telefone || null,
+    };
+
+    const compradorDocAtualizado = {
       nome: dados.nome,
       email: dados.email || null,
       telefone: dados.telefone || null,
@@ -161,25 +168,21 @@ export class TesourariaRelatorioService {
     const batch = db.batch();
 
     bilhetesSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, {
-        comprador_nome: compradorAtualizado.nome,
-        comprador_email: compradorAtualizado.email,
-        comprador_telefone: compradorAtualizado.telefone,
-      });
+      batch.update(doc.ref, bilheteAtualizado);
     });
 
     const compradorRef = db.collection("compradores").doc(compradorId);
     const compradorSnap = await compradorRef.get();
 
     if (compradorSnap.exists) {
-      batch.update(compradorRef, compradorAtualizado);
+      batch.update(compradorRef, compradorDocAtualizado);
     }
 
     await batch.commit();
 
     return {
       comprador_id: compradorId,
-      ...compradorAtualizado,
+      ...compradorDocAtualizado,
       rifasAtualizadas: bilhetesSnap.size,
       compradorDocumentoAtualizado: compradorSnap.exists,
     };

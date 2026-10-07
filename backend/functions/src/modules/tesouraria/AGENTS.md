@@ -69,9 +69,10 @@ Regras:
 - banco `PAID`/`AUTHORIZED` muda rifas para `pendente`;
 - banco `DECLINED`/`CANCELED` libera rifas e cria notificacao `rifa_liberada`.
 
-**ACID:** tanto o checkout (reserva atomica + criacao do pagamento) quanto o webhook
+**ACID e Guarda de Posse:** tanto o checkout (reserva atomica + criacao do pagamento) quanto o webhook
 (atualizacao de status + notificacao) DEVEM usar `runTransaction` do Firestore para
 garantir consistencia. Nunca atualize rifas e crie notificacoes em operacoes separadas.
+Sempre faça verificação da **Guarda de Posse** via `pix_reference_id` para evitar corrupção de bilhetes (Race Conditions de checkouts concorrentes).
 
 ## Rotas E Compatibilidade (Auditoria)
 

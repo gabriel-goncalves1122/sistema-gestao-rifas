@@ -36,6 +36,10 @@ export function chaveCompra(bilhete: BilheteComNumero) {
     return `pix-${bilhete.pix_order_id}`;
   }
 
+  if (bilhete.pix_reference_id) {
+    return `pixref-${bilhete.pix_reference_id}`;
+  }
+
   if (bilhete.comprovante_url) {
     return `comprovante-${bilhete.comprovante_url}`;
   }
@@ -47,7 +51,7 @@ export function chaveCompra(bilhete: BilheteComNumero) {
   const comprador = bilhete.comprador_nome || "sem-comprador";
   const reserva = bilhete.data_reserva || "sem-data";
 
-  return `manual-${comprador}-${reserva}-${bilhete.status}`;
+  return `manual|${comprador}|${reserva}|${bilhete.status}`;
 }
 
 export function statusPagamento(

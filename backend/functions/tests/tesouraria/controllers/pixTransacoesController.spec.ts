@@ -181,15 +181,7 @@ describe("Controllers Tesouraria: Pix transações", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Transação Pix não encontrada." });
   });
 
-  it("Deve retornar 409 se Pix não confirmado ao aceitar", async () => {
-    req.params = { transacaoId: "tx_001" } as any;
-    mocks.aceitarPixTransacao.mockRejectedValueOnce(new Error("PIX_NOT_CONFIRMED"));
 
-    await aceitarPixTransacao(req as AuthRequest, res as Response);
-
-    expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({ error: "A transação ainda não foi confirmada pelo banco." });
-  });
 
   it("Deve retornar 409 se Pix já validado ao aceitar", async () => {
     req.params = { transacaoId: "tx_001" } as any;

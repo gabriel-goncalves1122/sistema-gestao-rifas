@@ -30,6 +30,9 @@ interface AuditoriaComprasTableProps {
   onVerDetalhes: (compra: TransacaoTesouraria) => void;
   onReenviarEmailComprovante: (compra: TransacaoTesouraria) => void;
   reenviandoEmailComprovanteId?: string | null;
+  onAceitar?: (compra: TransacaoTesouraria) => void;
+  onNegar?: (compra: TransacaoTesouraria) => void;
+  processandoAcaoId?: string | null;
 }
 
 export function AuditoriaComprasTable({
@@ -39,6 +42,9 @@ export function AuditoriaComprasTable({
   onVerDetalhes,
   onReenviarEmailComprovante,
   reenviandoEmailComprovanteId,
+  onAceitar,
+  onNegar,
+  processandoAcaoId,
 }: AuditoriaComprasTableProps) {
   return (
     <Paper
@@ -160,6 +166,9 @@ export function AuditoriaComprasTable({
                     Boolean(compra.compradorId) &&
                     compra.compradorId === reenviandoEmailComprovanteId
                   }
+                  onAceitar={onAceitar}
+                  onNegar={onNegar}
+                  processandoAcaoId={processandoAcaoId}
                 />
               </TableCell>
             </TableRow>

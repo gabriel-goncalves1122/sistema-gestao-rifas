@@ -38,7 +38,13 @@ function CheckoutModalContent({
   invalidarDadosPainel,
 }: CheckoutModalProps) {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const sessaoCheckoutId = useRef(`sessao_${Date.now()}`).current;
+  const sessaoCheckoutId = useRef(
+    checkoutStorage.get().sessaoCheckoutId || `sessao_${Date.now()}`
+  ).current;
+
+  useEffect(() => {
+    checkoutStorage.update({ sessaoCheckoutId });
+  }, [sessaoCheckoutId]);
 
   const {
     status: pollingStatus,
@@ -84,10 +90,20 @@ function CheckoutModalContent({
 
   useEffect(() => {
     if (open && !prevOpen.current) {
-      resetarFluxoPix();
+      const cobrancaAtual = checkoutStorage.get().cobrancaPix;
+      const temMesmasRifas =
+        cobrancaAtual &&
+        JSON.stringify([...cobrancaAtual.numerosRifas].sort()) ===
+          JSON.stringify([...numerosRifas].sort());
+
+      if (cobrancaAtual && cobrancaAtual.status === "aguardando_pagamento" && temMesmasRifas) {
+        // Retoma o fluxo silenciosamente (usePixStateMachine já carrega do storage)
+      } else {
+        resetarFluxoPix();
+      }
     }
     prevOpen.current = open;
-  }, [open, resetarFluxoPix]);
+  }, [open, resetarFluxoPix, numerosRifas]);
 
   const fecharModal = () => {
     if (pollingStatus === "gerando") {
@@ -99,6 +115,11 @@ function CheckoutModalContent({
     if (pollingStatus === "sucesso") {
       onSuccess();
       return;
+    }
+
+    if (pollingStatus === "aguardando_pagamento") {
+      const confirmar = window.confirm("Você tem um pagamento em andamento. Deseja cancelar o Pix e liberar as rifas?");
+      if (!confirmar) return;
     }
 
     liberarReservaTotal().catch(console.error);

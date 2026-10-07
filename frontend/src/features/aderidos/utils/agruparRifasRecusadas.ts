@@ -14,8 +14,21 @@ export function agruparRifasRecusadas(
         ? rifa.data_reserva.split("T")[0]
         : "sem-data";
 
-      // A chave preserva agrupamentos de uma mesma tentativa de pagamento.
-      const chaveGrupo = `${rifa.comprador_nome}-${dataBase}-${rifa.motivo_recusa}`;
+      // A chave espelha a lógica da Tesouraria para garantir integridade 1:1.
+      let chaveTransacao = "";
+      
+      if (rifa.pix_order_id) {
+        chaveTransacao = `pix-${rifa.pix_order_id}`;
+      } else if (rifa.comprovante_url) {
+        chaveTransacao = `comprovante-${rifa.comprovante_url}`;
+      } else if (rifa.comprador_id) {
+        chaveTransacao = `comprador-${rifa.comprador_id}`;
+      } else {
+        const comprador = rifa.comprador_nome || "sem-comprador";
+        chaveTransacao = `manual-${comprador}-${dataBase}-${rifa.status}`;
+      }
+      
+      const chaveGrupo = `${chaveTransacao}-${rifa.motivo_recusa}`;
 
       if (!acc[chaveGrupo]) {
         acc[chaveGrupo] = {
