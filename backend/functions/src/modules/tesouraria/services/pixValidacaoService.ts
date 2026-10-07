@@ -4,8 +4,6 @@
 import * as admin from "firebase-admin";
 
 import { enviarEmailRecibo } from "../../rifas/emailService";
-import { PixTransacao } from "../../tesouraria/types/tesourariaTypes";
-import { PixTransacoesService } from "./pixTransacoesService";
 
 interface ValidarPixParams {
   transacaoId: string;
@@ -14,41 +12,27 @@ interface ValidarPixParams {
   motivo?: string;
 }
 
-async function buscarTransacao(transacaoId: string): Promise<PixTransacao> {
-  const transacoes = await PixTransacoesService.buscarTransacoes();
-  const transacao = transacoes.find((item) => item.id === transacaoId);
-
-  if (!transacao) {
-    throw new Error("TRANSACAO_NOT_FOUND");
-  }
-
-  return transacao;
-}
-
-function obterNumerosRifas(transacao: PixTransacao) {
-  return (transacao.rifas || []).map((rifa: any) => rifa.numero).filter(Boolean);
-}
-
 export class PixValidacaoService {
   static async aceitarTransacao(params: ValidarPixParams) {
     const db = admin.firestore();
-    const transacao = await buscarTransacao(params.transacaoId);
-    const numerosRifas = obterNumerosRifas(transacao);
+    // transacaoId no PIX é geralmente pix-[pix_order_id] ou [pix_order_id]
+    const pixOrderId = params.transacaoId.replace("pix-", "");
 
-    if (numerosRifas.length === 0) {
-      throw new Error("TRANSACAO_SEM_RIFAS");
-    }
-
-    if (!transacao.pixOrderId) {
+    if (!pixOrderId) {
       throw new Error("TRANSACAO_SEM_REFERENCIA");
     }
 
     const validadoEm = new Date().toISOString();
     const validadoPor = params.emailTesouraria || params.uidTesouraria;
+    
+    let numerosRifasResult: string[] = [];
+    let compradorEmailResult: string | null = null;
+    let compradorNomeResult: string = "Comprador";
+    let dataPagamentoResult: string = validadoEm;
 
     await db.runTransaction(async (transaction) => {
       const querySnap = await transaction.get(
-        db.collection("pagamentos_pix").where("pix_order_id", "==", transacao.pixOrderId!).limit(1)
+        db.collection("pagamentos_pix").where("pix_order_id", "==", pixOrderId).limit(1)
       );
 
       if (querySnap.empty) {
@@ -58,12 +42,14 @@ export class PixValidacaoService {
       const pagRef = querySnap.docs[0].ref;
       const pagamento = querySnap.docs[0].data() as any;
 
-      if (pagamento.status_validacao) {
+      if (pagamento.status_validacao === "aceita") {
         throw new Error("PIX_ALREADY_VALIDATED");
       }
 
-      if (!["PAID", "AUTHORIZED", "approved", "authorized"].includes(pagamento.status_pagamento_banco)) {
-        throw new Error("PIX_NOT_CONFIRMED");
+      const numerosRifas = pagamento.numeros_rifas || [];
+
+      if (numerosRifas.length === 0) {
+        throw new Error("TRANSACAO_SEM_RIFAS");
       }
 
       const bilhetesRefs = numerosRifas.map((numero: string) =>
@@ -78,7 +64,16 @@ export class PixValidacaoService {
         throw new Error("UM_OU_MAIS_BILHETES_NAO_ENCONTRADOS");
       }
 
+      let bilhetesAtualizados = 0;
       bilhetesSnaps.forEach((snap) => {
+        const bilhete = snap.data();
+        
+        if (pagamento.reference_id && bilhete?.pix_reference_id !== pagamento.reference_id) {
+          return; // Bilhete já foi liberado ou pertence a outra transação
+        }
+
+        bilhetesAtualizados++;
+
         transaction.set(
           snap.ref,
           {
@@ -87,11 +82,15 @@ export class PixValidacaoService {
             validado_em: validadoEm,
             validado_por: validadoPor,
             motivo_recusa: null,
-            data_pagamento: transacao.dataPagamento || validadoEm,
+            data_pagamento: pagamento.data_pagamento || validadoEm,
           },
           { merge: true },
         );
       });
+
+      if (bilhetesSnaps.length > 0 && bilhetesAtualizados === 0) {
+        throw new Error("TODOS_BILHETES_PERDIDOS");
+      }
 
       transaction.set(
         pagRef,
@@ -103,13 +102,18 @@ export class PixValidacaoService {
         },
         { merge: true },
       );
+      
+      numerosRifasResult = numerosRifas;
+      compradorEmailResult = pagamento.comprador_email || null;
+      compradorNomeResult = pagamento.comprador_nome || "Comprador";
+      dataPagamentoResult = pagamento.data_pagamento || validadoEm;
     });
 
-    const emailEnviado = transacao.compradorEmail
+    const emailEnviado = compradorEmailResult
       ? await enviarEmailRecibo(
-          transacao.compradorEmail,
-          transacao.compradorNome || "Comprador",
-          numerosRifas,
+          compradorEmailResult,
+          compradorNomeResult,
+          numerosRifasResult,
           "aprovado",
         )
       : false;
@@ -118,7 +122,7 @@ export class PixValidacaoService {
       sucesso: true,
       statusValidacao: "aceita" as const,
       transacaoId: params.transacaoId,
-      rifas: numerosRifas,
+      rifas: numerosRifasResult,
       emailEnviado,
     };
   }
@@ -131,23 +135,20 @@ export class PixValidacaoService {
     }
 
     const db = admin.firestore();
-    const transacao = await buscarTransacao(params.transacaoId);
-    const numerosRifas = obterNumerosRifas(transacao);
+    const pixOrderId = params.transacaoId.replace("pix-", "");
 
-    if (numerosRifas.length === 0) {
-      throw new Error("TRANSACAO_SEM_RIFAS");
-    }
-
-    if (!transacao.pixOrderId) {
+    if (!pixOrderId) {
       throw new Error("TRANSACAO_SEM_REFERENCIA");
     }
 
     const validadoEm = new Date().toISOString();
     const validadoPor = params.emailTesouraria || params.uidTesouraria;
+    
+    let numerosRifasResult: string[] = [];
 
     await db.runTransaction(async (transaction) => {
       const querySnap = await transaction.get(
-        db.collection("pagamentos_pix").where("pix_order_id", "==", transacao.pixOrderId!).limit(1)
+        db.collection("pagamentos_pix").where("pix_order_id", "==", pixOrderId).limit(1)
       );
 
       if (querySnap.empty) {
@@ -157,8 +158,14 @@ export class PixValidacaoService {
       const pagRef = querySnap.docs[0].ref;
       const pagamento = querySnap.docs[0].data() as any;
 
-      if (pagamento.status_validacao) {
+      if (pagamento.status_validacao === "aceita") {
         throw new Error("PIX_ALREADY_VALIDATED");
+      }
+
+      const numerosRifas = pagamento.numeros_rifas || [];
+
+      if (numerosRifas.length === 0) {
+        throw new Error("TRANSACAO_SEM_RIFAS");
       }
 
       const bilhetesRefs = numerosRifas.map((numero: string) =>
@@ -172,7 +179,16 @@ export class PixValidacaoService {
         throw new Error("UM_OU_MAIS_BILHETES_NAO_ENCONTRADOS");
       }
 
+      let bilhetesAtualizados = 0;
       bilhetesSnaps.forEach((snap) => {
+        const bilhete = snap.data();
+        
+        if (pagamento.reference_id && bilhete?.pix_reference_id !== pagamento.reference_id) {
+          return; // Bilhete já foi liberado ou pertence a outra transação
+        }
+
+        bilhetesAtualizados++;
+
         transaction.set(
           snap.ref,
           {
@@ -186,6 +202,10 @@ export class PixValidacaoService {
         );
       });
 
+      if (bilhetesSnaps.length > 0 && bilhetesAtualizados === 0) {
+        throw new Error("TODOS_BILHETES_PERDIDOS");
+      }
+
       transaction.set(
         pagRef,
         {
@@ -197,10 +217,10 @@ export class PixValidacaoService {
         { merge: true },
       );
 
-      if (transacao.aderido?.id) {
+      if (pagamento.vendedor_id) {
         const notificacaoRef = db.collection("notificacoes").doc();
         transaction.set(notificacaoRef, {
-          vendedor_id: transacao.aderido.id,
+          vendedor_id: pagamento.vendedor_id,
           tipo: "correcao_dados",
           titulo: "Venda recusada",
           mensagem: motivo || "Revise os dados do comprador e envie novamente.",
@@ -209,15 +229,18 @@ export class PixValidacaoService {
           data_criacao: validadoEm,
         });
       }
+      
+      numerosRifasResult = numerosRifas;
     });
 
     return {
       sucesso: true,
       statusValidacao: "negada" as const,
       transacaoId: params.transacaoId,
-      rifas: numerosRifas,
+      rifas: numerosRifasResult,
       motivo,
     };
   }
 }
+
 

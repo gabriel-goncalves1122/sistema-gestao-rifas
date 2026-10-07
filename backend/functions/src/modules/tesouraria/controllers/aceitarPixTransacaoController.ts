@@ -26,12 +26,6 @@ export async function aceitarPixTransacao(req: AuthRequest, res: Response) {
       return res.status(404).json({ error: "Transação Pix não encontrada." });
     }
 
-    if (error.message === "PIX_NOT_CONFIRMED") {
-      return res.status(409).json({
-        error: "A transação ainda não foi confirmada pelo banco.",
-      });
-    }
-
     if (error.message === "PIX_ALREADY_VALIDATED") {
       return res.status(409).json({ error: "Transação Pix já validada." });
     }

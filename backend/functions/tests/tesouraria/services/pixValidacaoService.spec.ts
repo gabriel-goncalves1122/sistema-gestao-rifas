@@ -61,26 +61,30 @@ describe("Service: PixValidacaoService", () => {
     mockRunTransaction.mockImplementation(async (callback: any) => {
       return callback({
         get: mockTransactionGet,
-        getAll: jest.fn().mockResolvedValue([{ exists: true, ref: {} }]),
+        getAll: jest.fn().mockResolvedValue([{ exists: true, ref: {}, data: () => ({ pix_reference_id: "rifas-001" }) }]),
         set: mockTransactionSet,
       });
     });
   });
 
   it("Deve aceitar Pix confirmado pelo banco", async () => {
-    mockBuscarTransacoes.mockResolvedValueOnce([transacaoBase()]);
     mockTransactionGet.mockResolvedValueOnce({
       empty: false,
       docs: [
         {
           ref: {},
-          data: () => ({ status_pagamento_banco: "PAID" }),
+          data: () => ({
+            status_pagamento_banco: "PAID",
+            numeros_rifas: ["001"],
+            comprador_email: "maria@teste.com",
+            comprador_nome: "Maria",
+          }),
         }
       ]
     });
 
     const resultado = await PixValidacaoService.aceitarTransacao({
-      transacaoId: "tx_001",
+      transacaoId: "pix-ORDE_001",
       uidTesouraria: "tesoureiro_001",
       emailTesouraria: "tesouraria@teste.com",
     });
@@ -108,32 +112,37 @@ describe("Service: PixValidacaoService", () => {
     });
   });
 
-  it("Deve bloquear Pix sem confirmação bancária", async () => {
-    mockBuscarTransacoes.mockResolvedValueOnce([
-      transacaoBase({ statusPagamento: "WAITING", valorPago: 0 }),
-    ]);
+  it("Deve permitir aceitação manual de Pix sem confirmação bancária", async () => {
     mockTransactionGet.mockResolvedValueOnce({
       empty: false,
       docs: [
         {
           ref: {},
-          data: () => ({ status_pagamento_banco: "WAITING" }),
+          data: () => ({
+            status_pagamento_banco: "WAITING",
+            numeros_rifas: ["001"],
+          }),
         }
       ]
     });
 
-    await expect(
-      PixValidacaoService.aceitarTransacao({
-        transacaoId: "tx_001",
-        uidTesouraria: "tesoureiro_001",
+    const resultado = await PixValidacaoService.aceitarTransacao({
+      transacaoId: "pix-ORDE_001",
+      uidTesouraria: "tesoureiro_001",
+      emailTesouraria: "tesouraria@teste.com",
+    });
+
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status_validacao: "aceita",
       }),
-    ).rejects.toThrow("PIX_NOT_CONFIRMED");
+      { merge: true },
+    );
+    expect(resultado.sucesso).toBe(true);
   });
 
   it("Deve bloquear Pix já validado", async () => {
-    mockBuscarTransacoes.mockResolvedValueOnce([
-      transacaoBase(),
-    ]);
     mockTransactionGet.mockResolvedValueOnce({
       empty: false,
       docs: [
@@ -149,7 +158,7 @@ describe("Service: PixValidacaoService", () => {
 
     await expect(
       PixValidacaoService.negarTransacao({
-        transacaoId: "tx_001",
+        transacaoId: "pix-ORDE_001",
         uidTesouraria: "tesoureiro_001",
         motivo: "Dados incorretos",
       }),
@@ -159,26 +168,29 @@ describe("Service: PixValidacaoService", () => {
   it("Deve exigir motivo para negar Pix", async () => {
     await expect(
       PixValidacaoService.negarTransacao({
-        transacaoId: "tx_001",
+        transacaoId: "pix-ORDE_001",
         uidTesouraria: "tesoureiro_001",
       }),
     ).rejects.toThrow("MOTIVO_REQUIRED");
   });
 
   it("Deve negar Pix confirmado e notificar correção de dados", async () => {
-    mockBuscarTransacoes.mockResolvedValueOnce([transacaoBase()]);
     mockTransactionGet.mockResolvedValueOnce({
       empty: false,
       docs: [
         {
           ref: {},
-          data: () => ({ status_pagamento_banco: "PAID" }),
+          data: () => ({
+            status_pagamento_banco: "PAID",
+            numeros_rifas: ["001"],
+            vendedor_id: "ADERIDO_001"
+          }),
         }
       ]
     });
 
     const resultado = await PixValidacaoService.negarTransacao({
-      transacaoId: "tx_001",
+      transacaoId: "pix-ORDE_001",
       uidTesouraria: "tesoureiro_001",
       motivo: "Telefone inválido",
     });
@@ -192,6 +204,16 @@ describe("Service: PixValidacaoService", () => {
       }),
       { merge: true },
     );
+    
+    // Testa notificação
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        vendedor_id: "ADERIDO_001",
+        tipo: "correcao_dados",
+      })
+    );
+
     expect(resultado).toMatchObject({
       sucesso: true,
       statusValidacao: "negada",
