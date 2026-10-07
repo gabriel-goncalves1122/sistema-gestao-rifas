@@ -37,6 +37,14 @@ describe("Service: CorrecaoDadosRifasService", () => {
       return callback({
         get: mockTransactionGet,
         update: mockTransactionUpdate,
+        getAll: jest.fn(async (...refs: any[]) => {
+          return Promise.all(
+            refs.map(async (r: any) => {
+              const snap = await mockTransactionGet(r);
+              return { ...snap, ref: r };
+            })
+          );
+        }),
       });
     });
   });

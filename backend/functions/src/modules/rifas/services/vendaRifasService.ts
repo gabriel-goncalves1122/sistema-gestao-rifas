@@ -23,39 +23,57 @@ export class VendaRifasService {
     }
 
     const contextoAderido = await obterContextoAderidoPorEmail(emailLogado);
-
-    const batch = db.batch();
-    const compradorRef = db.collection("compradores").doc();
     const momentoExatoDaReserva = new Date().toISOString();
+    const compradorRef = db.collection("compradores").doc();
 
-    const novoComprador: Comprador = {
-      id: compradorRef.id,
-      nome,
-      telefone,
-      email: email || null,
-      criado_em: momentoExatoDaReserva,
-    };
+    await db.runTransaction(async (transaction) => {
+      const rifasRefs = numerosRifas.map((numero: string) => ({
+        numero,
+        ref: db.collection("bilhetes").doc(numero),
+      }));
 
-    batch.set(compradorRef, novoComprador);
+      for (const { ref, numero } of rifasRefs) {
+        const snap = await transaction.get(ref);
+        if (!snap.exists) {
+          throw new Error("RIFA_NOT_FOUND");
+        }
 
-    numerosRifas.forEach((numero: string) => {
-      const bilheteRef = db.collection("bilhetes").doc(numero);
+        const bilhete = snap.data() as Bilhete;
 
-      const updateBilhete: Partial<Bilhete> & Record<string, any> = {
-        status: "pendente",
-        comprador_id: compradorRef.id,
-        comprador_nome: nome,
-        vendedor_nome: contextoAderido.vendedorNome,
-        vendedor_cpf: contextoAderido.vendedorCpf,
-        vendedor_id: contextoAderido.idAderido,
-        data_reserva: momentoExatoDaReserva,
-        comprovante_url: comprovanteUrl,
+        if (bilhete.vendedor_id && bilhete.vendedor_id !== contextoAderido.idAderido) {
+          throw new Error("RIFA_INDISPONIVEL"); // Pertence a outro aderido (Cross-Seller Theft)
+        }
+
+        if (bilhete.status !== "disponivel") {
+          throw new Error("RIFA_INDISPONIVEL"); // Já vendida ou reservada
+        }
+      }
+
+      const novoComprador: Comprador = {
+        id: compradorRef.id,
+        nome,
+        telefone,
+        email: email || null,
+        criado_em: momentoExatoDaReserva,
       };
 
-      batch.set(bilheteRef, updateBilhete, { merge: true });
-    });
+      transaction.set(compradorRef, novoComprador);
 
-    await batch.commit();
+      rifasRefs.forEach(({ ref }) => {
+        const updateBilhete: Partial<Bilhete> & Record<string, any> = {
+          status: "pendente",
+          comprador_id: compradorRef.id,
+          comprador_nome: nome,
+          vendedor_nome: contextoAderido.vendedorNome,
+          vendedor_cpf: contextoAderido.vendedorCpf,
+          vendedor_id: contextoAderido.idAderido,
+          data_reserva: momentoExatoDaReserva,
+          comprovante_url: comprovanteUrl,
+        };
+
+        transaction.set(ref, updateBilhete, { merge: true });
+      });
+    });
 
     if (email) {
       await enviarEmailRecibo(email, nome, numerosRifas, "pendente")

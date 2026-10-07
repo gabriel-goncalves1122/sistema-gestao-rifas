@@ -33,10 +33,13 @@ export class CorrecaoDadosRifasService {
     let atualizadas = 0;
 
     await db.runTransaction(async (transaction) => {
-      for (const numero of numerosRifas) {
-        const bilheteRef = db.collection("bilhetes").doc(numero);
-        const bilheteSnap = await transaction.get(bilheteRef);
+      const bilhetesRefs = numerosRifas.map((numero) =>
+        db.collection("bilhetes").doc(numero),
+      );
+      const snaps = await transaction.getAll(...bilhetesRefs);
 
+      for (let i = 0; i < snaps.length; i++) {
+        const bilheteSnap = snaps[i];
         if (!bilheteSnap.exists) continue;
 
         const bilhete = bilheteSnap.data() as Bilhete;
@@ -56,7 +59,7 @@ export class CorrecaoDadosRifasService {
           correcao_pendente: null as any, // Limpa a flag
         };
 
-        transaction.update(bilheteRef, payload);
+        transaction.update(bilheteSnap.ref, payload);
         atualizadas += 1;
       }
     });

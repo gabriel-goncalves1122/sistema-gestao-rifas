@@ -20,9 +20,13 @@ jest.mock("firebase-admin", () => {
   return {
     firestore: jest.fn().mockReturnValue({
       collection: jest.fn().mockReturnValue(collectionMock),
-      batch: jest.fn().mockReturnValue({
-        set: mockBatchSet,
-        commit: mockBatchCommit,
+      runTransaction: jest.fn().mockImplementation(async (callback: any) => {
+        return callback({
+          get: mockGet,
+          set: mockBatchSet,
+          update: mockBatchSet,
+          delete: jest.fn(),
+        });
       }),
     }),
   };
@@ -68,21 +72,28 @@ describe("Service: VendaRifasService", () => {
       comprovanteUrl: "https://meu-comprovante.png",
     };
 
-    mockGet.mockResolvedValueOnce({
-      empty: false,
-      docs: [
-        {
-          id: "DOC_USUARIO_001",
-          data: () => ({
-            nome: "Vendedor Teste",
-            cpf: "123.456.789-00",
-            id_aderido: "ADERIDO_999",
-          }),
-        },
-      ],
-    });
-
-    mockBatchCommit.mockResolvedValueOnce(true);
+    mockGet
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: "DOC_USUARIO_001",
+            data: () => ({
+              nome: "Vendedor Teste",
+              cpf: "123.456.789-00",
+              id_aderido: "ADERIDO_999",
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ status: "disponivel", vendedor_id: "ADERIDO_999" }),
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ status: "disponivel", vendedor_id: "ADERIDO_999" }),
+      });
 
     await VendaRifasService.processarVenda(
       "uid_123",
@@ -92,7 +103,6 @@ describe("Service: VendaRifasService", () => {
 
     // 1 set para comprador + 2 sets para bilhetes.
     expect(mockBatchSet).toHaveBeenCalledTimes(3);
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
 
     expect(enviarEmailRecibo).toHaveBeenCalledWith(
       "comprador@teste.com",
@@ -110,21 +120,24 @@ describe("Service: VendaRifasService", () => {
       comprovanteUrl: "https://meu-comprovante.png",
     };
 
-    mockGet.mockResolvedValueOnce({
-      empty: false,
-      docs: [
-        {
-          id: "DOC_USUARIO_001",
-          data: () => ({
-            nome: "Vendedor Teste",
-            cpf: "123.456.789-00",
-            id_aderido: "ADERIDO_999",
-          }),
-        },
-      ],
-    });
-
-    mockBatchCommit.mockResolvedValueOnce(true);
+    mockGet
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: "DOC_USUARIO_001",
+            data: () => ({
+              nome: "Vendedor Teste",
+              cpf: "123.456.789-00",
+              id_aderido: "ADERIDO_999",
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ status: "disponivel", vendedor_id: "ADERIDO_999" }),
+      });
 
     await VendaRifasService.processarVenda(
       "uid_123",
@@ -133,7 +146,6 @@ describe("Service: VendaRifasService", () => {
     );
 
     expect(mockBatchSet).toHaveBeenCalledTimes(2);
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
     expect(enviarEmailRecibo).not.toHaveBeenCalled();
   });
 
@@ -146,21 +158,24 @@ describe("Service: VendaRifasService", () => {
       comprovanteUrl: "https://meu-comprovante.png",
     };
 
-    mockGet.mockResolvedValueOnce({
-      empty: false,
-      docs: [
-        {
-          id: "DOC_USUARIO_001",
-          data: () => ({
-            nome: "Vendedor Teste",
-            cpf: "123.456.789-00",
-            id_aderido: "ADERIDO_999",
-          }),
-        },
-      ],
-    });
-
-    mockBatchCommit.mockResolvedValueOnce(true);
+    mockGet
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: "DOC_USUARIO_001",
+            data: () => ({
+              nome: "Vendedor Teste",
+              cpf: "123.456.789-00",
+              id_aderido: "ADERIDO_999",
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({ status: "disponivel", vendedor_id: "ADERIDO_999" }),
+      });
 
     (enviarEmailRecibo as jest.Mock<any>).mockRejectedValueOnce(
       new Error("SMTP offline"),
@@ -174,6 +189,6 @@ describe("Service: VendaRifasService", () => {
       ),
     ).resolves.not.toThrow();
 
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+    expect(mockBatchSet).toHaveBeenCalledTimes(2);
   });
 });
