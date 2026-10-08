@@ -89,7 +89,7 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
       }}
     >
       <CardResumo
-        titulo="Total Recebido"
+        titulo="Total Recebido (Líq.)"
         valor={formatarMoedaPix(resumo.totalRecebido)}
         descricao={`${resumo.quantidadePagas} pagamentos confirmados`}
         icone={<AccountBalanceWalletIcon />}

@@ -120,7 +120,7 @@ export function calcularResumoPixTransacoes(
   );
 
   const totalRecebido = pagas.reduce(
-    (acc, transacao) => acc + transacao.valorPago,
+    (acc, transacao) => acc + (transacao.valorPago * 0.99),
     0,
   );
 

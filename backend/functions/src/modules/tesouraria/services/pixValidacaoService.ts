@@ -28,7 +28,7 @@ export class PixValidacaoService {
     let numerosRifasResult: string[] = [];
     let compradorEmailResult: string | null = null;
     let compradorNomeResult: string = "Comprador";
-    let dataPagamentoResult: string = validadoEm;
+
 
     await db.runTransaction(async (transaction) => {
       const querySnap = await transaction.get(
@@ -68,7 +68,7 @@ export class PixValidacaoService {
       bilhetesSnaps.forEach((snap) => {
         const bilhete = snap.data();
         
-        if (pagamento.reference_id && bilhete?.pix_reference_id !== pagamento.reference_id) {
+        if (pagamento.reference_id && (bilhete as any)?.pix_reference_id !== pagamento.reference_id) {
           return; // Bilhete já foi liberado ou pertence a outra transação
         }
 
@@ -106,7 +106,7 @@ export class PixValidacaoService {
       numerosRifasResult = numerosRifas;
       compradorEmailResult = pagamento.comprador_email || null;
       compradorNomeResult = pagamento.comprador_nome || "Comprador";
-      dataPagamentoResult = pagamento.data_pagamento || validadoEm;
+      
     });
 
     const emailEnviado = compradorEmailResult
@@ -183,7 +183,7 @@ export class PixValidacaoService {
       bilhetesSnaps.forEach((snap) => {
         const bilhete = snap.data();
         
-        if (pagamento.reference_id && bilhete?.pix_reference_id !== pagamento.reference_id) {
+        if (pagamento.reference_id && (bilhete as any)?.pix_reference_id !== pagamento.reference_id) {
           return; // Bilhete já foi liberado ou pertence a outra transação
         }
 

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-quer
 
 import type { AuditoriaComprasFiltros, TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
-  agruparComprasAuditaveis,
+
   calcularResumoAuditoria,
   criarCsvAuditoriaCompras,
   FILTROS_AUDITORIA_COMPRAS_VAZIOS,
@@ -34,14 +34,9 @@ export function useAuditoriaComprasData() {
   const historicoTransacoes = queryHistorico.data || [];
   const carregando = queryHistorico.isLoading;
 
-  const comprasAgrupadas = useMemo(
-    () => agruparComprasAuditaveis(historicoTransacoes),
-    [historicoTransacoes],
-  );
-
   const comprasFiltradas = useMemo(
-    () => filtrarComprasAuditaveis(comprasAgrupadas, filtros),
-    [comprasAgrupadas, filtros],
+    () => filtrarComprasAuditaveis(historicoTransacoes, filtros),
+    [historicoTransacoes, filtros],
   );
 
   const resumo = useMemo(

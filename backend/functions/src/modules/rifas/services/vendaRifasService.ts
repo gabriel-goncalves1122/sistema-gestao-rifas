@@ -32,7 +32,7 @@ export class VendaRifasService {
         ref: db.collection("bilhetes").doc(numero),
       }));
 
-      for (const { ref, numero } of rifasRefs) {
+      for (const { ref } of rifasRefs) {
         const snap = await transaction.get(ref);
         if (!snap.exists) {
           throw new Error("RIFA_NOT_FOUND");
