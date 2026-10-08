@@ -148,7 +148,7 @@ describe("Service: PixTransacoesService", () => {
     expect(resumo).toEqual(
       expect.objectContaining({
         quantidadePagas: 1,
-        totalRecebido: 10,
+        totalRecebido: 9.9,
       })
     );
   });

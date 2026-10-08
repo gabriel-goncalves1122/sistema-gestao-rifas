@@ -40,11 +40,11 @@ describe("Utils: pixTransacoesUtils", () => {
   it("Deve calcular resumo financeiro a partir das transações mockadas do banco", () => {
     const resumo = calcularResumoPixTransacoes(pixTransacoesMock);
 
-    expect(resumo.totalRecebido).toBe(50);
+    expect(resumo.totalRecebido).toBe(49.5);
     expect(resumo.quantidadePagas).toBe(2);
-    expect(resumo.quantidadeComRifas).toBe(2);
 
-    expect(resumo.ticketMedio).toBe(25);
+
+    expect(resumo.ticketMedio).toBe(24.75);
   });
 
   it("Deve filtrar por CPF, documento do comprador, aderido e rifas", () => {

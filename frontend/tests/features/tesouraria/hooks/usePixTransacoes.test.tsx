@@ -140,7 +140,7 @@ describe("Hook: usePixTransacoes", () => {
     });
 
     expect(result.current.transacoes).toEqual(transacoes);
-    expect(result.current.resumo.totalRecebido).toBe(50);
+    expect(result.current.resumo.totalRecebido).toBe(49.5);
     expect(result.current.resumo.totalPendente).toBe(40);
     expect(result.current.resumo.quantidadePagas).toBe(1);
     expect(result.current.resumo.quantidadeAguardando).toBe(1);
@@ -166,8 +166,8 @@ describe("Hook: usePixTransacoes", () => {
       expect(result.current.carregando).toBe(false);
     });
 
-    expect(result.current.resumo.totalRecebido).toBe(25);
-    expect(result.current.resumo.ticketMedio).toBe(25);
+    expect(result.current.resumo.totalRecebido).toBe(24.75);
+    expect(result.current.resumo.ticketMedio).toBe(24.75);
   });
 
   it("Não deve usar mock local em DEV quando transações reais não existirem", async () => {

@@ -192,13 +192,13 @@ describe("Helper: pixTransacoesHelper", () => {
     ]);
 
     expect(resumo).toEqual({
-      totalRecebido: 130,
+      totalRecebido: 128.7,
       totalPendente: 20,
       totalCancelado: 10,
       quantidadePagas: 2,
       quantidadeAguardando: 1,
       quantidadeCanceladas: 1,
-      ticketMedio: 65,
+      ticketMedio: 64.35,
       quantidadeErros: 1,
       totalErros: 50,
       totalTransacoes: 5,

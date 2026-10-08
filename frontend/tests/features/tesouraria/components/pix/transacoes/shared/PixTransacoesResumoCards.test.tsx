@@ -26,7 +26,7 @@ describe("Componente: PixTransacoesResumoCards", () => {
   it("Deve renderizar os cards de resumo Pix", () => {
     render(<PixTransacoesResumoCards resumo={resumoMock} />);
 
-    expect(screen.getByText("Total Recebido")).toBeInTheDocument();
+    expect(screen.getByText("Total Recebido (Líq.)")).toBeInTheDocument();
     expect(screen.getByText("Ticket Médio")).toBeInTheDocument();
     expect(screen.getByText("Aguardando Pagamento")).toBeInTheDocument();
     expect(screen.getByText("Canceladas/Erros")).toBeInTheDocument();
