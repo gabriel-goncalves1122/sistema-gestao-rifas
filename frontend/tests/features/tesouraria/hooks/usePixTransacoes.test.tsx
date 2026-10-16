@@ -26,10 +26,9 @@ function criarTransacao(
 ): PixTransacao {
   return {
     id: parcial.id || "tx_teste",
-    referenceId: parcial.referenceId || "ref_teste",
+    pixOrderId: parcial.pixOrderId || "order_teste",
     metodo: "PIX",
     statusPagamento: parcial.statusPagamento || "PAID",
-    statusConciliacao: parcial.statusConciliacao || "conciliada",
     valorBruto: parcial.valorBruto ?? 10,
     valorPago: parcial.valorPago ?? 10,
     moeda: "BRL",
@@ -39,14 +38,13 @@ function criarTransacao(
 }
 
 const resumoApi: PixTransacoesResumo = {
+  ...RESUMO_PIX_TRANSACOES_VAZIO,
   totalRecebido: 99,
   totalPendente: 10,
   totalCancelado: 0,
-  totalDivergente: 0,
   quantidadePagas: 3,
   quantidadeAguardando: 1,
   quantidadeCanceladas: 0,
-  quantidadeNaoIdentificadas: 0,
   quantidadeAguardandoValidacao: 1,
   quantidadeAceitas: 0,
   quantidadeNegadas: 0,
@@ -196,14 +194,14 @@ describe("Hook: usePixTransacoes", () => {
     const transacoes = [
       criarTransacao({
         id: "tx_cpf",
-        referenceId: "ref_cpf",
+        pixOrderId: "ref_cpf",
         aderido: { nome: "Ana Costa", cpf: "11122233344" },
         compradorDocumento: "00000000000",
         rifas: [{ numero: "010" }],
       }),
       criarTransacao({
         id: "tx_rifa",
-        referenceId: "ref_rifa",
+        pixOrderId: "ref_rifa",
         aderido: { nome: "Bruno Lima", cpf: "55566677788" },
         compradorDocumento: "12345678900",
         rifas: [{ numero: "099" }],
@@ -226,19 +224,19 @@ describe("Hook: usePixTransacoes", () => {
     });
 
     act(() => {
-      result.current.setFiltros({ status: "todas", busca: "111.222.333-44" });
+      result.current.setFiltros({ status: "novas", busca: "111.222.333-44" });
     });
 
     expect(result.current.transacoesFiltradas).toEqual([transacoes[0]]);
 
     act(() => {
-      result.current.setFiltros({ status: "todas", busca: "12345678900" });
+      result.current.setFiltros({ status: "novas", busca: "12345678900" });
     });
 
     expect(result.current.transacoesFiltradas).toEqual([transacoes[1]]);
 
     act(() => {
-      result.current.setFiltros({ status: "todas", busca: "099" });
+      result.current.setFiltros({ status: "novas", busca: "099" });
     });
 
     expect(result.current.transacoesFiltradas).toEqual([transacoes[1]]);

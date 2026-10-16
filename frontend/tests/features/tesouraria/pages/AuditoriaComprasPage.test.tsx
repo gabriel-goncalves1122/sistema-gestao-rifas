@@ -87,7 +87,7 @@ describe("Página <AuditoriaComprasPage />", () => {
       sucesso: true,
       mensagem: "E-mail de comprovante reenviado.",
       envio: {
-        comprador_id: "comprador_maria",
+        compradorId: "comprador_maria",
         email: "maria@teste.com",
         rifas: ["001", "002"],
         status: "aprovado",

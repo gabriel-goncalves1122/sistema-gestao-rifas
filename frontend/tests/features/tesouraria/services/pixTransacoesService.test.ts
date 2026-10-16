@@ -14,10 +14,9 @@ function criarTransacao(
 ): PixTransacao {
   return {
     id: parcial.id || "tx_teste",
-    referenceId: parcial.referenceId || "ref_teste",
+    pixOrderId: parcial.pixOrderId || "order_teste",
     metodo: "PIX",
     statusPagamento: parcial.statusPagamento || "PAID",
-    statusConciliacao: parcial.statusConciliacao || "conciliada",
     valorBruto: parcial.valorBruto ?? 10,
     valorPago: parcial.valorPago ?? 10,
     moeda: "BRL",

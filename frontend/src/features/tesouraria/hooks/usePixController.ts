@@ -1,12 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AbaPix } from "../types/pixTabs";
 import { usePixTransacoes } from "./usePixTransacoes";
+import { useRelatorioTesouraria } from "./useRelatorioTesouraria";
 
+/**
+ * Parâmetros de configuração do controller de Tesouraria Pix.
+ */
 interface UseTesourariaPixControllerParams {
+  /** Variante de exibição visual ('desktop' ou 'mobile') */
   variante?: "desktop" | "mobile";
 }
 
+/**
+ * Hook de controlador para a página principal da Tesouraria Pix.
+ * Governa a navegação entre abas, sincronização bancária, carregamento de transações
+ * e recuperação das métricas consolidadas de aderidos do servidor.
+ *
+ * @param {UseTesourariaPixControllerParams} [params] - Parâmetros opcionais.
+ * @returns {Object} Estados da página, listas filtradas, aderidos e callbacks de ação.
+ */
 export function usePixController({
   variante = "desktop",
 }: UseTesourariaPixControllerParams = {}) {
@@ -27,6 +40,8 @@ export function usePixController({
     negarTransacao,
   } = usePixTransacoes();
 
+  const { relatorio } = useRelatorioTesouraria();
+  const aderidosServidor = relatorio?.rankingAderidos || [];
 
   const abaVisivel = abaAtual;
 
@@ -60,6 +75,7 @@ export function usePixController({
     filtros,
     transacoes,
     transacoesFiltradas,
+    aderidosServidor,
     carregando,
     sincronizando,
     validandoPixPorId,

@@ -43,12 +43,15 @@ function mockarController(carregando = false) {
     resumoGeral: { totalArrecadado: 500, rifasPagas: 50, aderidosAtivos: 10 },
     aderidos: [{ arrecadado: 150, meta: 100 }],
     historicoTransacoes: [
-      { status: "pago", data_reserva: "2026-05-01", valor: 500 },
+      { status: "pago", dataReserva: "2026-05-01", valor: 500 },
     ],
   });
 
   vi.mocked(useDesempenhoController).mockReturnValue({
     dados,
+    rankingFiltrado: [],
+    buscaRanking: "",
+    setBuscaRanking: vi.fn(),
     carregando,
     erro: null,
     carregarDados: vi.fn(),

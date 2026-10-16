@@ -10,11 +10,23 @@ import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { layout } from "../../../../styles/layout";
 
-interface PixAderidoDetalhesDrawerProps {
+/**
+ * Propriedades para renderização da gaveta inferior de detalhes do aderido.
+ */
+export interface PixAderidoDetalhesDrawerProps {
+  /** Resumo do aderido selecionado ou `null` se fechado */
   aderido: PixAderidoResumo | null;
+  /** Callback para fechamento da gaveta */
   onClose: () => void;
 }
 
+/**
+ * Gaveta inferior (BottomDrawer) de conferência individual do aderido,
+ * exibindo valores totais arrecadados, divisão entre Pix e Comprovante e transações pagas vinculadas.
+ *
+ * @param {PixAderidoDetalhesDrawerProps} props - Propriedades do componente.
+ * @returns {JSX.Element} BottomDrawer responsivo.
+ */
 export function PixAderidoDetalhesDrawer({
   aderido,
   onClose,
@@ -22,6 +34,10 @@ export function PixAderidoDetalhesDrawer({
   const transacoesPagas = (aderido?.transacoes || []).filter(
     (transacao) => transacao.statusPagamento === "PAID",
   );
+
+  const temSplit =
+    aderido &&
+    (aderido.valorPix !== undefined || aderido.valorComprovante !== undefined);
 
   return (
     <Drawer
@@ -68,6 +84,11 @@ export function PixAderidoDetalhesDrawer({
               <Typography sx={{ ...typography.valorMonetario, mt: 0.35 }}>
                 {formatarMoedaPix(aderido.totalArrecadado)}
               </Typography>
+              {temSplit && (
+                <Typography sx={{ color: "rgba(255,255,255,0.78)", fontSize: "0.72rem", mt: 0.4, fontStyle: "italic" }}>
+                  Pix: {formatarMoedaPix(aderido.valorPix || 0)} • Comp: {formatarMoedaPix(aderido.valorComprovante || 0)}
+                </Typography>
+              )}
             </Paper>
 
             <Paper
@@ -80,6 +101,9 @@ export function PixAderidoDetalhesDrawer({
               <Typography sx={{ color: colors.pretoEsverdeado, fontWeight: 950, mt: 0.35 }}>
                 {aderido.rifasRestantes}
               </Typography>
+              <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.72rem", mt: 0.4 }}>
+                {aderido.rifasPagas} rifa(s) vendida(s)
+              </Typography>
             </Paper>
           </Box>
 
@@ -90,7 +114,7 @@ export function PixAderidoDetalhesDrawer({
 
             <Stack spacing={1}>
               {transacoesPagas.length > 0 ? (
-                transacoesPagas.slice(0, 5).map((transacao) => (
+                transacoesPagas.slice(0, 10).map((transacao) => (
                   <Box
                     key={transacao.id}
                     sx={{

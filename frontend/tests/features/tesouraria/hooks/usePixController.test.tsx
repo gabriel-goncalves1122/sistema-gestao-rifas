@@ -9,6 +9,15 @@ vi.mock("@/features/tesouraria/hooks/usePixTransacoes", () => ({
   usePixTransacoes: vi.fn(),
 }));
 
+vi.mock("@/features/tesouraria/hooks/useRelatorioTesouraria", () => ({
+  useRelatorioTesouraria: vi.fn(() => ({
+    relatorio: { rankingAderidos: [] },
+    carregando: false,
+    erro: null,
+    recarregar: vi.fn(),
+  })),
+}));
+
 const setFiltros = vi.fn();
 const sincronizarBanco = vi.fn();
 const aceitarPixTransacao = vi.fn();

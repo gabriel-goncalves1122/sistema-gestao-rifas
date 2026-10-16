@@ -21,6 +21,7 @@ export function TesourariaPage({ variante = "desktop" }: TesourariaPageProps) {
     sincronizando,
     pixProps,
     abaVisivel,
+    aderidosServidor,
     setAbaAtual,
     onSincronizar,
   } = usePixController({ variante });
@@ -81,7 +82,10 @@ export function TesourariaPage({ variante = "desktop" }: TesourariaPageProps) {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
             >
-              <PixAderidosTab transacoes={transacoes} />
+              <PixAderidosTab
+                transacoes={transacoes}
+                aderidosServidor={aderidosServidor}
+              />
             </motion.div>
           )}
         </AnimatePresence>

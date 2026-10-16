@@ -35,4 +35,33 @@ describe("Aba: PixAderidosTab", () => {
     expect(screen.getByText("Engenheiro Rico")).toBeInTheDocument();
     expect(screen.getAllByText(/R\$\s*30,00/).length).toBeGreaterThan(1);
   });
+
+  it("Deve priorizar aderidosServidor do relatório quando fornecido", () => {
+    const aderidosServidorMock = [
+      {
+        vendedorId: "vend_servidor",
+        vendedorNome: "Carlos Servidor",
+        vendedorCpf: "99988877766",
+        valorTotal: 500,
+        valorPix: 300,
+        valorComprovante: 200,
+        rifasVendidas: 50,
+        comprasCount: 10,
+        ultimaVendaEm: "2026-10-15T10:00:00.000Z",
+      },
+    ];
+
+    render(
+      <PixAderidosTab
+        transacoes={pixTransacoesMock}
+        aderidosServidor={aderidosServidorMock}
+      />,
+    );
+
+    expect(screen.getByText("Carlos Servidor")).toBeInTheDocument();
+    expect(screen.getByText("999.888.777-66")).toBeInTheDocument();
+    expect(screen.getByText(/R\$\s*500,00/)).toBeInTheDocument();
+    expect(screen.getByText(/Pix:\s*R\$\s*300,00\s*•\s*Comp:\s*R\$\s*200,00/i)).toBeInTheDocument();
+    expect(screen.getByText("70 rifas")).toBeInTheDocument();
+  });
 });

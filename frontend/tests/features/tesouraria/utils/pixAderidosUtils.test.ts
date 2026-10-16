@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { agruparPixAderidos } from "@/features/tesouraria/utils/pixAderidosUtils";
+import {
+  agruparPixAderidos,
+  adaptarAderidosDoRelatorio,
+} from "@/features/tesouraria/utils/pixAderidosUtils";
 import { META_RIFAS_ADERIDO } from "@/features/tesouraria/utils/constants";
 import { PixTransacao } from "@/features/tesouraria/types/pixTransacoes";
 
@@ -9,10 +12,9 @@ function criarTransacao(
 ): PixTransacao {
   return {
     id: parcial.id || "tx_teste",
-    referenceId: parcial.referenceId || "ref_teste",
+    pixOrderId: parcial.pixOrderId || "order_teste",
     metodo: "PIX",
     statusPagamento: parcial.statusPagamento || "PAID",
-    statusConciliacao: parcial.statusConciliacao || "conciliada",
     valorBruto: parcial.valorBruto ?? 10,
     valorPago: parcial.valorPago ?? 10,
     moeda: "BRL",
@@ -106,5 +108,43 @@ describe("Utils: pixAderidosUtils", () => {
     ]);
 
     expect(resultado[0].rifasRestantes).toBe(0);
+  });
+
+  it("Deve adaptar métricas do relatório do servidor vinculando transações locais", () => {
+    const aderidosServidor = [
+      {
+        vendedorId: "vend_ana",
+        vendedorNome: "Ana Silva",
+        vendedorCpf: "12345678900",
+        valorTotal: 150,
+        valorPix: 100,
+        valorComprovante: 50,
+        rifasVendidas: 15,
+        comprasCount: 3,
+        arrecadado: 150,
+        meta: 120,
+        ultimaVendaEm: "2026-10-15T12:00:00.000Z",
+      },
+    ];
+
+    const transacoes = [
+      criarTransacao({
+        id: "tx_ana_1",
+        aderido: { id: "vend_ana", nome: "Ana Silva", cpf: "12345678900" },
+        valorPago: 50,
+      }),
+    ];
+
+    const adaptados = adaptarAderidosDoRelatorio(aderidosServidor, transacoes);
+
+    expect(adaptados).toHaveLength(1);
+    expect(adaptados[0].nome).toBe("Ana Silva");
+    expect(adaptados[0].cpfLabel).toBe("123.456.789-00");
+    expect(adaptados[0].totalArrecadado).toBe(150);
+    expect(adaptados[0].valorPix).toBe(100);
+    expect(adaptados[0].valorComprovante).toBe(50);
+    expect(adaptados[0].rifasPagas).toBe(15);
+    expect(adaptados[0].rifasRestantes).toBe(META_RIFAS_ADERIDO - 15);
+    expect(adaptados[0].transacoes).toHaveLength(1);
   });
 });

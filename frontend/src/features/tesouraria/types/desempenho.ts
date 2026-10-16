@@ -18,16 +18,24 @@ export interface AderidoMetricaDesempenho {
   id?: string;
   nome?: string;
   cpf?: string;
+  vendedorId?: string;
+  vendedorNome?: string;
+  vendedorCpf?: string;
   curso?: string;
   modalidadeAdesao?: "completo" | "meio";
   cargo?: string;
   arrecadado: number;
   arrecadadoLiquido?: number;
+  valorTotal?: number;
+  valorPix?: number;
+  valorComprovante?: number;
   meta: number;
   rifasVendidas?: number;
   rifasVendidasPix?: number;
   rifasVendidasComprovante?: number;
   rifasPendentes?: number;
+  comprasCount?: number;
+  ultimaVendaEm?: string | null;
 }
 
 export interface TransacaoDesempenho {

@@ -14,10 +14,9 @@ function criarTransacao(
 ): PixTransacao {
   return {
     id: parcial.id || "tx_teste",
-    referenceId: parcial.referenceId || "ref_teste",
+    pixOrderId: parcial.pixOrderId || "order_teste",
     metodo: "PIX",
     statusPagamento: parcial.statusPagamento || "PAID",
-
     valorBruto: parcial.valorBruto ?? 10,
     valorPago: parcial.valorPago ?? 10,
     moeda: "BRL",
@@ -51,7 +50,7 @@ describe("Utils: pixTransacoesUtils", () => {
     const transacoes = [
       criarTransacao({
         id: "tx_001",
-        referenceId: "pedido_ana",
+        pixOrderId: "pedido_ana",
         compradorNome: "Cliente Ana",
         compradorDocumento: "12345678900",
         aderido: { nome: "Ana Costa", cpf: "11122233344" },
@@ -59,7 +58,7 @@ describe("Utils: pixTransacoesUtils", () => {
       }),
       criarTransacao({
         id: "tx_002",
-        referenceId: "pedido_bruno",
+        pixOrderId: "pedido_bruno",
         compradorNome: "Cliente Bruno",
         compradorDocumento: "98765432100",
         aderido: { nome: "Bruno Lima", cpf: "55566677788" },
@@ -96,11 +95,11 @@ describe("Utils: pixTransacoesUtils", () => {
     ).toEqual([transacoes[1]]);
   });
 
-  it("Não deve usar reference ID como campo de busca da auditoria Pix", () => {
+  it("Não deve usar pixOrderId como campo de busca da auditoria Pix", () => {
     const transacoes = [
       criarTransacao({
         id: "tx_001",
-        referenceId: "pedido_ana",
+        pixOrderId: "pedido_ana",
         compradorNome: "Cliente Ana",
       }),
     ];

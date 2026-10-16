@@ -7,15 +7,30 @@ import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 
-interface PixAderidoResumoCardProps {
+/**
+ * Propriedades para renderização do card individual de resumo de aderido.
+ */
+export interface PixAderidoResumoCardProps {
+  /** Objeto de domínio consolidado do aderido com arrecadação e rifas */
   aderido: PixAderidoResumo;
+  /** Callback acionado ao tocar/clicar no cartão para abrir a gaveta de detalhes */
   onSelecionar: (aderido: PixAderidoResumo) => void;
 }
 
+/**
+ * Cartão de apresentação resumida do desempenho do aderido (vendedor),
+ * destacando valor total arrecadado, divisão Pix vs Comprovante e progresso em relação à meta de rifas.
+ *
+ * @param {PixAderidoResumoCardProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Botão acessível estilizado como Paper.
+ */
 export function PixAderidoResumoCard({
   aderido,
   onSelecionar,
 }: PixAderidoResumoCardProps) {
+  const temSplit =
+    aderido.valorPix !== undefined || aderido.valorComprovante !== undefined;
+
   return (
     <Paper
       component="button"
@@ -90,7 +105,7 @@ export function PixAderidoResumoCard({
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns: "1.1fr 0.9fr",
             gap: 1,
           }}
         >
@@ -112,6 +127,18 @@ export function PixAderidoResumoCard({
             >
               {formatarMoedaPix(aderido.totalArrecadado)}
             </Typography>
+            {temSplit && (
+              <Typography
+                sx={{
+                  color: colors.cinzaTexto,
+                  fontSize: "0.7rem",
+                  mt: 0.25,
+                  fontStyle: "italic",
+                }}
+              >
+                Pix: {formatarMoedaPix(aderido.valorPix || 0)} • Comp: {formatarMoedaPix(aderido.valorComprovante || 0)}
+              </Typography>
+            )}
           </Box>
 
           <Box>
@@ -132,6 +159,15 @@ export function PixAderidoResumoCard({
               }}
             >
               {aderido.rifasRestantes} rifas
+            </Typography>
+            <Typography
+              sx={{
+                color: colors.cinzaTexto,
+                fontSize: "0.7rem",
+                mt: 0.25,
+              }}
+            >
+              {aderido.rifasPagas} vendida(s)
             </Typography>
           </Box>
         </Box>
