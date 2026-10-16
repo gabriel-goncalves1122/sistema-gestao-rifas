@@ -139,6 +139,23 @@ export function AbaRecusadas({
                 gap={1.5}
               >
                 <Box sx={{ minWidth: 0 }}>
+                  {grupo.apenasCorrecaoCadastro && (
+                    <Chip
+                      size="small"
+                      label="Correção de cadastro (Pagamento aprovado)"
+                      sx={{
+                        mb: 0.75,
+                        height: 24,
+                        borderRadius: 1.25,
+                        bgcolor: "#EAF7EF",
+                        color: "#0B5136",
+                        border: "1px solid #85C89F",
+                        fontWeight: 850,
+                        fontSize: "0.72rem",
+                      }}
+                    />
+                  )}
+
                   <Typography
                     sx={{
                       color: colors.pretoEsverdeado,

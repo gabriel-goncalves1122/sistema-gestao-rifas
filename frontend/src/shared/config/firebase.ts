@@ -79,8 +79,10 @@ function formatarHostParaUrl(hostname: string) {
   return hostname;
 }
 
+// Em ambiente DEV, o uso dos emuladores é padrão resiliente para prevenir chamadas
+// acidentais à nuvem da Google, a menos que explicitamente desativado com 'false'.
 const deveUsarEmuladores =
-  import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true";
+  import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS !== "false";
 
 if (deveUsarEmuladores && !window.__FIREBASE_EMULATORS_CONNECTED__) {
   const authHost = obterHostEmulador(

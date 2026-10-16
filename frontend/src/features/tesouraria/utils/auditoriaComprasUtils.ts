@@ -30,7 +30,13 @@ export const FILTROS_AUDITORIA_COMPRAS_VAZIOS: AuditoriaComprasFiltros = {
   dataFim: "",
 };
 
-export function normalizarTexto(valor?: string | null) {
+/**
+ * Normaliza uma string removendo acentuação gráfica (diacríticos) e convertendo para minúsculas.
+ *
+ * @param {string | null} [valor] - Texto de entrada.
+ * @returns {string} Texto sem acentos e em minúsculas.
+ */
+export function normalizarTexto(valor?: string | null): string {
   return String(valor || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -38,7 +44,13 @@ export function normalizarTexto(valor?: string | null) {
     .trim();
 }
 
-export function dataParaInputAuditoria(data?: string | null) {
+/**
+ * Converte uma data em string ISO ou timestamp para o formato aceito por inputs HTML5 (`YYYY-MM-DD`).
+ *
+ * @param {string | null} [data] - String da data original.
+ * @returns {string} String no formato 'YYYY-MM-DD' ou vazio se inválida.
+ */
+export function dataParaInputAuditoria(data?: string | null): string {
   if (!data || data === "-") return "";
 
   const dataConvertida = new Date(data);
@@ -48,7 +60,13 @@ export function dataParaInputAuditoria(data?: string | null) {
   return dataConvertida.toISOString().slice(0, 10);
 }
 
-export function statusLabelAuditoria(status: string) {
+/**
+ * Retorna o rótulo legível em português correspondente ao status da compra.
+ *
+ * @param {string} status - Chave do status ('pago', 'pendente', 'recusado', 'disponivel').
+ * @returns {string} Rótulo formatado para exibição.
+ */
+export function statusLabelAuditoria(status: string): string {
   const labels: Record<string, string> = {
     pago: "Pago",
     pendente: "Pendente",
@@ -59,6 +77,12 @@ export function statusLabelAuditoria(status: string) {
   return labels[normalizarTexto(status)] || status || "N/A";
 }
 
+/**
+ * Retorna o objeto de estilo MUI `sx` (cores de texto, fundo e borda) correspondente ao status da compra.
+ *
+ * @param {string} status - Status da compra.
+ * @returns {Object} Objeto de estilização compatível com a prop `sx` do MUI.
+ */
 export function statusSxAuditoria(status: string) {
   const statusNormalizado = normalizarTexto(status);
 
@@ -93,11 +117,19 @@ export function statusSxAuditoria(status: string) {
   };
 }
 
+/**
+ * Avalia se a data de reserva de uma compra está dentro do período selecionado (dataInicio e dataFim).
+ *
+ * @param {TransacaoTesouraria} compra - Transação de compra avaliada.
+ * @param {string} dataInicio - Data inicial no formato 'YYYY-MM-DD'.
+ * @param {string} dataFim - Data final no formato 'YYYY-MM-DD'.
+ * @returns {boolean} `true` se estiver dentro do intervalo.
+ */
 function compraPassaPeriodo(
   compra: TransacaoTesouraria,
   dataInicio: string,
   dataFim: string,
-) {
+): boolean {
   const dataCompra = dataParaInputAuditoria(compra.dataReserva);
 
   if (!dataCompra) return !dataInicio && !dataFim;
@@ -107,7 +139,14 @@ function compraPassaPeriodo(
   return true;
 }
 
-function compraPassaBusca(compra: TransacaoTesouraria, busca: string) {
+/**
+ * Avalia se os dados da compra atendem ao termo de busca textual nos campos cadastrais e bilhetes.
+ *
+ * @param {TransacaoTesouraria} compra - Transação de compra.
+ * @param {string} busca - Termo digitado na caixa de busca.
+ * @returns {boolean} `true` se corresponder a algum campo.
+ */
+function compraPassaBusca(compra: TransacaoTesouraria, busca: string): boolean {
   const termo = normalizarTexto(busca);
   const termoNumerico = somenteNumeros(busca);
 
@@ -137,10 +176,17 @@ function compraPassaBusca(compra: TransacaoTesouraria, busca: string) {
   });
 }
 
+/**
+ * Aplica simultaneamente os filtros de status, intervalo de datas e busca textual sobre a listagem de compras auditáveis.
+ *
+ * @param {TransacaoTesouraria[]} compras - Lista de transações da tesouraria.
+ * @param {AuditoriaComprasFiltros} filtros - Conjunto de filtros ativos.
+ * @returns {TransacaoTesouraria[]} Compras que satisfazem todos os filtros.
+ */
 export function filtrarComprasAuditaveis(
   compras: TransacaoTesouraria[],
   filtros: AuditoriaComprasFiltros,
-) {
+): TransacaoTesouraria[] {
   return compras.filter((compra) => {
     const statusValido =
       filtros.status === "todas" ||
@@ -154,6 +200,12 @@ export function filtrarComprasAuditaveis(
   });
 }
 
+/**
+ * Computa as contagens e valores totais consolidados para os cards de resumo da auditoria.
+ *
+ * @param {TransacaoTesouraria[]} compras - Lista de compras auditadas.
+ * @returns {ResumoAuditoriaCompras} Quantitativos e valor total em reais.
+ */
 export function calcularResumoAuditoria(
   compras: TransacaoTesouraria[],
 ): ResumoAuditoriaCompras {
@@ -185,7 +237,13 @@ export function calcularResumoAuditoria(
   };
 }
 
-export function filtrosAuditoriaAtivos(filtros: AuditoriaComprasFiltros) {
+/**
+ * Verifica se algum filtro além do padrão está ativo na tela de auditoria.
+ *
+ * @param {AuditoriaComprasFiltros} filtros - Filtros atuais da tela.
+ * @returns {boolean} `true` se houver busca, data ou status diferente de "todas".
+ */
+export function filtrosAuditoriaAtivos(filtros: AuditoriaComprasFiltros): boolean {
   return Boolean(
     filtros.busca.trim() ||
       filtros.status !== "todas" ||
@@ -194,7 +252,13 @@ export function filtrosAuditoriaAtivos(filtros: AuditoriaComprasFiltros) {
   );
 }
 
-export function criarCsvAuditoriaCompras(compras: TransacaoTesouraria[]) {
+/**
+ * Converte a lista de transações de compras em formato CSV compatível com Excel brasileiro (delimitador ponto-e-vírgula).
+ *
+ * @param {TransacaoTesouraria[]} compras - Lista de compras a exportar.
+ * @returns {string} Conteúdo em string CSV pronto para download.
+ */
+export function criarCsvAuditoriaCompras(compras: TransacaoTesouraria[]): string {
   const headers = [
     "Data Reserva",
     "Data Pagamento",

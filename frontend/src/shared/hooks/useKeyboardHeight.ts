@@ -7,6 +7,12 @@
 // ============================================================================
 import { useEffect, useState } from "react";
 
+/**
+ * Hook utilitário que detecta e monitora em tempo real a altura do teclado virtual mobile via `window.visualViewport`.
+ * Permite ajustar dinamicamente o padding de barras fixas, formulários e drawers para que não fiquem ocultos pelo teclado.
+ *
+ * @returns {number} Altura em pixels do teclado virtual visível (0 quando recolhido).
+ */
 export function useKeyboardHeight() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 

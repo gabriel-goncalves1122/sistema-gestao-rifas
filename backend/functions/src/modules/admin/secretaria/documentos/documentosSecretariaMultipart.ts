@@ -6,11 +6,26 @@ import type { AuthRequest } from "../../../../shared/middlewares/authMiddleware"
 import type { ArquivoDocumentoSecretaria } from "./documentosSecretariaTypes";
 import { LIMITE_DOCUMENTO_SECRETARIA_BYTES } from "./documentosSecretariaUploadHelper";
 
+/**
+ * Extensão do `AuthRequest` contendo os dados do arquivo parseado a partir de multipart/form-data.
+ */
 export interface DocumentoMultipartRequest extends AuthRequest {
+  /** Estrutura do arquivo binário e metadados extraídos pelo Busboy. */
   documentoArquivo?: ArquivoDocumentoSecretaria;
+  /** Buffer bruto opcional fornecido por ambientes de Functions v2/Cloud Functions. */
   rawBody?: Buffer | string;
 }
 
+/**
+ * Middleware de parsing para requisições `multipart/form-data` de documentos da secretaria.
+ * Utiliza a biblioteca `busboy` para extrair campos de texto e processar o stream do arquivo em memória,
+ * garantindo limites rigorosos de tamanho (25 MB) e quantidade de arquivos (máximo 1).
+ *
+ * @param {boolean} arquivoObrigatorio - Se true, rejeita a requisição caso nenhum arquivo seja enviado.
+ * @returns {import("express").RequestHandler} Middleware Express configurado.
+ * @throws {AppError} Se o Content-Type não for multipart, o arquivo exceder 25 MB ou o arquivo for ausente quando obrigatório.
+ * @sideEffects Alimenta `req.body` com os campos de texto e `req.documentoArquivo` com o buffer do arquivo.
+ */
 export function parseDocumentoSecretariaMultipart(arquivoObrigatorio: boolean) {
   return async (
     req: DocumentoMultipartRequest,

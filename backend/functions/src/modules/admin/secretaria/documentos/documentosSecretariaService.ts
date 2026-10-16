@@ -15,6 +15,13 @@ import { documentosSecretariaStorageService } from "./documentosSecretariaStorag
 
 const COLECAO_DOCUMENTOS_SECRETARIA = "documentos_secretaria";
 
+/**
+ * Converte os dados brutos de um documento Firestore na interface de domínio `DocumentoSecretaria`.
+ *
+ * @param {string} id - Identificador único do documento.
+ * @param {FirebaseFirestore.DocumentData} dados - Dados brutos armazenados no documento Firestore.
+ * @returns {DocumentoSecretaria} Estrutura fortemente tipada do documento.
+ */
 function normalizarDocumento(id: string, dados: FirebaseFirestore.DocumentData) {
   return {
     id,
@@ -37,6 +44,13 @@ function normalizarDocumento(id: string, dados: FirebaseFirestore.DocumentData) 
   } as DocumentoSecretaria;
 }
 
+/**
+ * Remove chaves com valores `undefined` de um objeto para evitar falhas de gravação no Firestore.
+ *
+ * @template T
+ * @param {T} dados - Objeto contendo campos opcionais.
+ * @returns {Partial<T>} Novo objeto contendo apenas as propriedades definidas.
+ */
 function limparCamposVazios<T extends Record<string, unknown>>(dados: T) {
   return Object.fromEntries(
     Object.entries(dados).filter(([, valor]) => valor !== undefined),
@@ -44,6 +58,12 @@ function limparCamposVazios<T extends Record<string, unknown>>(dados: T) {
 }
 
 export const documentosSecretariaService = {
+  /**
+   * Lista todos os documentos administrativos da secretaria ordenados por data de atualização decrescente.
+   *
+   * @returns {Promise<DocumentoSecretaria[]>} Lista de documentos da secretaria normalizados.
+   * @sideEffects Leitura na coleção `documentos_secretaria`.
+   */
   async listarDocumentos(): Promise<DocumentoSecretaria[]> {
     const snapshot = await db
       .collection(COLECAO_DOCUMENTOS_SECRETARIA)
@@ -53,6 +73,17 @@ export const documentosSecretariaService = {
     return snapshot.docs.map((doc) => normalizarDocumento(doc.id, doc.data()));
   },
 
+  /**
+   * Realiza o upload binário seguro para o Storage e registra os metadados do documento no Firestore.
+   * Em caso de falha na gravação do Firestore, o arquivo binário enviado é automaticamente removido do Storage.
+   *
+   * @param {CriarDocumentoSecretariaRequest} dados - Metadados informados pelo operador (título, área, tipo, etc.).
+   * @param {ArquivoDocumentoSecretaria} arquivo - Buffer binário validado e metadados do arquivo.
+   * @param {string} autorNome - Nome do usuário autenticado responsável pelo upload.
+   * @returns {Promise<DocumentoSecretaria>} Metadados do documento persistido com ID atribuído.
+   * @throws {AppError} Se o arquivo for inválido ou se a gravação no Storage/Firestore falhar.
+   * @sideEffects Upload no Firebase Storage e criação de documento na coleção `documentos_secretaria`.
+   */
   async criarDocumento(
     dados: CriarDocumentoSecretariaRequest,
     arquivo: ArquivoDocumentoSecretaria,
@@ -95,6 +126,19 @@ export const documentosSecretariaService = {
     return normalizarDocumento(docRef.id, documento);
   },
 
+  /**
+   * Atualiza os metadados de um documento da secretaria e opcionalmente substitui seu arquivo binário no Storage.
+   * Utiliza transação para garantir que os metadados só sejam alterados se o documento existir.
+   * O arquivo binário antigo só é excluído do Storage após a transação ser confirmada com sucesso.
+   *
+   * @param {string} id - Identificador do documento no Firestore.
+   * @param {AtualizarDocumentoSecretariaRequest} dados - Novos metadados a serem mesclados.
+   * @param {ArquivoDocumentoSecretaria} [arquivo] - Novo arquivo binário caso haja substituição.
+   * @returns {Promise<DocumentoSecretaria>} Documento com metadados atualizados.
+   * @throws {AppError} Se o documento não for encontrado ou se o novo arquivo for inválido.
+   * @transactional Validação de existência e atualização dos campos via `db.runTransaction`.
+   * @sideEffects Upload do novo arquivo, remoção condicional do arquivo anterior e atualização no Firestore.
+   */
   async atualizarDocumento(
     id: string,
     dados: AtualizarDocumentoSecretariaRequest,
@@ -199,6 +243,15 @@ export const documentosSecretariaService = {
     return documentoAtualizado;
   },
 
+  /**
+   * Obtém o fluxo binário do arquivo armazenado no Firebase Storage associado a um documento da secretaria.
+   * Utilizado para download seguro e streaming de preview autenticado sem expor URLs públicas do bucket.
+   *
+   * @param {string} id - Identificador único do documento.
+   * @returns {Promise<{ conteudo: Buffer; mimeType: string; nomeArquivo: string }>} Buffer binário e metadados de entrega.
+   * @throws {AppError} Se o documento não for encontrado ou não possuir arquivo binário registrado.
+   * @sideEffects Leitura do Firestore e download do objeto no Firebase Storage.
+   */
   async obterConteudo(id: string): Promise<{
     conteudo: Buffer;
     mimeType: string;

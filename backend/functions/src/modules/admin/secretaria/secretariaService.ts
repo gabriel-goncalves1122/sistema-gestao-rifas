@@ -35,6 +35,13 @@ const BILHETES_POR_MODALIDADE: Record<ModalidadeAdesao, number> = {
 
 const COLECAO_INDICES_EMAIL = "indices_usuarios_email";
 
+/**
+ * Carrega e reconstrói o estado dos contadores analisando a coleção inteira de usuários e bilhetes.
+ * Utilizado como fallback para bases de dados legadas onde o documento `contadores/aderidos` ainda não existe.
+ *
+ * @returns {Promise<EstadoContadorAderidos>} Última posição de aderido e último bilhete computados.
+ * @sideEffects Leitura em lote de todas as coleções `usuarios` e `bilhetes`.
+ */
 async function carregarFallbackContadorLegado(): Promise<EstadoContadorAderidos> {
   const [usuariosSnapshot, bilhetesSnapshot] = await Promise.all([
     db.collection("usuarios").get(),
@@ -48,6 +55,12 @@ async function carregarFallbackContadorLegado(): Promise<EstadoContadorAderidos>
 }
 
 export const secretariaService = {
+  /**
+   * Lista todos os registros de aderidos cadastrados no sistema.
+   *
+   * @returns {Promise<AderidoSecretaria[]>} Lista de aderidos com campos brutos e id do documento injetado.
+   * @sideEffects Leitura na coleção `usuarios`.
+   */
   async listarAderidos(): Promise<AderidoSecretaria[]> {
     const querySnapshot = await db.collection("usuarios").get();
     
@@ -63,6 +76,17 @@ export const secretariaService = {
     });
   },
 
+  /**
+   * Cadastra um novo aderido atomicamente, reservando a posição sequencial, alocando a faixa
+   * contígua de bilhetes de rifas e criando a garantia de e-mail único.
+   *
+   * @param {DadosNovoAderido} dadosNovos - Payload com nome, e-mail, telefone, modalidade e cargo.
+   * @returns {Promise<{ idAderido: string; modalidade: ModalidadeAdesao; bilhetesGerados: number; faixaRifas: { inicio: string; fim: string } }>}
+   *          Dados do aderido criado e faixa de rifas reservada.
+   * @throws {AppError} Se o e-mail já estiver cadastrado, a posição já existir ou os bilhetes estiverem ocupados.
+   * @transactional Executa leitura e gravação atômica via `db.runTransaction` garantindo consistência TOCTOU.
+   * @sideEffects Criação de docs em `usuarios`, `indices_usuarios_email`, múltiplos `bilhetes` e atualização em `contadores/aderidos`.
+   */
   async adicionarAderido(dadosNovos: DadosNovoAderido) {
     const dados = normalizarDadosNovoAderido(dadosNovos);
 
@@ -247,6 +271,17 @@ export const secretariaService = {
     };
   },
 
+  /**
+   * Atualiza parcialmente os dados cadastrais de um aderido existente e sincroniza eventuais
+   * custom claims no Firebase Auth caso o cargo tenha sido alterado.
+   *
+   * @param {string} idAderido - Identificador único do aderido (ex: "ADERIDO_001").
+   * @param {DadosAtualizacaoAderido} dados - Campos modificados pelo administrador.
+   * @returns {Promise<{ idAderido: string; camposAtualizados: string[] }>} Confirmação com lista dos campos alterados.
+   * @throws {AppError} Se o aderido não for encontrado ou se houver tentativa inválida de reverter ativo para pendente.
+   * @transactional Validação de concorrência e atualização via `db.runTransaction`.
+   * @sideEffects Atualização no documento `usuarios/{id}` e propagação de custom claims no Firebase Auth Admin.
+   */
   async atualizarAderido(idAderido: string, dados: DadosAtualizacaoAderido) {
     const aderidoRef = db.collection("usuarios").doc(idAderido);
     const camposAtualizacao = montarCamposAtualizacaoAderido(dados);

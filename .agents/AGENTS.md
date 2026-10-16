@@ -107,3 +107,42 @@ npm --prefix backend/functions test
 - **Testes Sempre Atualizados:** Ao criar ou alterar lógicas complexas (especialmente de transações, regras de negócios e tesouraria), você deve obrigatoriamente garantir que os mocks e testes unitários acompanhem a mudança imediatamente.
 - **Pequenos Passos (Baby Steps):** Realize modificações pequenas e incrementais, facilitando a revisão, a testabilidade e um possível rollback caso algo dê errado.
 - **Respeitar Arquitetura Existente:** Siga rigorosamente os padrões estruturais descritos nas leis globais de arquitetura acima. Nenhuma mudança de padrão global deve ser feita sem autorização expressa.
+
+## 8. Diretrizes e Padrão Obrigatório de Documentação Inline (TSDoc / JSDoc)
+
+### 8.1 Escopo de Aplicação Obrigatória
+- **Funções e Métodos Exportados:** Todos os Services, Controllers, Helpers, Mappers, Hooks customizados e funções utilitárias DEVEM conter bloco TSDoc adjacente antes de sua declaração.
+- **Funções Internas com Lógica de Negócio:** Métodos privados ou funções auxiliares internas que realizam cálculos, validações de regra de domínio, transformações de dados ou manipulação de flags de estado (ex: `correcao_pendente`, locks Pix).
+- **Componentes Dumb e Interfaces de Props:** Devem ter suas interfaces de props inteiramente documentadas via TSDoc, explicitando o papel de cada dado e os efeitos esperados de cada callback.
+
+### 8.2 Anatomia Canônica do Bloco TSDoc
+O bloco de documentação deve ser posicionado imediatamente acima da assinatura da função:
+
+```typescript
+/**
+ * [Descrição Objetiva]: Explica o PROPÓSITO de negócio da função e o PORQUÊ de existir.
+ * Evite tautologias (ex: não comente apenas "busca por email" para buscarPorEmail).
+ *
+ * @param {Tipo} nomeParametro - Descrição do parâmetro, formatos conceituais aceitos 
+ *                                (ex: "valor em centavos", "data no formato ISO 8601",
+ *                                "identificador único do bilhete no Firestore").
+ * @returns {Tipo} Descrição clara do dado retornado, formato (ex: DTO camelCase)
+ *                 ou cenários em que retorna `null`/`undefined`.
+ * @throws {NomeDoErro} Condições específicas que disparam exceções ou rejeições.
+ * @transactional Obrigatório quando a função executa dentro ou exige uma transação
+ *                Firestore (runTransaction), prevenindo concorrência TOCTOU.
+ * @sideEffects Mutação em banco (Firestore), chamadas a APIs de terceiros (Mercado Pago),
+ *              envio de emails (nodemailer) ou persistência em storage local.
+ */
+```
+
+### 8.3 Documentação em Hooks do React (`use*`)
+Hooks de controlador ou de fluxo de checkout devem explicitar:
+1. O ciclo de vida e a máquina de estados que governam.
+2. Eventuais listeners em tempo real (ex: subscrições Firestore `onSnapshot`).
+3. O significado das propriedades expostas e das funções disparadoras retornadas.
+
+### 8.4 Manutenção Contínua e Integridade
+- Qualquer refatoração ou adição de funcionalidade exige a atualização imediata da documentação inline adjacente.
+- É proibido remover comentários existentes que contextualizam contornos de bugs ou regras de compatibilidade legada.
+

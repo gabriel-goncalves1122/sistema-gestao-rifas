@@ -26,10 +26,22 @@ import {
 
 let requisicaoEmAndamento = false;
 
-function normalizarTexto(valor: unknown) {
+/**
+ * Garante que o valor informado seja tratado como string, retornando vazio caso contrário.
+ *
+ * @param {unknown} valor - Valor bruto.
+ * @returns {string} String garantida.
+ */
+function normalizarTexto(valor: unknown): string {
   return typeof valor === "string" ? valor : "";
 }
 
+/**
+ * Normaliza o status da cobrança Pix para os valores canônicos aceitos pelo frontend.
+ *
+ * @param {unknown} status - Status bruto retornado pela API.
+ * @returns {CheckoutPixStatus} Status canônico ('aguardando_pagamento' | 'pago' | 'expirado' | 'cancelado').
+ */
 function normalizarStatusCheckoutPix(status: unknown): CheckoutPixStatus {
   if (
     status === "aguardando_pagamento" ||
@@ -43,6 +55,13 @@ function normalizarStatusCheckoutPix(status: unknown): CheckoutPixStatus {
   return "aguardando_pagamento";
 }
 
+/**
+ * Valida a resposta do backend e constrói o objeto tipado `CheckoutPixCobranca`.
+ *
+ * @param {unknown} resposta - Resposta JSON da API.
+ * @returns {CheckoutPixCobranca} Objeto tipado da cobrança com QR code e código copia-e-cola.
+ * @throws {Error} Dispara "Resposta Pix invalida." ou "Pagamento via Pix incompleto." se campos essenciais faltarem.
+ */
 function normalizarCobrancaPix(resposta: unknown): CheckoutPixCobranca {
   if (!resposta || typeof resposta !== "object") {
     throw new Error("Resposta Pix invalida.");
@@ -67,15 +86,16 @@ function normalizarCobrancaPix(resposta: unknown): CheckoutPixCobranca {
 }
 
 export const checkoutPixService = {
-  // ------------------------------------------------------------------
-  // Cria uma cobranca Pix junto ao backend do sistema.
-  //
-  // Antes de chamar a API, sanitiza os dados de entrada usando
-  // os sanitizadores compartilhados da feature.
-  //
-  // Um lock simples (mutex) impede requisicoes simultaneas.
-  // ------------------------------------------------------------------
-  async criarCobrancaPix(params: CriarCobrancaPixParams) {
+  /**
+   * Envia requisição ao backend para gerar uma nova cobrança Pix com QR Code e chave copia-e-cola.
+   * Utiliza mutex booleano em memória para prevenir chamadas simultâneas duplicadas.
+   *
+   * @param {CriarCobrancaPixParams} params - Dados da compra, comprador, rifas e sessão.
+   * @returns {Promise<CheckoutPixCobranca>} Dados normalizados da cobrança gerada.
+   * @throws {Error} Se houver requisição já em andamento ou se faltar dados obrigatórios.
+   * @sideEffects Realiza requisição HTTP POST para `/tesouraria/checkout/pix`.
+   */
+  async criarCobrancaPix(params: CriarCobrancaPixParams): Promise<CheckoutPixCobranca> {
     if (requisicaoEmAndamento) {
       throw new Error(
         "Ja existe uma cobranca sendo gerada. Aguarde a conclusao.",
@@ -117,12 +137,15 @@ export const checkoutPixService = {
     }
   },
 
-
-
-  // ------------------------------------------------------------------
-  // Cancela uma cobranca Pix e libera as rifas.
-  // ------------------------------------------------------------------
-  async cancelarCobrancaPix(id: string, reterReserva: boolean = false) {
+  /**
+   * Envia requisição para cancelamento da cobrança Pix ativa no backend, com opção de liberar ou reter bilhetes.
+   *
+   * @param {string} id - Identificador único da cobrança Pix.
+   * @param {boolean} [reterReserva=false] - Se `true`, não libera os bilhetes para a grelha geral, retendo a posse temporária.
+   * @returns {Promise<void>}
+   * @sideEffects Realiza requisição HTTP POST para `/tesouraria/checkout/pix/:id/cancelar`.
+   */
+  async cancelarCobrancaPix(id: string, reterReserva: boolean = false): Promise<void> {
     await fetchAPI(`/tesouraria/checkout/pix/${id}/cancelar`, "POST", { reterReserva });
   },
 };

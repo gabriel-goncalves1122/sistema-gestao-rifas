@@ -7,6 +7,14 @@ import type {
   FormNovoAderido,
 } from "@/shared/types/secretaria";
 import type { Notificacao } from "../types/secretariaLocalTypes";
+
+/**
+ * Controller React (Hook) que gerencia o estado da visualização de membros da secretaria.
+ * Orquestra carregamento assíncrono de aderidos, seleção individual para painel de detalhes,
+ * seleção em lote (batch), controle de modais e disparos de notificações (feedback toasts).
+ *
+ * @returns Retorna os estados de listagem, busca, seleção, loading e as funções manipuladoras.
+ */
 export function useSecretariaController() {
   const [aderidos, setAderidos] = useState<AderidoSecretaria[]>([]);
   const [loading, setLoading] = useState(false);

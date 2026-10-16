@@ -30,6 +30,7 @@ interface MinhasRifasMobileViewProps {
   possuiSelecao: boolean;
   valorTotalSelecionado: number;
   onVenderClick: () => void;
+  onLimparSelecao?: () => void;
 }
 
 export function MinhasRifasMobileView({
@@ -53,6 +54,7 @@ export function MinhasRifasMobileView({
   possuiSelecao,
   valorTotalSelecionado,
   onVenderClick,
+  onLimparSelecao,
 }: MinhasRifasMobileViewProps) {
   return (
     <AderidosSwipeTransition visaoAtual={visaoAtual}>
@@ -90,6 +92,8 @@ export function MinhasRifasMobileView({
               quantidade={selecionadas.length}
               valorTotal={valorTotalSelecionado}
               onVenderClick={onVenderClick}
+              numerosSelecionados={selecionadas}
+              onLimparClick={onLimparSelecao}
             />
           )}
         </Box>

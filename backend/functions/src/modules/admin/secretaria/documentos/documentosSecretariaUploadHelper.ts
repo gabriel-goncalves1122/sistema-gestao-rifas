@@ -23,10 +23,24 @@ const MIMES_IMAGEM = new Set([
   "image/gif",
 ]);
 
+/**
+ * Verifica se os primeiros bytes de um Buffer coincidem exatamente com uma assinatura mágica esperada.
+ *
+ * @param {Buffer} buffer - Conteúdo binário do arquivo em memória.
+ * @param {number[]} assinatura - Sequência ordenada de bytes hexadecimais a verificar.
+ * @returns {boolean} True se todos os bytes coincidirem na ordem.
+ */
 function iniciaCom(buffer: Buffer, assinatura: number[]): boolean {
   return assinatura.every((byte, indice) => buffer[indice] === byte);
 }
 
+/**
+ * Valida a integridade do arquivo inspecionando os "magic bytes" (assinatura binária) contra o MIME type alegado.
+ * Previne ataques de spoofing onde arquivos executáveis ou maliciosos são renomeados com extensões permitidas.
+ *
+ * @param {ArquivoDocumentoSecretaria} arquivo - Estrutura com buffer, mimeType e nome original.
+ * @returns {boolean} True se a assinatura binária for compatível com o formato MIME.
+ */
 function assinaturaCompativel(arquivo: ArquivoDocumentoSecretaria): boolean {
   const { buffer, mimeType } = arquivo;
 
@@ -71,6 +85,13 @@ function assinaturaCompativel(arquivo: ArquivoDocumentoSecretaria): boolean {
   return false;
 }
 
+/**
+ * Sanitiza um segmento de texto para ser usado com segurança em caminhos de arquivos e Storage keys,
+ * removendo acentos e substituindo caracteres não alfanuméricos por hífens.
+ *
+ * @param {string} valor - String bruta a ser normalizada.
+ * @returns {string} String contendo apenas caracteres alfanuméricos minúsculos, pontos, underscores e hífens.
+ */
 function sanitizarSegmento(valor: string): string {
   return valor
     .normalize("NFD")
@@ -80,6 +101,12 @@ function sanitizarSegmento(valor: string): string {
     .toLowerCase();
 }
 
+/**
+ * Valida o arquivo de documento da secretaria quanto a MIME type permitido, limite de tamanho e assinatura mágica.
+ *
+ * @param {ArquivoDocumentoSecretaria} arquivo - Objeto contendo o buffer binário, mimeType e tamanho do arquivo.
+ * @throws {AppError} Se o tipo MIME não for suportado, o tamanho exceder 25 MB ou o conteúdo binário for inválido.
+ */
 export function validarArquivoDocumentoSecretaria(
   arquivo: ArquivoDocumentoSecretaria,
 ): void {
@@ -116,6 +143,17 @@ export function validarArquivoDocumentoSecretaria(
   }
 }
 
+/**
+ * Cria o caminho estruturado único (`storagePath`) no bucket do Firebase Storage para o documento da secretaria.
+ * O padrão é `documentos_secretaria/{area}/{tipo}/{id}_{uuid}_{nomeSanitizado}`.
+ *
+ * @param {object} params - Parâmetros estruturais do documento.
+ * @param {string} params.id - Identificador único do documento no Firestore.
+ * @param {AreaDocumentoSecretaria} params.area - Área administrativa de classificação (ex: "financeiro", "atas").
+ * @param {TipoDocumentoSecretaria} params.tipo - Tipo de arquivo (ex: "ata", "contrato", "planilha").
+ * @param {string} params.nomeArquivo - Nome original do arquivo enviado pelo cliente.
+ * @returns {string} Caminho completo relativo para armazenamento no Firebase Storage.
+ */
 export function criarStoragePathDocumento(params: {
   id: string;
   area: AreaDocumentoSecretaria;

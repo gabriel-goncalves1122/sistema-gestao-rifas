@@ -33,6 +33,16 @@ export interface MercadoPagoQrCodeNormalizado {
 
 export const CHECKOUT_PIX_IDEMPOTENCIA_JANELA_MS = 5 * 60 * 1000;
 
+/**
+ * Avalia se um bilhete de rifa está elegível para reserva no fluxo de Checkout Pix.
+ * Considera elegível se o status for 'disponivel', se a reserva anterior estiver expirada
+ * ou se pertencer à mesma sessão de checkout ativa do comprador, desde que pertença ao vendedor esperado.
+ *
+ * @param {Partial<Bilhete>} dados - Dados parciais ou completos do bilhete no Firestore.
+ * @param {string} [sessaoCheckoutId] - ID da sessão de checkout atual no cliente para permitir re-reserva.
+ * @param {string} [vendedorIdEsperado] - UID do vendedor aderido que deve ser o dono do lote do bilhete.
+ * @returns {boolean} `true` se o bilhete estiver disponível para reserva Pix; caso contrário, `false`.
+ */
 export function isRifaDisponivelParaPix(
   dados: Partial<Bilhete>,
   sessaoCheckoutId?: string,
@@ -61,7 +71,14 @@ export function isRifaDisponivelParaPix(
   return disponivel;
 }
 
-export function normalizarNumerosRifas(valor: unknown) {
+/**
+ * Sanitiza e deduplica uma lista de números de rifas informada na requisição.
+ * Remove espaços em branco nas pontas e descarta strings vazias.
+ *
+ * @param {unknown} valor - Entrada bruta enviada no payload (espera-se um array de strings/números).
+ * @returns {string[]} Lista de números de rifa únicos e sanitizados.
+ */
+export function normalizarNumerosRifas(valor: unknown): string[] {
   if (!Array.isArray(valor)) return [];
 
   return Array.from(
@@ -73,6 +90,14 @@ export function normalizarNumerosRifas(valor: unknown) {
   );
 }
 
+/**
+ * Normaliza e valida os dados de entrada de um comprador para criação de cobrança Pix.
+ * Limpa máscaras de telefone e documento e garante que campos obrigatórios estejam presentes.
+ *
+ * @param {CriarCheckoutPixPayload} payload - Payload bruto recebido na rota de checkout Pix.
+ * @returns {CheckoutPixDadosNormalizados} Estrutura sanitizada com campos prontos para processamento.
+ * @throws {Error} Dispara exceção com mensagem "INVALID_DATA" se algum campo obrigatório for nulo ou vazio.
+ */
 export function normalizarDadosCheckoutPix(
   payload: CriarCheckoutPixPayload,
 ): CheckoutPixDadosNormalizados {
@@ -96,15 +121,33 @@ export function normalizarDadosCheckoutPix(
   };
 }
 
-export function calcularValorPixReais(numerosRifas: string[]) {
+/**
+ * Calcula o valor total em reais (R$) para um lote de números de rifas.
+ *
+ * @param {string[]} numerosRifas - Lista de números de rifas selecionados.
+ * @returns {number} Valor monetário total em reais (R$).
+ */
+export function calcularValorPixReais(numerosRifas: string[]): number {
   return numerosRifas.length * VALOR_RIFA_REAIS;
 }
 
-export function calcularValorPixCentavos(numerosRifas: string[]) {
+/**
+ * Calcula o valor total em centavos para processamento em gateways financeiros.
+ *
+ * @param {string[]} numerosRifas - Lista de números de rifas selecionados.
+ * @returns {number} Valor total em centavos (inteiro).
+ */
+export function calcularValorPixCentavos(numerosRifas: string[]): number {
   return calcularValorPixReais(numerosRifas) * 100;
 }
 
-export function dataExpiracaoPix(dataBase = new Date()) {
+/**
+ * Calcula o timestamp ISO 8601 de expiração de uma cobrança Pix (30 minutos por padrão).
+ *
+ * @param {Date} [dataBase=new Date()] - Data/hora de início para cálculo do tempo limite.
+ * @returns {string} Timestamp no padrão ISO 8601 em UTC (sufixo 'Z').
+ */
+export function dataExpiracaoPix(dataBase = new Date()): string {
   const expiraEm = new Date(dataBase);
   expiraEm.setMinutes(expiraEm.getMinutes() + 30);
   
@@ -112,15 +155,31 @@ export function dataExpiracaoPix(dataBase = new Date()) {
   return expiraEm.toISOString();
 }
 
-export function montarReferenceIdPix(compradorId: string) {
+/**
+ * Constrói o identificador de referência externa (`reference_id`) único para o gateway de pagamento.
+ *
+ * @param {string} compradorId - Identificador único do comprador no Firestore.
+ * @returns {string} String de referência com prefixo `rifas-pix-`.
+ */
+export function montarReferenceIdPix(compradorId: string): string {
   return `rifas-pix-${compradorId}`;
 }
 
+/**
+ * Gera uma chave de idempotência determinística em SHA-256 baseada no vendedor,
+ * bilhetes ordenados e uma janela temporal de 5 minutos, evitando cobranças duplicadas em cliques repetidos.
+ *
+ * @param {Object} params - Parâmetros da cobrança.
+ * @param {string} params.vendedorId - UID do vendedor logado.
+ * @param {string[]} params.numerosRifas - Lista de números de rifa envolvidos.
+ * @param {Date} [params.dataBase] - Timestamp base para cálculo da janela.
+ * @returns {string} Hash SHA-256 hexadecimal de idempotência.
+ */
 export function montarIdempotencyKeyPix(params: {
   vendedorId: string;
   numerosRifas: string[];
   dataBase?: Date;
-}) {
+}): string {
   const janela = Math.floor(
     (params.dataBase || new Date()).getTime() /
       CHECKOUT_PIX_IDEMPOTENCIA_JANELA_MS,
@@ -133,6 +192,13 @@ export function montarIdempotencyKeyPix(params: {
     .digest("hex");
 }
 
+/**
+ * Normaliza os dados brutos de resposta do Mercado Pago contendo QR Code e chave Pix Copia e Cola.
+ *
+ * @param {any} resposta - Resposta JSON da API do Mercado Pago.
+ * @returns {MercadoPagoQrCodeNormalizado} Objeto tipado com QR Code, payload copia-e-cola e expiração.
+ * @throws {Error} Dispara "MERCADOPAGO_QR_CODE_INVALIDO" se ID ou string copia-e-cola estiverem ausentes.
+ */
 export function normalizarQrCodeMercadoPago(resposta: any): MercadoPagoQrCodeNormalizado {
   const transactionData = resposta?.point_of_interaction?.transaction_data;
   const id = String(resposta?.id || "").trim();
@@ -151,6 +217,12 @@ export function normalizarQrCodeMercadoPago(resposta: any): MercadoPagoQrCodeNor
   };
 }
 
+/**
+ * Mapeia o status retornado pelo Mercado Pago para os status canônicos do Checkout Pix na UI.
+ *
+ * @param {string} status - Status recebido do gateway de pagamento (ex: 'approved', 'cancelled', 'in_process').
+ * @returns {CheckoutPixStatus} Status canônico: 'pago', 'cancelado' ou 'aguardando_pagamento'.
+ */
 export function mapearStatusCheckoutPix(status: string): CheckoutPixStatus {
   const canonico = mapearStatusMercadoPagoParaCanonico(status);
   if (canonico === "pago") return "pago";
@@ -158,6 +230,16 @@ export function mapearStatusCheckoutPix(status: string): CheckoutPixStatus {
   return "aguardando_pagamento";
 }
 
+/**
+ * Monta o DTO de resposta que o frontend consome ao iniciar uma sessão de Checkout Pix.
+ *
+ * @param {Object} params - Dados da resposta montada.
+ * @param {string} params.id - ID da cobrança no gateway.
+ * @param {string} params.status - Status da cobrança.
+ * @param {MercadoPagoQrCodeNormalizado} params.qrCode - Dados normalizados do QR Code.
+ * @param {string[]} params.numerosRifas - Lista de rifas associadas.
+ * @returns {CheckoutPixResposta} DTO em camelCase para consumo no React.
+ */
 export function montarRespostaCheckoutPix(params: {
   id: string;
   status: string;
@@ -175,20 +257,58 @@ export function montarRespostaCheckoutPix(params: {
   };
 }
 
-export function extrairStatusPagamentoMercadoPago(payload: any) {
+/**
+ * Extrai e normaliza com segurança o status de pagamento de um payload bruto do Mercado Pago.
+ *
+ * @param {any} payload - Payload webhook ou resposta do endpoint de pagamentos.
+ * @returns {string} Status em string minúscula (padrão: "pending").
+ */
+export function extrairStatusPagamentoMercadoPago(payload: any): string {
   const status = String(payload?.status || "pending").trim();
   return status || "pending";
 }
 
-export function extrairValorPagoReaisMercadoPago(payload: any) {
+/**
+ * Extrai o valor monetário pago em reais (R$) de um payload do Mercado Pago.
+ *
+ * @param {any} payload - Payload bruto do gateway.
+ * @returns {number} Valor numérico pago em reais.
+ */
+export function extrairValorPagoReaisMercadoPago(payload: any): number {
   const valor = payload?.transaction_details?.total_paid_amount ?? payload?.transaction_amount;
   return Number.isFinite(Number(valor)) ? Number(valor) : 0;
 }
 
-export function extrairPagoEmMercadoPago(payload: any) {
+/**
+ * Extrai a data/hora em que o pagamento foi aprovado pelo gateway financeiro.
+ *
+ * @param {any} payload - Payload bruto do gateway.
+ * @returns {string | null} Timestamp ISO ou null se não aprovado.
+ */
+export function extrairPagoEmMercadoPago(payload: any): string | null {
   return payload?.date_approved || payload?.last_updated || null;
 }
 
+/**
+ * Libera ou reverte atômica e transacionalmente bilhetes de rifa reservados no Firestore.
+ * Implementa guardas de segurança para evitar concorrência (TOCTOU):
+ * 1. Guarda de posse: não altera bilhetes que foram reatribuídos a outra transação/carrinho.
+ * 2. Guarda de pagamento: nunca sobrescreve bilhetes já marcados como pagos/validados a menos
+ *    que o novo status bancário seja de aprovação.
+ *
+ * @param {FirebaseFirestore.Transaction} transaction - Transação Firestore ativa onde as operações de leitura e escrita ocorrem.
+ * @param {FirebaseFirestore.Firestore} db - Instância do Firestore.
+ * @param {FirebaseFirestore.FieldValue} FieldValueDelete - Valor sentinela FieldValue.delete() para limpar campos.
+ * @param {string[]} numerosRifas - Lista de números dos bilhetes a serem liberados/atualizados.
+ * @param {string} statusBanco - Status de pagamento recebido do banco (ex: 'cancelled', 'expired', 'approved').
+ * @param {string | null} motivo - Motivo do cancelamento ou recusa, se aplicável.
+ * @param {boolean} [reterReserva=false] - Se `true`, preserva os dados da reserva alterando apenas metadados; se `false`, retorna para 'disponivel'.
+ * @param {string} [sessaoCheckoutId] - ID da sessão para preservação caso reterReserva seja true.
+ * @param {string} [referenciaParaValidar] - ID de referência da cobrança Pix original para garantir posse do bilhete.
+ * @returns {Promise<void>}
+ * @transactional Esta função opera estritamente dentro da transação Firestore fornecida.
+ * @sideEffects Atualiza os documentos dos bilhetes na coleção 'bilhetes'.
+ */
 export async function liberarBilhetesNaTransacao(
   transaction: any,
   db: any, // admin.firestore.Firestore
@@ -199,7 +319,7 @@ export async function liberarBilhetesNaTransacao(
   reterReserva = false,
   sessaoCheckoutId?: string,
   referenciaParaValidar?: string // Optional reference_id from the pagamento
-) {
+): Promise<void> {
   if (!numerosRifas || numerosRifas.length === 0) return;
 
   const refs = numerosRifas.map((numero) => db.collection("bilhetes").doc(numero));
@@ -253,6 +373,14 @@ export async function liberarBilhetesNaTransacao(
   });
 }
 
+/**
+ * Constrói o objeto do modelo `Comprador` para persistência na coleção 'compradores'.
+ *
+ * @param {string} compradorId - Identificador único gerado para o comprador.
+ * @param {CheckoutPixDadosNormalizados} dados - Dados cadastrais sanitizados do comprador.
+ * @param {string} agora - Timestamp ISO da criação.
+ * @returns {Comprador} Entidade de domínio Comprador pronta para gravação.
+ */
 export function montarCompradorPix(
   compradorId: string,
   dados: CheckoutPixDadosNormalizados,
@@ -267,6 +395,12 @@ export function montarCompradorPix(
   };
 }
 
+/**
+ * Constrói o objeto do modelo `PagamentoPix` para persistência na coleção 'pagamentos_pix'.
+ *
+ * @param {Object} params - Metadados da transação e do contexto.
+ * @returns {PagamentoPix} Entidade de domínio do pagamento Pix pronta para gravação no Firestore.
+ */
 export function montarPagamentoPix(params: {
   pagamentoId: string;
   compradorId: string;
@@ -306,6 +440,13 @@ export function montarPagamentoPix(params: {
   };
 }
 
+/**
+ * Constrói a carga parcial de um `Bilhete` com status 'reservado' para a transação Pix.
+ * Desnormaliza dados essenciais do vendedor e do comprador para facilitar leituras rápidas na UI.
+ *
+ * @param {Object} params - Parâmetros do bilhete reservado.
+ * @returns {Partial<Bilhete>} Objeto parcial do Bilhete para mesclagem no Firestore.
+ */
 export function montarBilheteReservadoPix(params: {
   numero: string;
   compradorId: string;
@@ -338,3 +479,4 @@ export function montarBilheteReservadoPix(params: {
     sessao_checkout_id: params.dados.sessaoCheckoutId || null,
   };
 }
+

@@ -4,14 +4,26 @@
 import { db, auth } from "../../shared/config/firebaseAdmin";
 import { Usuario } from "../types/models"; // <-- IMPORTAÇÃO DA TIPAGEM
 
+/**
+ * Dados cadastrais complementares enviados pelo usuário durante a primeira ativação de conta.
+ */
 export interface DadosRegisto {
+  /** Nome completo do formando/aderido. */
   nome?: string;
+  /** CPF formatado ou numérico. */
   cpf?: string;
+  /** Telefone celular com DDD. */
   telefone?: string;
 }
 
 export const authService = {
-  // 1. VERIFICAR ELEGIBILIDADE
+  /**
+   * Verifica se determinado e-mail foi pré-cadastrado no sistema e está apto a criar conta.
+   *
+   * @param {string} email - Endereço de e-mail institucional ou autorizado a validar.
+   * @returns {Promise<boolean>} True se existir documento de usuário correspondente na coleção `usuarios`.
+   * @sideEffects Leitura na coleção `usuarios`.
+   */
   async verificarElegibilidade(email: string): Promise<boolean> {
     const userDocs = await db
       .collection("usuarios")
@@ -22,7 +34,17 @@ export const authService = {
     return !userDocs.empty;
   },
 
-  // 2. COMPLETAR O REGISTO (Vincular Firebase Auth com o Firestore)
+  /**
+   * Vincula o UID do Firebase Auth ao cadastro pré-existente no Firestore, ativando a conta
+   * do usuário (`status: "ativo"`) e gravando as custom claims de papel/role.
+   *
+   * @param {string} email - E-mail do usuário ativando a conta.
+   * @param {string} uid - Identificador único de autenticação gerado pelo Firebase Auth.
+   * @param {DadosRegisto} dadosFormulario - Dados preenchidos no formulário de primeiro acesso.
+   * @returns {Promise<void>}
+   * @throws {Error} `USUARIO_NAO_ENCONTRADO` se o e-mail não estiver na lista de usuários pré-cadastrados.
+   * @sideEffects Atualização no Firestore (`usuarios/{docId}`) e definição de claims no Firebase Auth Admin SDK.
+   */
   async completarRegisto(
     email: string,
     uid: string,

@@ -5,8 +5,17 @@ import { Request, Response } from "express";
 import { AuthRequest } from "../../shared/middlewares/authMiddleware"; // Ajuste o caminho se necessário
 import { authService } from "./authService";
 
+/**
+ * Controller responsável pelos endpoints de autenticação e ativação de contas no sistema.
+ */
 export const authController = {
-  // 1. VERIFICA ELEGIBILIDADE DA KEEPER
+  /**
+   * Endpoint de verificação prévia de elegibilidade de e-mail institucional/Keeper.
+   *
+   * @param {Request} req - Requisição Express com `{ email }` no body.
+   * @param {Response} res - Resposta HTTP 200 (elegível), 400 (parâmetro ausente) ou 403 (não autorizado).
+   * @returns {Promise<Response>}
+   */
   async verificarElegibilidade(req: Request, res: Response): Promise<any> {
     try {
       const { email } = req.body;
@@ -33,7 +42,14 @@ export const authController = {
     }
   },
 
-  // 2. COMPLETAR O REGISTO (Chama o Firebase Auth e atualiza o DB)
+  /**
+   * Endpoint para conclusão do registro inicial de um formando autenticado.
+   * Salva os dados cadastrais (nome, CPF, telefone) e ativa o registro no banco.
+   *
+   * @param {AuthRequest} req - Requisição autenticada contendo `req.user` e os dados no corpo.
+   * @param {Response} res - Resposta HTTP 200 (sucesso), 401 (não autenticado), 404 (usuário inexistente) ou 500.
+   * @returns {Promise<Response>}
+   */
   async completarRegisto(req: AuthRequest, res: Response): Promise<any> {
     try {
       if (!req.user || !req.user.email) {

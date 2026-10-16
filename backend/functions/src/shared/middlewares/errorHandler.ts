@@ -2,6 +2,16 @@ import { Request, Response, NextFunction } from "express";
 
 import { AppError } from "../classes/AppError";
 
+/**
+ * Middleware central de tratamento de erros do Express.
+ * Intercepta instâncias de `AppError` formatando respostas com códigos padronizados,
+ * lida com sintaxe JSON malformada e mascara detalhes sensíveis em ambiente de produção para erros 500.
+ *
+ * @param {unknown} err - Objeto de erro ou exceção disparada nas rotas/controllers.
+ * @param {Request} _req - Objeto de requisição do Express.
+ * @param {Response} res - Objeto de resposta do Express.
+ * @param {NextFunction} _next - Callback next do Express.
+ */
 export function errorHandler(
   err: unknown,
   _req: Request,

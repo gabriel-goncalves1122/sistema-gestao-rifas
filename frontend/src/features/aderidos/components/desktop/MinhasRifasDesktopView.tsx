@@ -30,6 +30,7 @@ interface MinhasRifasDesktopViewProps {
   possuiSelecao: boolean;
   valorTotalSelecionado: number;
   onVenderClick: () => void;
+  onLimparSelecao?: () => void;
 }
 
 export function MinhasRifasDesktopView({
@@ -53,6 +54,7 @@ export function MinhasRifasDesktopView({
   possuiSelecao,
   valorTotalSelecionado,
   onVenderClick,
+  onLimparSelecao,
 }: MinhasRifasDesktopViewProps) {
   return (
     <AderidosSwipeTransition visaoAtual={visaoAtual}>
@@ -90,6 +92,8 @@ export function MinhasRifasDesktopView({
               quantidade={selecionadas.length}
               valorTotal={valorTotalSelecionado}
               onVenderClick={onVenderClick}
+              numerosSelecionados={selecionadas}
+              onLimparClick={onLimparSelecao}
             />
           )}
         </Box>

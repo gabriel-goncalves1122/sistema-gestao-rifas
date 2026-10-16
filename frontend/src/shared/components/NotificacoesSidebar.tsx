@@ -22,9 +22,15 @@ import {
   normalizarTipoNotificacaoRifa,
 } from "../utils/notificacoesUtils";
 
-interface Props {
+/**
+ * Interface de propriedades do componente Dumb `NotificacoesSidebar`.
+ */
+export interface NotificacoesSidebarProps {
+  /** Se o drawer lateral de notificações está visível. */
   open: boolean;
+  /** Callback acionado ao solicitar o fechamento da barra lateral. */
   onClose: () => void;
+  /** Lista de notificações de rifas do usuário autenticado. */
   notificacoes: NotificacaoRifa[];
 }
 
@@ -77,6 +83,12 @@ function renderIconeNotificacao(tipo: TipoNotificacaoRifa) {
   return <EditNoteIcon fontSize="small" />;
 }
 
+/**
+ * Deriva o título contextual da notificação com base no seu tipo ou fallback informativo.
+ *
+ * @param {NotificacaoRifa} notificacao - Registro de notificação.
+ * @returns {string} Título a ser exibido no card.
+ */
 function obterTituloNotificacao(notificacao: NotificacaoRifa) {
   const tipo = normalizarTipoNotificacaoRifa(notificacao.tipo);
   const config = CONFIG_NOTIFICACAO[tipo];
@@ -88,7 +100,18 @@ function obterTituloNotificacao(notificacao: NotificacaoRifa) {
   return config.titulo;
 }
 
-export function NotificacoesSidebar({ open, onClose, notificacoes }: Props) {
+/**
+ * Componente Dumb de barra lateral (Drawer) para exibição e leitura de notificações do usuário logado.
+ * Renderiza cards temáticos por tipo (correção de dados, rifa liberada, avisos) e lista de rifas afetadas.
+ *
+ * @param {NotificacoesSidebarProps} props - Propriedades de controle e lista de notificações.
+ * @returns {JSX.Element}
+ */
+export function NotificacoesSidebar({
+  open,
+  onClose,
+  notificacoes,
+}: NotificacoesSidebarProps) {
   return (
     <Drawer anchor="right" open={open} onClose={onClose}>
       <Box

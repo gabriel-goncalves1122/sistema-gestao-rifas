@@ -3,6 +3,13 @@ import { usePremios } from "./usePremios";
 import type { PremioData } from "../types/premio";
 import type { InfoSorteio } from "../types/sorteio";
 
+/**
+ * Controller React (Hook) que gerencia o estado da vitrine de prêmios e do sorteio de formatura.
+ * Coordena carregamento assíncrono, modais de edição do cabeçalho e de prêmios, geração e
+ * revogação segura de ObjectURLs para preview de foto, além de submissões de formulário e exclusões.
+ *
+ * @returns Retorna os estados do sorteio, lista de prêmios, modais, flags de loading e funções manipuladoras.
+ */
 export function usePremiosController() {
   const {
     buscarPremios,

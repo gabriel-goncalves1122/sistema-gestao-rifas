@@ -1,9 +1,20 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 
-interface AppLoadingScreenProps {
+/**
+ * Interface de propriedades do componente `AppLoadingScreen`.
+ */
+export interface AppLoadingScreenProps {
+  /** Texto descritivo exibido abaixo do spinner de carregamento (padrão: "Carregando"). */
   label?: string;
 }
 
+/**
+ * Componente Dumb de tela cheia para carregamento inicial ou bloqueio de transição da aplicação.
+ * Exibe spinner centralizado em círculo sombreado e mensagem de status com suporte a `100dvh` mobile.
+ *
+ * @param {AppLoadingScreenProps} props - Propriedades da tela de carregamento.
+ * @returns {JSX.Element}
+ */
 export function AppLoadingScreen({
   label = "Carregando",
 }: AppLoadingScreenProps) {

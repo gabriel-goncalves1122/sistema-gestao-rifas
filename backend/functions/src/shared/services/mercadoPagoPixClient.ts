@@ -38,7 +38,13 @@ export interface MercadoPagoPaymentResponse {
 
 
 
-function obterTokenApi() {
+/**
+ * Obtém o token de autenticação de produção/homologação do Mercado Pago configurado nas variáveis de ambiente.
+ *
+ * @returns {string} Bearer token do Mercado Pago.
+ * @throws {Error} Dispara "MERCADOPAGO_NOT_CONFIGURED" se a variável MERCADOPAGO_ACCESS_TOKEN não estiver definida.
+ */
+function obterTokenApi(): string {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
 
   if (!token) {
@@ -48,12 +54,26 @@ function obterTokenApi() {
   return token;
 }
 
-function obterNotificationUrl() {
+/**
+ * Constrói a URL pública absoluta de webhook para onde o Mercado Pago enviará notificações de pagamento (IPN).
+ *
+ * @returns {string | undefined} URL do webhook ou undefined se a variável API_PUBLIC_BASE_URL não estiver configurada.
+ */
+function obterNotificationUrl(): string | undefined {
   const baseUrl = process.env.API_PUBLIC_BASE_URL?.replace(/\/+$/, "");
   return baseUrl ? `${baseUrl}/tesouraria/checkout/pix/webhook` : undefined;
 }
 
 export class MercadoPagoPixClient {
+  /**
+   * Dispara requisição HTTP POST para a API do Mercado Pago criando uma ordem/cobrança Pix instantânea.
+   * Converte centavos em reais, adiciona dados do comprador (CPF/CNPJ) e gera chave UUID única de idempotência.
+   *
+   * @param {CriarPedidoPixParams} params - Dados da cobrança Pix a ser gerada.
+   * @returns {Promise<MercadoPagoPaymentResponse>} Resposta do gateway com ID do pedido e dados do QR Code.
+   * @throws {Error} Dispara "MERCADOPAGO_DOCUMENTO_INVALIDO" caso o CPF/CNPJ seja rejeitado pelo gateway.
+   * @sideEffects Chama a API externa do Mercado Pago (`https://api.mercadopago.com/v1/payments`).
+   */
   static async criarPedidoPix(params: CriarPedidoPixParams): Promise<MercadoPagoPaymentResponse> {
     // Mercado Pago aceita valores em ponto flutuante (reais) em vez de centavos
     const transactionAmount = params.valorCentavos / 100;
@@ -113,6 +133,13 @@ export class MercadoPagoPixClient {
     }
   }
 
+  /**
+   * Consulta o estado atual de um pagamento diretamente na API do Mercado Pago pelo seu identificador único.
+   *
+   * @param {string} orderId - Identificador numérico/string do pagamento no Mercado Pago.
+   * @returns {Promise<MercadoPagoPaymentResponse | null>} Resposta do gateway ou `null` caso retorne 404.
+   * @sideEffects Realiza chamada HTTP GET para o Mercado Pago.
+   */
   static async consultarPedido(orderId: string): Promise<MercadoPagoPaymentResponse | null> {
     try {
       const resposta = await axios.get(`https://api.mercadopago.com/v1/payments/${orderId}`, {
@@ -132,6 +159,13 @@ export class MercadoPagoPixClient {
     }
   }
 
+  /**
+   * Solicita o cancelamento de uma cobrança Pix pendente no Mercado Pago, invalidando o QR Code emitido.
+   *
+   * @param {string} orderId - Identificador do pagamento a cancelar.
+   * @returns {Promise<MercadoPagoPaymentResponse | null>} Resposta com status 'cancelled' ou null se já inexistente/cancelado.
+   * @sideEffects Realiza chamada HTTP PUT para o Mercado Pago.
+   */
   static async cancelarPedidoPix(orderId: string): Promise<MercadoPagoPaymentResponse | null> {
     try {
       const resposta = await axios.put(

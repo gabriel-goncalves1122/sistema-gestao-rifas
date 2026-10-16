@@ -1,6 +1,19 @@
 import * as admin from "firebase-admin";
 
+/**
+ * Serviço responsável pela gestão de notificações aos usuários do sistema,
+ * permitindo consulta de avisos e criação acoplada a operações transacionais
+ * de outros módulos (tesouraria, rifas).
+ */
 export class NotificacoesService {
+  /**
+   * Busca as notificações mais recentes vinculadas ao e-mail do aderido, com tolerância
+   * a esquemas legados e fallback para consultas sem índice composto.
+   *
+   * @param {string} email - Endereço de e-mail do usuário autenticado.
+   * @returns {Promise<Array<Record<string, any>>>} Lista de notificações do usuário ordenadas por data decrescente.
+   * @sideEffects Leitura das coleções `usuarios` e `notificacoes`.
+   */
   static async buscarPorEmailAderido(email: string) {
     const db = admin.firestore();
 
@@ -51,6 +64,14 @@ export class NotificacoesService {
     }
   }
 
+  /**
+   * Marca um conjunto de notificações como lidas em lote, garantindo que pertençam ao usuário autenticado.
+   * Executa em lotes (chunks) de 30 IDs para respeitar a restrição de operadores `in` do Firestore.
+   *
+   * @param {string[]} ids - Lista de IDs das notificações a serem atualizadas.
+   * @param {string} email - E-mail do usuário autenticado para validação de posse.
+   * @sideEffects Atualização atômica em lote (WriteBatch) na coleção `notificacoes`.
+   */
   static async marcarComoLidas(ids: string[], email: string) {
     // Se não vier IDs, sai fora para não dar erro de batch vazio
     if (!ids || ids.length === 0) return;
@@ -95,6 +116,15 @@ export class NotificacoesService {
     }
   }
 
+  /**
+   * Agenda a gravação de uma notificação de recusa de comprovante dentro de um WriteBatch ou Transaction.
+   *
+   * @param {admin.firestore.WriteBatch | admin.firestore.Transaction} batchOrTransaction - Instância de lote ou transação ativa.
+   * @param {string} vendedorId - Identificador do vendedor/aderido destinatário.
+   * @param {string} motivo - Mensagem descritiva da razão da recusa.
+   * @param {string[]} numerosRifas - Lista de números das rifas afetadas pela recusa.
+   * @sideEffects Agenda a criação de documento na coleção `notificacoes`.
+   */
   static criarNotificacaoRecusa(
     batchOrTransaction: admin.firestore.WriteBatch | admin.firestore.Transaction,
     vendedorId: string,
@@ -118,6 +148,15 @@ export class NotificacoesService {
     });
   }
 
+  /**
+   * Agenda a gravação de uma notificação solicitando correção de dados do comprador dentro de um lote ou transação.
+   *
+   * @param {admin.firestore.WriteBatch | admin.firestore.Transaction} batchOrTransaction - Instância de lote ou transação ativa.
+   * @param {string} vendedorId - Identificador do vendedor/aderido.
+   * @param {string} motivo - Instruções de correção enviadas pela tesouraria.
+   * @param {string[]} numerosRifas - Lista de números de rifa associados.
+   * @sideEffects Agenda a criação de documento na coleção `notificacoes`.
+   */
   static criarNotificacaoCorrecaoDados(
     batchOrTransaction: admin.firestore.WriteBatch | admin.firestore.Transaction,
     vendedorId: string,
@@ -140,6 +179,15 @@ export class NotificacoesService {
     });
   }
 
+  /**
+   * Agenda a gravação de uma notificação avisando que rifas não pagas foram liberadas e voltaram ao estoque.
+   *
+   * @param {admin.firestore.WriteBatch | admin.firestore.Transaction} batchOrTransaction - Instância de lote ou transação ativa.
+   * @param {string} vendedorId - Identificador do vendedor/aderido.
+   * @param {string} motivo - Motivo do cancelamento (ex: expiração de timeout Pix).
+   * @param {string[]} numerosRifas - Lista dos números de bilhetes liberados.
+   * @sideEffects Agenda a criação de documento na coleção `notificacoes`.
+   */
   static criarNotificacaoRifaLiberada(
     batchOrTransaction: admin.firestore.WriteBatch | admin.firestore.Transaction,
     vendedorId: string,

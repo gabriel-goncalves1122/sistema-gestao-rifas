@@ -8,6 +8,13 @@ import { ordenarRifasPorNumero } from "../helpers/ordenarRifasHelper";
 import { buscarUsuarioPorEmail } from "../helpers/usuarioRifasHelper";
 
 export class AderidoRifasService {
+  /**
+   * Consulta e retorna a lista de todos os bilhetes de rifa alocados para o vendedor aderido logado.
+   * Realiza a ordenação natural numérica dos bilhetes antes de retornar.
+   *
+   * @param {string} emailLogado - Email do aderido autenticado na requisição.
+   * @returns {Promise<Bilhete[]>} Lista ordenada de bilhetes com seus respectivos status e dados de comprador.
+   */
   static async buscarPorAderido(emailLogado: string): Promise<Bilhete[]> {
     const db = admin.firestore();
 

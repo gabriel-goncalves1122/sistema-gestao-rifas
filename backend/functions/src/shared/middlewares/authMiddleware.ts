@@ -10,6 +10,11 @@ export interface AuthRequest extends Request {
   };
 }
 
+/**
+ * Obtém a lista de emails com privilégios irrestritos de super-admin a partir da variável de ambiente SUPER_ADMIN_EMAILS.
+ *
+ * @returns {string[]} Lista de emails sanitizados em letras minúsculas.
+ */
 export function obterSuperAdmins(): string[] {
   const envValue = process.env.SUPER_ADMIN_EMAILS || "";
 
@@ -37,6 +42,16 @@ export const CARGOS_SECRETARIA_OU_ADMIN = [
   "membro_secretaria",
 ];
 
+/**
+ * Middleware de autenticação central do Express.
+ * Extrai o Bearer token do header 'Authorization', valida-o criptograficamente no Firebase Auth (`verifyIdToken`),
+ * busca o cargo atual do usuário na coleção 'usuarios' e anexa o payload decodificado em `req.user`.
+ *
+ * @param {AuthRequest} req - Requisição Express com tipagem estendida para usuário autenticado.
+ * @param {Response} res - Resposta Express (retorna 401 se ausente ou 403 se inválido).
+ * @param {NextFunction} next - Callback para prosseguir na cadeia de middlewares.
+ * @returns {Promise<void>}
+ */
 export const validateToken = async (
   req: AuthRequest,
   res: Response,
@@ -120,6 +135,15 @@ export const validateToken = async (
   }
 };
 
+/**
+ * Middleware de autorização para rotas restritas à Tesouraria ou Administração.
+ * Permite super-admins definidos via variáveis de ambiente ou usuários com cargo presente em `CARGOS_TESOURARIA_OU_ADMIN`.
+ *
+ * @param {AuthRequest} req - Requisição Express contendo `req.user`.
+ * @param {Response} res - Resposta Express (retorna 401 se deslogado ou 403 se sem permissão).
+ * @param {NextFunction} next - Callback para prosseguir na rota.
+ * @returns {Promise<void>}
+ */
 export const requireTesourariaOrAdmin = async (
   req: AuthRequest,
   res: Response,
@@ -156,6 +180,15 @@ export const requireTesourariaOrAdmin = async (
   next();
 };
 
+/**
+ * Middleware de autorização para rotas restritas à Secretaria ou Administração.
+ * Permite super-admins ou usuários com cargo presente em `CARGOS_SECRETARIA_OU_ADMIN`.
+ *
+ * @param {AuthRequest} req - Requisição Express contendo `req.user`.
+ * @param {Response} res - Resposta Express (retorna 401 se deslogado ou 403 se sem permissão).
+ * @param {NextFunction} next - Callback para prosseguir na rota.
+ * @returns {Promise<void>}
+ */
 export const requireSecretariaOrAdmin = async (
   req: AuthRequest,
   res: Response,

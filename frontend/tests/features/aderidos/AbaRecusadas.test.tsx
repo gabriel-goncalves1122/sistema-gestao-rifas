@@ -74,4 +74,23 @@ describe("Componente: AbaRecusadas", () => {
     expect(mockAbrirCorrecao).toHaveBeenCalledTimes(1);
     expect(mockAbrirCorrecao).toHaveBeenCalledWith(mockGrupos[0]);
   });
+
+  it("Deve exibir o selo 'Correção de cadastro (Pagamento aprovado)' quando apenasCorrecaoCadastro for true", () => {
+    render(
+      <AbaRecusadas
+        gruposRecusados={[
+          {
+            ...mockGrupos[0],
+            apenasCorrecaoCadastro: true,
+          },
+        ]}
+        onVoltar={vi.fn()}
+        onAbrirCorrecao={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Correção de cadastro \(Pagamento aprovado\)/i),
+    ).toBeInTheDocument();
+  });
 });

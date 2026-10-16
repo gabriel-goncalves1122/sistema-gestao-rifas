@@ -10,13 +10,23 @@ import { CargoComissao } from "@/shared/types/models";
 
 import { authService } from "../services/authService";
 
+/**
+ * Extensão do objeto `User` do Firebase Auth agregando o cargo do comitê de formatura
+ * e o nome cadastrado no Firestore.
+ */
 export interface UsuarioFormatura extends User {
+  /** Cargo de acesso no sistema (ex: "admin", "tesouraria", "secretaria", "aderido"). */
   cargo?: CargoComissao;
-
-  // Nome vem do documento da coleção "usuarios", não obrigatoriamente do Firebase Auth.
+  /** Nome completo do usuário sincronizado a partir do Firestore. */
   nome?: string;
 }
 
+/**
+ * Mapeia códigos de erro do Firebase Auth em mensagens amigáveis em português para recuperação de senha.
+ *
+ * @param {string} [codigo] - Código de erro retornado pelo Firebase Auth.
+ * @returns {string} Mensagem clara para exibição ao usuário.
+ */
 function obterMensagemErroRecuperacao(codigo?: string) {
   if (codigo === "auth/user-not-found" || codigo === "auth/invalid-email") {
     return "E-mail não encontrado ou formato inválido.";
@@ -25,6 +35,12 @@ function obterMensagemErroRecuperacao(codigo?: string) {
   return "Ocorreu um erro ao enviar o e-mail de recuperação.";
 }
 
+/**
+ * Traduz exceções e códigos de erro de criação de conta em mensagens amigáveis.
+ *
+ * @param {any} erro - Objeto de erro capturado no bloco catch.
+ * @returns {string} Mensagem tratada para exibição em formulário.
+ */
 function obterMensagemErroRegistro(erro: any) {
   if (erro.message && erro.message.includes("elegível")) {
     return "E-mail não encontrado na base oficial. Use o e-mail exato da Keeper.";
@@ -37,6 +53,12 @@ function obterMensagemErroRegistro(erro: any) {
   return erro.message || "Erro ao criar conta. Verifique os dados.";
 }
 
+/**
+ * Extrai o nome do usuário suportando campos com grafias legadas (`Nome`, `nome`, `displayName`).
+ *
+ * @param {any} dadosUsuario - Dicionário de dados do usuário.
+ * @returns {string} Nome sanitizado.
+ */
 function normalizarNomeUsuario(dadosUsuario: any) {
   // Mantém compatibilidade com documentos novos e possíveis registros antigos.
   return String(
@@ -44,10 +66,37 @@ function normalizarNomeUsuario(dadosUsuario: any) {
   ).trim();
 }
 
+/**
+ * Extrai o cargo do usuário ou atribui o padrão "aderido" se ausente.
+ *
+ * @param {any} dadosUsuario - Dados do documento de usuário.
+ * @returns {CargoComissao} Cargo válido.
+ */
 function normalizarCargoUsuario(dadosUsuario: any): CargoComissao {
   return (dadosUsuario?.cargo as CargoComissao) || "aderido";
 }
 
+/**
+ * Controller React (Hook) que gerencia o ciclo de vida e a máquina de estados de autenticação da aplicação.
+ *
+ * Ciclo de Vida e Listeners em Tempo Real:
+ * 1. Inicializa o estado de forma otimista lendo cache local (`auth_cache_{uid}` no localStorage) para evitar flicker.
+ * 2. Registra listener `onAuthStateChanged` no Firebase Auth para observar mudanças na sessão de login/logout.
+ * 3. Quando autenticado, registra uma subscrição em tempo real (`onSnapshot`) na coleção `usuarios` do Firestore
+ *    para reagir imediatamente a mudanças de cargo ou perfil.
+ * 4. Limpa automaticamente listeners do Firebase Auth e do Firestore ao desmontar o componente.
+ *
+ * Propriedades e Funções Expostas:
+ * - `usuarioAtual`: Instância de `UsuarioFormatura` contendo UID, e-mail, nome e cargo atualizados.
+ * - `loading`: Flag indicando processo de autenticação ou leitura de dados em andamento.
+ * - `error`: Mensagem de erro amigável caso uma ação recente tenha falhado.
+ * - `handleLogin`: Dispara autenticação com e-mail e senha.
+ * - `handleRegister`: Dispara validação de elegibilidade e cadastro de novo formando.
+ * - `handleLogout`: Encerra a sessão no Firebase Auth e limpa cache local.
+ * - `handlePasswordReset`: Dispara o fluxo de recuperação de senha por e-mail.
+ *
+ * @returns Objeto com o estado de autenticação e os callbacks de controle.
+ */
 export function useAuthController() {
   const [loading, setLoading] = useState(() => {
     // Procura no localStorage por uma sessão cacheada válida

@@ -67,6 +67,15 @@ export interface PixTransacao {
   observacao?: string;
 }
 
+export interface ResumoComprovantesTesouraria {
+  comprovantesTransacoesPagas: number;
+  comprovantesRifasPagas: number;
+  comprovantesValorRecebido: number;
+  comprovantesTransacoesPendentes: number;
+  comprovantesRifasPendentes: number;
+  comprovantesValorPendente: number;
+}
+
 export interface PixTransacoesResumo {
   totalRecebido: number;
   totalPendente: number;
@@ -80,6 +89,32 @@ export interface PixTransacoesResumo {
   totalTransacoes: number;
 
   ticketMedio: number;
+
+  // 1. Indicadores detalhados de Pagamentos via Pix (Gateway)
+  pixRifasPagas?: number;
+  pixRecebidoBruto?: number;
+  pixRecebidoLiquido?: number;
+  pixTransacoesAguardando?: number;
+  pixRifasAguardando?: number;
+  pixValorAguardandoBruto?: number;
+  pixValorAguardandoLiquido?: number;
+
+  // 2. Indicadores de Rifas negociadas via Comprovante Manual (Legado)
+  comprovantesTransacoesPagas?: number;
+  comprovantesRifasPagas?: number;
+  comprovantesValorRecebido?: number;
+  comprovantesTransacoesPendentes?: number;
+  comprovantesRifasPendentes?: number;
+  comprovantesValorPendente?: number;
+
+  // 3. Indicadores do Total Geral Consolidado (Pix + Comprovantes)
+  totalGeralTransacoesPagas?: number;
+  totalGeralRifasPagas?: number;
+  totalGeralRecebidoBruto?: number;
+  totalGeralRecebidoLiquido?: number;
+  totalGeralTransacoesPendentes?: number;
+  totalGeralRifasPendentes?: number;
+  totalGeralValorPendenteBruto?: number;
 }
 
 export interface ResultadoSincronizacaoPix {
@@ -102,6 +137,8 @@ export interface ResultadoReenvioEmailComprovante {
   status: "aprovado";
 }
 
+export type OrigemTransacaoTesouraria = "PIX" | "COMPROVANTE";
+
 export interface TransacaoTesouraria {
   id: string;
   dataReserva: string | null;
@@ -117,4 +154,47 @@ export interface TransacaoTesouraria {
   comprovanteUrl: string | null;
   bilhetes: string[];
   valorTotal: number;
+  valorLiquido?: number;
+  origem?: OrigemTransacaoTesouraria;
+  pixOrderId?: string | null;
+  statusPagamentoBanco?: string | null;
+  statusValidacao?: string | null;
+  correcaoPendente?: boolean;
 }
+
+export interface AderidoRelatorioTesouraria {
+  id: string;
+  nome: string;
+  cpf: string;
+  curso?: string;
+  modalidadeAdesao?: "completo" | "meio";
+  cargo?: string;
+  arrecadado: number;
+  arrecadadoLiquido?: number;
+  meta: number;
+  rifasVendidas: number;
+  rifasVendidasPix?: number;
+  rifasVendidasComprovante?: number;
+  rifasPendentes?: number;
+}
+
+export interface ResumoGeralRelatorioTesouraria {
+  totalArrecadado: number;
+  totalArrecadadoLiquido?: number;
+  rifasPagas: number;
+  rifasPagasPix?: number;
+  rifasPagasComprovante?: number;
+  valorArrecadadoPixBruto?: number;
+  valorArrecadadoPixLiquido?: number;
+  valorArrecadadoComprovante?: number;
+  rifasPendentes?: number;
+  rifasPendentesPix?: number;
+  rifasPendentesComprovante?: number;
+  aderidosAtivos: number;
+}
+
+export interface RelatorioTesourariaResponse {
+  resumoGeral: ResumoGeralRelatorioTesouraria;
+  aderidos: AderidoRelatorioTesouraria[];
+}
+

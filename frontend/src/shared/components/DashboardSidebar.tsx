@@ -17,17 +17,35 @@ import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import { dashboardSidebarStyles } from "@/shared/styles/dashboardSidebarStyles";
 import { Contexto } from "@/views/pages/DashboardPage";
 
-interface Props {
+/**
+ * Interface de propriedades do componente Dumb `DashboardSidebar`.
+ */
+export interface DashboardSidebarProps {
+  /** Se o drawer lateral de navegação está aberto. */
   open: boolean;
+  /** Se o usuário atual é Super Administrador. */
   isSuperAdmin: boolean;
+  /** Se o usuário possui permissão de acesso ao módulo da Tesouraria. */
   hasTesourariaAccess: boolean;
+  /** Se o usuário possui permissão de acesso ao módulo da Secretaria. */
   hasSecretariaAccess: boolean;
+  /** Identificador do contexto visual atualmente ativo ("aderido", "tesouraria", "secretaria"). */
   contextoAtual: Contexto;
+  /** Callback acionado para fechar o Drawer lateral. */
   onClose: () => void;
+  /** Callback disparado ao selecionar um novo módulo/contexto de navegação. */
   onMudarContexto: (contexto: Contexto) => void;
+  /** Callback acionado ao clicar na opção de sair da conta (Logout). */
   onLogout: () => void;
 }
 
+/**
+ * Componente Dumb de navegação lateral (Drawer) do painel principal da aplicação.
+ * Renderiza o cabeçalho com badges de perfil/cargo e os itens de menu baseados nas permissões RBAC.
+ *
+ * @param {DashboardSidebarProps} props - Propriedades de navegação e callbacks de contexto.
+ * @returns {JSX.Element}
+ */
 export function DashboardSidebar({
   open,
   isSuperAdmin,
@@ -37,7 +55,7 @@ export function DashboardSidebar({
   onClose,
   onMudarContexto,
   onLogout,
-}: Props) {
+}: DashboardSidebarProps) {
   const getCargoLabel = () => {
     if (isSuperAdmin) return "Administração Geral";
     if (hasTesourariaAccess) return "Tesouraria";

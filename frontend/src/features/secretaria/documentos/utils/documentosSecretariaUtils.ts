@@ -7,6 +7,12 @@ import type {
 } from "../types/documentosSecretariaTypes";
 import { TIPOS_CADASTRO_DOCUMENTO } from "../constants/documentosTipos";
 
+/**
+ * Remove acentuação e converte texto para minúsculas para busca textual insensível a maiúsculas/acentos.
+ *
+ * @param {string} valor - String bruta.
+ * @returns {string} String normalizada sem diacríticos e sem espaços extras.
+ */
 const normalizarTexto = (valor: string) =>
   valor
     .normalize("NFD")
@@ -14,6 +20,14 @@ const normalizarTexto = (valor: string) =>
     .toLowerCase()
     .trim();
 
+/**
+ * Filtra a lista de documentos da secretaria por área administrativa e termo de busca textual.
+ * A busca textual pesquisa em título, área, tipo, nome de arquivo e nome do autor.
+ *
+ * @param {DocumentoComissao[]} documentos - Lista completa de documentos disponíveis.
+ * @param {DocumentosSecretariaFiltros} filtros - Critérios ativos de filtro (área e termo de busca).
+ * @returns {DocumentoComissao[]} Lista filtrada de documentos.
+ */
 export function filtrarDocumentosSecretaria(
   documentos: DocumentoComissao[],
   filtros: DocumentosSecretariaFiltros,
@@ -46,6 +60,12 @@ export function filtrarDocumentosSecretaria(
   });
 }
 
+/**
+ * Converte um tamanho numérico em bytes para uma representação legível com unidade (ex: "1.4 MB", "350 KB").
+ *
+ * @param {number} bytes - Quantidade de bytes do arquivo.
+ * @returns {string} String formatada com unidade correspondente.
+ */
 export function formatarTamanhoArquivo(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) {
     return "0 KB";
@@ -64,6 +84,12 @@ export function formatarTamanhoArquivo(bytes: number) {
   return `${valor.toFixed(casas)} ${unidades[indice]}`;
 }
 
+/**
+ * Formata uma data ISO para o padrão brasileiro abreviado (ex: "15 de out. de 2026").
+ *
+ * @param {string} valor - String ISO de data ou timestamp legível.
+ * @returns {string} Data formatada ou mensagem de indisponibilidade caso inválida.
+ */
 export function formatarDataDocumento(valor: string) {
   const data = new Date(valor);
 
@@ -78,6 +104,12 @@ export function formatarDataDocumento(valor: string) {
   }).format(data);
 }
 
+/**
+ * Determina o tipo de visualizador/preview apropriado com base no MIME type do arquivo.
+ *
+ * @param {string} mimeType - Tipo MIME do documento (ex: "application/pdf", "image/png").
+ * @returns {TipoPreviewDocumento} Categoria de preview ("imagem", "pdf" ou "indisponivel").
+ */
 export function obterTipoPreviewDocumento(mimeType: string): TipoPreviewDocumento {
   if (["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeType)) {
     return "imagem";
@@ -90,6 +122,12 @@ export function obterTipoPreviewDocumento(mimeType: string): TipoPreviewDocument
   return "indisponivel";
 }
 
+/**
+ * Sanitiza e valida URLs de visualização legadas para garantir que usem protocolos seguros (http/https).
+ *
+ * @param {string} [url] - URL de visualização potencial.
+ * @returns {string | null} URL segura ou null se inválida ou ausente.
+ */
 export function obterUrlVisualizacaoSegura(url?: string) {
   if (!url) {
     return null;
@@ -107,6 +145,12 @@ export function obterUrlVisualizacaoSegura(url?: string) {
   }
 }
 
+/**
+ * Infere a categoria de cadastro (`pdf`, `planilha` ou `imagem`) de um documento existente.
+ *
+ * @param {DocumentoComissao} documento - Objeto de domínio do documento.
+ * @returns {TipoDocumentoCadastro} Categoria correspondente de cadastro.
+ */
 export function inferirTipoCadastroDocumento(
   documento: DocumentoComissao,
 ): TipoDocumentoCadastro {
@@ -125,6 +169,12 @@ export function inferirTipoCadastroDocumento(
   return "pdf";
 }
 
+/**
+ * Cria o estado inicial do formulário de criação de documento preenchendo defaults com base no tipo.
+ *
+ * @param {TipoDocumentoCadastro} tipoCadastro - Categoria de documento ("pdf", "planilha" ou "imagem").
+ * @returns {DocumentoFormData} Dados vazios estruturados do formulário.
+ */
 export function criarDocumentoFormInicial(
   tipoCadastro: TipoDocumentoCadastro,
 ): DocumentoFormData {
@@ -147,6 +197,12 @@ export function criarDocumentoFormInicial(
   };
 }
 
+/**
+ * Mapeia os dados de um documento existente para a estrutura de edição `DocumentoFormData`.
+ *
+ * @param {DocumentoComissao} documento - Objeto de documento recuperado do servidor.
+ * @returns {DocumentoFormData} Dados preenchidos no formato do formulário.
+ */
 export function documentoParaFormData(
   documento: DocumentoComissao,
 ): DocumentoFormData {
@@ -169,6 +225,12 @@ export function documentoParaFormData(
   };
 }
 
+/**
+ * Infere o tipo MIME provável de um arquivo inspecionando a propriedade nativa `type` e sua extensão de nome.
+ *
+ * @param {File} arquivo - Objeto File da Web API selecionado pelo usuário.
+ * @returns {string} String do MIME type detectado.
+ */
 export function inferirMimeTypeDocumento(arquivo: File) {
   if (arquivo.type) {
     return arquivo.type;
@@ -186,6 +248,12 @@ export function inferirMimeTypeDocumento(arquivo: File) {
   return "application/octet-stream";
 }
 
+/**
+ * Infere a categoria de cadastro suportada (`pdf`, `planilha`, `imagem`) a partir do arquivo selecionado.
+ *
+ * @param {File} arquivo - Arquivo selecionado no input HTML.
+ * @returns {TipoDocumentoCadastro | null} Tipo de cadastro identificado ou null se não suportado.
+ */
 export function inferirTipoCadastroPorArquivo(
   arquivo: File,
 ): TipoDocumentoCadastro | null {
@@ -215,6 +283,13 @@ export function inferirTipoCadastroPorArquivo(
   return null;
 }
 
+/**
+ * Valida se determinado arquivo selecionado pelo usuário corresponde ao tipo de modal aberto.
+ *
+ * @param {File} arquivo - Arquivo submetido.
+ * @param {TipoDocumentoCadastro} tipoCadastro - Tipo de cadastro esperado ("pdf", "planilha" ou "imagem").
+ * @returns {boolean} True se o arquivo for compatível com a modalidade esperada.
+ */
 export function arquivoAceitoParaTipo(
   arquivo: File,
   tipoCadastro: TipoDocumentoCadastro,

@@ -6,10 +6,26 @@ import { mapearStatusCheckoutPix, isRifaDisponivelParaPix } from "./checkoutPixH
 
 export const STATUS_PAGAMENTO_PIX_ATIVO = ["CRIANDO", "WAITING", "IN_ANALYSIS"];
 
-export function erroMensagem(error: unknown) {
+/**
+ * Extrai com segurança a mensagem de texto de um erro desconhecido capturado em bloco catch.
+ *
+ * @param {unknown} error - Instância de erro ou valor lançado.
+ * @returns {string} Mensagem do erro ou "ERRO_DESCONHECIDO".
+ */
+export function erroMensagem(error: unknown): string {
   return error instanceof Error ? error.message : "ERRO_DESCONHECIDO";
 }
 
+/**
+ * Verifica previamente no Firestore se todos os bilhetes especificados existem e estão disponíveis para reserva Pix.
+ *
+ * @param {admin.firestore.Firestore} db - Instância do Firestore.
+ * @param {string[]} numeros - Lista de números dos bilhetes a verificar.
+ * @param {string} [sessaoCheckoutId] - ID da sessão de checkout atual caso esteja renovando reserva.
+ * @param {string} [vendedorIdEsperado] - UID do vendedor aderido esperado.
+ * @returns {Promise<void>}
+ * @throws {Error} Dispara "RIFA_NOT_FOUND" se algum bilhete não existir, ou "RIFA_INDISPONIVEL" se estiver ocupado por outro comprador.
+ */
 export async function verificarDisponibilidadeRifasPix(
   db: admin.firestore.Firestore,
   numeros: string[],
@@ -33,6 +49,13 @@ export async function verificarDisponibilidadeRifasPix(
   }
 }
 
+/**
+ * Converte um documento de pagamento Pix já existente em DTO de resposta formatado para o frontend.
+ *
+ * @param {PagamentoPix} pagamento - Documento de pagamento lido do Firestore.
+ * @returns {CheckoutPixResposta} DTO estruturado com QR Code e dados da cobrança.
+ * @throws {Error} Dispara "PAGAMENTO_EM_CRIACAO" se os dados do QR code ainda não foram sincronizados.
+ */
 export function montarRespostaPagamentoPix(
   pagamento: PagamentoPix,
 ): CheckoutPixResposta {
@@ -51,10 +74,18 @@ export function montarRespostaPagamentoPix(
   };
 }
 
+/**
+ * Recupera um pagamento Pix ativo caso exista um lock de concorrência pendente para a mesma chave de idempotência.
+ *
+ * @param {Object} params - Parâmetros da consulta.
+ * @param {admin.firestore.Firestore} params.db - Instância do Firestore.
+ * @param {admin.firestore.DocumentReference} params.lockRef - Referência do documento de lock na coleção 'locks_pix'.
+ * @returns {Promise<PagamentoPix | null>} Documento do pagamento se ativo e dentro do ciclo de vida; caso contrário, `null`.
+ */
 export async function obterPagamentoAtivoPorLockPix(params: {
   db: admin.firestore.Firestore;
   lockRef: admin.firestore.DocumentReference;
-}) {
+}): Promise<PagamentoPix | null> {
   const lockSnap = await params.lockRef.get();
 
   if (!lockSnap.exists) return null;
@@ -79,6 +110,23 @@ export async function obterPagamentoAtivoPorLockPix(params: {
     : null;
 }
 
+/**
+ * Executa compensação transacional em caso de falha externa ao criar pedido no provedor Pix.
+ * Marca o pagamento com status "ERRO_CRIACAO", remove o lock de idempotência e reverte
+ * os bilhetes envolvidos para 'disponivel', garantindo consistência atômica.
+ *
+ * @param {Object} params - Parâmetros da compensação.
+ * @param {admin.firestore.Firestore} params.db - Instância do Firestore.
+ * @param {admin.firestore.DocumentReference} params.pagamentoRef - Referência do documento de pagamento.
+ * @param {admin.firestore.DocumentReference} params.lockRef - Referência do documento de lock.
+ * @param {string[]} params.numerosRifas - Lista de números dos bilhetes afetados.
+ * @param {string} params.referenceId - ID de referência da tentativa.
+ * @param {string} params.compradorId - ID do comprador.
+ * @param {unknown} params.error - Erro original disparado pelo provedor.
+ * @returns {Promise<void>}
+ * @transactional Executa em transação Firestore com separação estrita de leituras e escritas.
+ * @sideEffects Atualiza o pagamento, exclui o lock e restaura os bilhetes no Firestore.
+ */
 export async function compensarErroCriacaoPix(params: {
   db: admin.firestore.Firestore;
   pagamentoRef: admin.firestore.DocumentReference;
@@ -87,7 +135,7 @@ export async function compensarErroCriacaoPix(params: {
   referenceId: string;
   compradorId: string;
   error: unknown;
-}) {
+}): Promise<void> {
   const agora = new Date().toISOString();
 
   await params.db.runTransaction(async (transaction) => {
@@ -147,6 +195,22 @@ export async function compensarErroCriacaoPix(params: {
   });
 }
 
+/**
+ * Persiste transacionalmente os identificadores do Mercado Pago (orderId, QR Code, payload copia-e-cola)
+ * no documento de pagamento e atualiza os bilhetes correspondentes no Firestore.
+ *
+ * @param {Object} params - Dados da persistência.
+ * @param {admin.firestore.Firestore} params.db - Instância do Firestore.
+ * @param {admin.firestore.DocumentReference} params.pagamentoRef - Referência do documento de pagamento.
+ * @param {string} params.orderId - Identificador do pedido retornado pelo gateway.
+ * @param {Object} params.qrCode - Estrutura normalizada do QR Code Pix.
+ * @param {string} params.expiraEmFallback - Data limite de expiração caso não retornada pelo gateway.
+ * @param {string[]} params.numerosRifas - Lista de números de rifa vinculados.
+ * @param {any} params.respostaMercadoPago - Payload bruto do gateway para fins de log e auditoria.
+ * @returns {Promise<void>}
+ * @transactional Executa em transação Firestore com consistência imediata entre pagamento e bilhetes.
+ * @sideEffects Atualiza 'pagamentos_pix' e 'bilhetes'.
+ */
 export async function persistirPedidoMercadoPagoNoFirestore(params: {
   db: admin.firestore.Firestore;
   pagamentoRef: admin.firestore.DocumentReference;
@@ -161,7 +225,7 @@ export async function persistirPedidoMercadoPagoNoFirestore(params: {
   expiraEmFallback: string;
   numerosRifas: string[];
   respostaMercadoPago: any;
-}) {
+}): Promise<void> {
   await params.db.runTransaction(async (transaction) => {
     const pagamentoSnap = await transaction.get(params.pagamentoRef);
     if (!pagamentoSnap.exists) throw new Error("PAGAMENTO_NOT_FOUND");

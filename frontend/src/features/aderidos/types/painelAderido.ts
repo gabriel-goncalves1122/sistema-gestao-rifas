@@ -16,6 +16,7 @@ export type FiltroRifasAderido =
 export interface RifaAderido {
   numero: string;
   status: string;
+  correcao_pendente?: boolean | null;
 
   // Dados do vendedor/aderido. Nem sempre vêm da API, por isso são opcionais.
   vendedor_id?: string | null;
@@ -44,6 +45,7 @@ export interface GrupoRifasRecusadas {
   data: string | null;
   motivo: string;
   bilhetes: string[];
+  apenasCorrecaoCadastro?: boolean;
 }
 
 export interface DadosCorrecaoRecusa {

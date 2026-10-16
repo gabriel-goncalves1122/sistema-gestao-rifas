@@ -1,12 +1,23 @@
 import { Dialog, Box, IconButton } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
-interface Props {
+/**
+ * Interface de propriedades do componente `ModalImagemPix`.
+ */
+export interface ModalImagemPixProps {
+  /** URL de download da imagem do comprovante Pix no Storage, ou null para manter fechado. */
   url: string | null;
+  /** Callback acionado ao solicitar o fechamento do diálogo de zoom do comprovante. */
   onClose: () => void;
 }
 
-export function ModalImagemPix({ url, onClose }: Props) {
+/**
+ * Componente Dumb de diálogo em tela cheia/modal para visualização ampliada do comprovante Pix anexado.
+ *
+ * @param {ModalImagemPixProps} props - Propriedades do modal de visualização.
+ * @returns {JSX.Element}
+ */
+export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
   return (
     <Dialog open={!!url} onClose={onClose} maxWidth="md" fullWidth>
       <Box

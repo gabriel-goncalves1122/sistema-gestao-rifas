@@ -22,6 +22,31 @@ interface UsePixStateMachineParams {
   invalidarDadosPainel: () => Promise<void>;
 }
 
+/**
+ * Hook controlador da Máquina de Estados Finita (FSM) do Checkout Pix do aderido.
+ * Governa todo o ciclo de vida da compra:
+ * 1. Estado inicial `idle` (com recuperação de cache local via `checkoutStorage`);
+ * 2. Estado `gerando`: envio do payload para a API e prevenção de cliques múltiplos / cancelamento de requisições órfãs;
+ * 3. Estado `aguardando_pagamento`: estabelece ouvinte em tempo real (`onSnapshot`) no Firestore para detecção imediata de liquidação pelo banco;
+ * 4. Transições automáticas para `sucesso` (aprovado no gateway) ou `cancelado`/`expirado`;
+ * 5. Gerencia cópia da chave copia-e-cola com fallbacks e cancelamento explícito com retenção ou liberação de reserva.
+ *
+ * @param {UsePixStateMachineParams} params - Configurações do checkout.
+ * @param {string} params.sessaoCheckoutId - Identificador único da sessão temporária de reserva no cliente.
+ * @param {string[]} params.numerosRifas - Lista de números de rifa selecionados no carrinho.
+ * @param {() => Promise<void>} params.invalidarDadosPainel - Callback para disparar a revalidação dos bilhetes no React Query / Controller.
+ * @returns {Object} Estado reativo e ações disparadoras:
+ *   - `status`: Estado atual da máquina ('idle' | 'gerando' | 'aguardando_pagamento' | 'sucesso' | 'erro' | 'expirado' | 'cancelado').
+ *   - `cobrancaPix`: Dados normalizados da cobrança com QR Code e expiração.
+ *   - `erro`: Mensagem amigável de erro se status for 'erro'.
+ *   - `cancelando`: Flag booleana indicando requisição de cancelamento em andamento.
+ *   - `gerarCobranca`: Função para disparar a geração da cobrança Pix.
+ *   - `cancelarCobranca`: Função para cancelar a cobrança atual (com opção de reter ou liberar bilhetes).
+ *   - `copiarPix`: Handler de área de transferência (clipboard com fallback legacy).
+ *   - `resetarFluxo`: Restaura o estado da máquina para 'idle'.
+ *   - `liberarReservaTotal`: Cancela cobrança e limpa a sessão de checkout por completo.
+ *   - `abortarGeracaoPendente`: Sinaliza cancelamento caso uma chamada de rede esteja em voo.
+ */
 export function usePixStateMachine({
   sessaoCheckoutId,
   numerosRifas,
@@ -55,6 +80,11 @@ export function usePixStateMachine({
     checkoutStorage.update({ cobrancaPix });
   }, [cobrancaPix]);
 
+  /**
+   * Reseta o estado local da máquina de estados Pix de volta para `idle`.
+   *
+   * @param {boolean} [limparSessao=false] - Se `true`, limpa também o ID da sessão de checkout no storage local.
+   */
   const resetarFluxo = useCallback((limparSessao: boolean = false) => {
     setCobrancaPix(null);
     setErro(null);
@@ -109,7 +139,13 @@ export function usePixStateMachine({
     };
   }, [cobrancaPix, status, invalidarDadosPainel]);
 
-  // GERAÇÃO
+  /**
+   * Dispara a geração de uma nova cobrança Pix no backend.
+   * Atribui requestId único para rastreamento de concorrência e aborta cobranças órfãs
+   * caso o componente desmonte ou o usuário cancele a tela antes da resposta.
+   *
+   * @param {DadosGerarCobrancaPix} dados - Dados cadastrais do pagador.
+   */
   const gerarCobranca = useCallback(async (dados: DadosGerarCobrancaPix) => {
     if (numerosRifas.length === 0) {
       setErro("Nenhuma rifa selecionada para pagamento.");
@@ -153,7 +189,12 @@ export function usePixStateMachine({
     }
   }, [numerosRifas, sessaoCheckoutId]);
 
-  // CANCELAMENTO
+  /**
+   * Solicita o cancelamento da cobrança Pix ativa.
+   * Trata concorrência e caso o pagamento já tenha sido aprovado enquanto o usuário clicava em cancelar.
+   *
+   * @param {boolean} [reterReserva=false] - Se `true`, mantém os bilhetes reservados no carrinho.
+   */
   const cancelarCobranca = useCallback(async (reterReserva: boolean = false) => {
     if (!cobrancaPix) return;
 
@@ -185,6 +226,9 @@ export function usePixStateMachine({
     }
   }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);
 
+  /**
+   * Libera totalmente a reserva dos bilhetes e encerra a sessão de checkout Pix.
+   */
   const liberarReservaTotal = useCallback(async () => {
     if (cobrancaPix && cobrancaPix.status !== "sucesso") {
       const idParaCancelar = cobrancaPix.id;
@@ -200,13 +244,22 @@ export function usePixStateMachine({
     invalidarDadosPainel?.();
   }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);
 
+  /**
+   * Registra a solicitação de cancelamento da requisição assíncrona em voo caso o modal seja fechado.
+   */
   const abortarGeracaoPendente = useCallback(() => {
     if (currentGeracaoId.current) {
       pendingAborts.current.add(currentGeracaoId.current);
     }
   }, []);
 
-  const copiarPix = useCallback(() => {
+  /**
+   * Copia a chave Pix Copia e Cola para a área de transferência do sistema operacional.
+   * Utiliza `navigator.clipboard` moderno com fallback para `document.execCommand('copy')`.
+   *
+   * @returns {boolean} `true` se a cópia foi realizada com sucesso.
+   */
+  const copiarPix = useCallback((): boolean => {
     if (!cobrancaPix?.copiaECola) return false;
     const texto = cobrancaPix.copiaECola;
     if (navigator.clipboard?.writeText) {
