@@ -63,4 +63,20 @@ A interface foi projetada com foco em usabilidade móvel (*Mobile-First*). Tabel
 
 1. Clone o repositório:
 ```bash
-git clone [https://github.com/seu-usuario/sistema-rifas.git](https://github.com/seu-usuario/sistema-rifas.git)
+git clone https://github.com/seu-usuario/sistema-rifas.git
+cd sistema-rifas
+```
+
+2. Instale as dependências na raiz (instala automaticamente o frontend e o backend):
+```bash
+npm install
+```
+
+3. Inicie os servidores em terminais separados:
+```bash
+# Terminal 1: Backend e Emuladores do Firebase
+npm run dev:backend:local
+
+# Terminal 2: Frontend Vite
+npm run dev:vite
+```

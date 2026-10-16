@@ -2,7 +2,13 @@
 
 ## Preparacao
 
-Instale as dependencias nos dois pacotes reais:
+Instale as dependencias diretamente a partir da raiz (o comando executa a instalacao em ambos os pacotes automaticamente):
+
+```bash
+npm install
+```
+
+Ou, se preferir instalar manualmente em cada pacote:
 
 ```bash
 npm --prefix frontend install
