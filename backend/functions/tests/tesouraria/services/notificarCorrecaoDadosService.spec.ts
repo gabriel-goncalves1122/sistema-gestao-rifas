@@ -77,12 +77,12 @@ describe("Service: NotificarCorrecaoDadosService", () => {
     ).rejects.toThrow("VENDA_SEM_VENDEDOR");
   });
 
-  it("Deve setar flag correcao_pendente e gerar notificacao para o comprador", async () => {
+  it("Deve setar flag correcao_pendente, motivo_recusa e gerar notificacao usando fallback de doc.id se numero nao existir no body", async () => {
     const mockTransacao = {
       get: jest.fn().mockResolvedValue({
         empty: false,
         docs: [
-          { id: "002", data: () => ({ status: "pago", vendedor_id: "VEND_999", numero: "002" }), ref: "REF_002" },
+          { id: "002", data: () => ({ status: "pago", vendedor_id: "VEND_999" }), ref: "REF_002" },
           { id: "001", data: () => ({ status: "pago", vendedor_id: "VEND_999", numero: "001" }), ref: "REF_001" },
         ],
       }),
@@ -97,8 +97,14 @@ describe("Service: NotificarCorrecaoDadosService", () => {
     await NotificarCorrecaoDadosService.notificar("COMP_123", "Corrija os dados.");
 
     expect(mockTransacao.update).toHaveBeenCalledTimes(2);
-    expect(mockTransacao.update).toHaveBeenCalledWith("REF_001", { correcao_pendente: true });
-    expect(mockTransacao.update).toHaveBeenCalledWith("REF_002", { correcao_pendente: true });
+    expect(mockTransacao.update).toHaveBeenCalledWith("REF_001", {
+      correcao_pendente: true,
+      motivo_recusa: "Corrija os dados.",
+    });
+    expect(mockTransacao.update).toHaveBeenCalledWith("REF_002", {
+      correcao_pendente: true,
+      motivo_recusa: "Corrija os dados.",
+    });
 
     expect(mockTransacao.set).toHaveBeenCalledTimes(1);
     expect(mockTransacao.set).toHaveBeenCalledWith(

@@ -7,6 +7,7 @@ import {
   formatarDataAuditoria,
   formatarMoedaAuditoria,
 } from "../../../utils/auditoriaComprasUtils";
+import { formatarTelefone } from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -86,7 +87,9 @@ export function AuditoriaCompraCard({
                 {compra.compradorEmail || "Sem e-mail"}
               </Typography>
               <Typography sx={styles.contatoTelefone}>
-                {compra.compradorTelefone || "Sem telefone"}
+                {compra.compradorTelefone
+                  ? formatarTelefone(compra.compradorTelefone)
+                  : "Sem telefone"}
               </Typography>
             </Box>
 

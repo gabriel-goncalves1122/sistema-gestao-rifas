@@ -18,6 +18,7 @@ import {
 } from "../../../utils/auditoriaComprasUtils";
 import { AuditoriaCompraActions } from "../shared/AuditoriaCompraActions";
 import { AuditoriaStatusChip } from "../shared/AuditoriaStatusChip";
+import { formatarTelefone } from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -95,9 +96,6 @@ export function AuditoriaComprasTable({
                 >
                   {compra.compradorNome}
                 </Typography>
-                <Typography sx={{ ...typography.bodyPequeno, mt: 0.3 }}>
-                  ID: {compra.compradorId || "sem compradorId"}
-                </Typography>
               </TableCell>
               <TableCell sx={{ minWidth: 190 }}>
                 <Typography
@@ -111,7 +109,9 @@ export function AuditoriaComprasTable({
                   {compra.compradorEmail || "Sem e-mail"}
                 </Typography>
                 <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.8rem" }}>
-                  {compra.compradorTelefone || "Sem telefone"}
+                  {compra.compradorTelefone
+                    ? formatarTelefone(compra.compradorTelefone)
+                    : "Sem telefone"}
                 </Typography>
               </TableCell>
               <TableCell sx={{ minWidth: 170 }}>
@@ -128,9 +128,9 @@ export function AuditoriaComprasTable({
                   spacing={0.5}
                   flexWrap="wrap"
                   useFlexGap
-                  sx={{ maxWidth: 160 }}
+                  sx={{ maxWidth: 180 }}
                 >
-                  {compra.bilhetes.map((bilhete) => (
+                  {compra.bilhetes.slice(0, 5).map((bilhete) => (
                     <Chip
                       key={bilhete}
                       label={bilhete}
@@ -143,6 +143,20 @@ export function AuditoriaComprasTable({
                       }}
                     />
                   ))}
+                  {compra.bilhetes.length > 5 && (
+                    <Chip
+                      label={`+ ${compra.bilhetes.length - 5}`}
+                      size="small"
+                      sx={{
+                        ...components.chipBilhete,
+                        height: 24,
+                        borderRadius: 1.5,
+                        bgcolor: colors.fundoSuave,
+                        color: colors.cinzaTexto,
+                        border: "1px solid rgba(6, 61, 49, 0.12)",
+                      }}
+                    />
+                  )}
                 </Stack>
               </TableCell>
               <TableCell>

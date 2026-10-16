@@ -6,7 +6,9 @@ import { GrupoRifasRecusadas, RifaAderido } from "../types/painelAderido";
 export function agruparRifasRecusadas(
   rifas: RifaAderido[],
 ): GrupoRifasRecusadas[] {
-  const rifasRecusadas = rifas.filter((rifa) => rifa.status === "recusado");
+  const rifasRecusadas = rifas.filter(
+    (rifa) => rifa.status === "recusado" || rifa.correcao_pendente === true,
+  );
 
   const grupos = rifasRecusadas.reduce<Record<string, GrupoRifasRecusadas>>(
     (acc, rifa) => {
@@ -38,6 +40,9 @@ export function agruparRifasRecusadas(
           data: rifa.data_reserva || null,
           motivo: rifa.motivo_recusa || "Sem motivo informado",
           bilhetes: [],
+          ...(rifa.status === "pago" && rifa.correcao_pendente === true
+            ? { apenasCorrecaoCadastro: true }
+            : {}),
         };
       }
 

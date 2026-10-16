@@ -9,6 +9,24 @@ import { DadosVenda } from "../types/rifasTypes";
 import { obterContextoAderidoPorEmail } from "../helpers/usuarioRifasHelper";
 
 export class VendaRifasService {
+  /**
+   * Processa transacionalmente a venda direta de bilhetes de rifa por envio de comprovante bancário manual.
+   * Regras e garantias de segurança:
+   * - Garante que todas as rifas existem no banco;
+   * - Impede roubo de cotas entre aderidos (Cross-Seller Theft): cada rifa deve pertencer ao lote do vendedor logado;
+   * - Garante que as rifas estão com status 'disponivel';
+   * - Cria o registro na coleção 'compradores';
+   * - Atualiza atômica e simultaneamente todos os bilhetes para status 'pendente' com a URL do comprovante;
+   * - Envia email de notificação assíncrono para o comprador caso o email seja informado.
+   *
+   * @param {string} uid - Identificador do usuário no Firebase Auth.
+   * @param {string} emailLogado - Email do aderido vendedor autenticado.
+   * @param {DadosVenda} dadosVenda - Dados cadastrais do comprador, comprovante anexado e array de números de rifas.
+   * @returns {Promise<void>}
+   * @throws {Error} Dispara "INVALID_DATA", "RIFA_NOT_FOUND" ou "RIFA_INDISPONIVEL".
+   * @transactional Executa leitura prévia e mutação dos bilhetes em `db.runTransaction`.
+   * @sideEffects Cria registro em 'compradores', atualiza documentos em 'bilhetes' e dispara email transacional via Nodemailer.
+   */
   static async processarVenda(
     uid: string,
     emailLogado: string,
@@ -32,8 +50,14 @@ export class VendaRifasService {
         ref: db.collection("bilhetes").doc(numero),
       }));
 
-      for (const { ref } of rifasRefs) {
-        const snap = await transaction.get(ref);
+      const snaps =
+        typeof transaction.getAll === "function"
+          ? await transaction.getAll(...rifasRefs.map(({ ref }) => ref))
+          : await Promise.all(
+              rifasRefs.map(({ ref }) => transaction.get(ref)),
+            );
+
+      for (const snap of snaps) {
         if (!snap.exists) {
           throw new Error("RIFA_NOT_FOUND");
         }
@@ -64,6 +88,8 @@ export class VendaRifasService {
           status: "pendente",
           comprador_id: compradorRef.id,
           comprador_nome: nome,
+          comprador_telefone: telefone,
+          comprador_email: email || null,
           vendedor_nome: contextoAderido.vendedorNome,
           vendedor_cpf: contextoAderido.vendedorCpf,
           vendedor_id: contextoAderido.idAderido,

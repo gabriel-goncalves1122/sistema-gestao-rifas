@@ -22,19 +22,51 @@ interface AuditoriaCompraActionsProps {
   processandoAcaoId?: string | null;
 }
 
+type ActionIconVariant = "default" | "success" | "warning" | "danger";
+
+const ACTION_VARIANT_STYLES: Record<
+  ActionIconVariant,
+  { color: string; bgcolor: string; hoverBg: string }
+> = {
+  default: {
+    color: colors.verdeEscuro,
+    bgcolor: colors.verdeClaro,
+    hoverBg: colors.verdeHover,
+  },
+  success: {
+    color: "#0B5136",
+    bgcolor: "#D8EFE4",
+    hoverBg: "#BEE5D2",
+  },
+  warning: {
+    color: "#8A5300",
+    bgcolor: "#FFF4D8",
+    hoverBg: "#FFE9AD",
+  },
+  danger: {
+    color: colors.erroTexto,
+    bgcolor: colors.erroSuave,
+    hoverBg: "#F5C2C2",
+  },
+};
+
 function ActionIcon({
   tooltip,
   label,
   icon,
   disabled = false,
+  variant = "default",
   onClick,
 }: {
   tooltip: string;
   label: string;
   icon: React.ReactNode;
   disabled?: boolean;
+  variant?: ActionIconVariant;
   onClick: (e: React.MouseEvent) => void;
 }) {
+  const palette = ACTION_VARIANT_STYLES[variant];
+
   return (
     <Tooltip title={tooltip}>
       <span>
@@ -44,9 +76,9 @@ function ActionIcon({
           disabled={disabled}
           onClick={onClick}
           sx={{
-            color: colors.verdeEscuro,
-            bgcolor: colors.verdeClaro,
-            "&:hover": { bgcolor: colors.verdeHover },
+            color: palette.color,
+            bgcolor: palette.bgcolor,
+            "&:hover": { bgcolor: palette.hoverBg },
             "&.Mui-disabled": {
               bgcolor: colors.fundoSuave,
               color: colors.cinzaDisabled,
@@ -144,10 +176,11 @@ export function AuditoriaCompraActions({
         <ActionIcon
           tooltip="Aprovar compra"
           label="Aprovar compra"
+          variant="success"
           disabled={processandoAcaoId === compra.id}
           icon={
             processandoAcaoId === compra.id ? (
-              <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+              <CircularProgress size={16} sx={{ color: "#0B5136" }} />
             ) : (
               <CheckCircleOutlinedIcon fontSize="small" />
             )
@@ -159,14 +192,15 @@ export function AuditoriaCompraActions({
         />
       )}
 
-      {onNegar && (compra.status === "pendente" || compra.status === "reservado" || compra.status === "pago") && (
+      {onNegar && (compra.status === "pendente" || compra.status === "reservado") && (
         <ActionIcon
           tooltip="Recusar compra"
           label="Recusar compra"
+          variant="danger"
           disabled={processandoAcaoId === compra.id}
           icon={
             processandoAcaoId === compra.id ? (
-              <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+              <CircularProgress size={16} sx={{ color: colors.erroTexto }} />
             ) : (
               <CancelOutlinedIcon fontSize="small" />
             )

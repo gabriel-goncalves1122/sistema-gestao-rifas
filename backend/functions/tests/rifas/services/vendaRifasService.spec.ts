@@ -103,6 +103,16 @@ describe("Service: VendaRifasService", () => {
 
     // 1 set para comprador + 2 sets para bilhetes.
     expect(mockBatchSet).toHaveBeenCalledTimes(3);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "pendente",
+        comprador_nome: "Engenheiro Comprador",
+        comprador_telefone: "35999999999",
+        comprador_email: "comprador@teste.com",
+      }),
+      { merge: true },
+    );
 
     expect(enviarEmailRecibo).toHaveBeenCalledWith(
       "comprador@teste.com",

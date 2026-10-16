@@ -89,4 +89,32 @@ describe("Utils: agruparRifasRecusadas", () => {
     expect(resultado[0].motivo).toBe("Sem motivo informado");
     expect(resultado[0].bilhetes).toEqual(["030"]);
   });
+
+  it("Deve incluir rifas pagas que possuem correcao_pendente === true", () => {
+    const resultado = agruparRifasRecusadas([
+      {
+        numero: "040",
+        status: "pago",
+        correcao_pendente: true,
+        comprador_id: "COMP_040",
+        comprador_nome: "Lucas Souza",
+        comprador_email: "lucas@email.com",
+        comprador_telefone: "(35) 98888-7777",
+        motivo_recusa: "Telefone incorreto",
+        data_reserva: "2026-05-12T10:00:00.000Z",
+      },
+      {
+        numero: "041",
+        status: "pago",
+        correcao_pendente: null,
+        comprador_id: "COMP_041",
+        comprador_nome: "Comprador Ok",
+      },
+    ] as any);
+
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0].comprador).toBe("Lucas Souza");
+    expect(resultado[0].motivo).toBe("Telefone incorreto");
+    expect(resultado[0].bilhetes).toEqual(["040"]);
+  });
 });

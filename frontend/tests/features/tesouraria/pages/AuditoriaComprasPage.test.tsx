@@ -110,8 +110,13 @@ describe("Página <AuditoriaComprasPage />", () => {
     expect(screen.getByText(/sem alterar vínculos da venda/i)).toBeInTheDocument();
     expect(screen.getByText("Compras")).toBeInTheDocument();
     expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("(35) 99999-0000").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/ID: comprador_maria/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("002").length).toBeGreaterThan(0);
+
+    // Apenas a compra pendente (João Lima) deve exibir o botão 'Recusar compra', protegendo a compra já paga (Maria Souza)
+    expect(screen.getAllByRole("button", { name: /recusar compra/i })).toHaveLength(1);
   });
 
   it("Deve filtrar por busca textual e status", async () => {

@@ -38,12 +38,15 @@ export class NotificarCorrecaoDadosService {
       }
 
       const rifas = bilhetes
-        .map(({ dados }) => dados.numero)
+        .map(({ numero, dados }) => String(dados.numero || numero))
         .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));
 
-      // 1. Atualizar todos os bilhetes para correcao_pendente = true
+      // 1. Atualizar todos os bilhetes para correcao_pendente = true e registrar motivo
       bilhetes.forEach(({ ref }) => {
-        transaction.update(ref, { correcao_pendente: true });
+        transaction.update(ref, {
+          correcao_pendente: true,
+          motivo_recusa: mensagem,
+        });
       });
 
       // 2. Criar a notificação
