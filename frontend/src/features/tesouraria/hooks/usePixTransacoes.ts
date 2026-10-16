@@ -12,12 +12,11 @@ import {
 import {
   calcularResumoPixTransacoes,
   filtrarPixTransacoes,
-  RESUMO_PIX_TRANSACOES_VAZIO,
 } from "../utils/pixTransacoesUtils";
 
 function resumoPossuiDados(resumo: PixTransacoesResumo | null) {
   if (!resumo) return false;
-  return Object.values(resumo).some((valor) => valor > 0);
+  return Object.values(resumo).some((valor) => typeof valor === "number" && valor > 0);
 }
 
 export function usePixTransacoes() {
@@ -87,7 +86,7 @@ export function usePixTransacoes() {
         return {
           ...oldData,
           transacoes: novasTransacoes,
-          resumo: calcularResumoPixTransacoes(novasTransacoes),
+          resumo: oldData.resumo,
         };
       });
     },

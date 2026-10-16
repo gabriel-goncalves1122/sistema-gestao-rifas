@@ -7,27 +7,9 @@ import {
 } from "../types/desempenho";
 import { RESUMO_GERAL_DESEMPENHO_VAZIO } from "../utils/desempenhoDataUtils";
 
-export interface RelatorioDesempenho {
-  resumoGeral: ResumoGeralDesempenho;
-  aderidos: AderidoMetricaDesempenho[];
-}
+import { relatorioTesourariaService } from "./relatorioTesourariaService";
 
-function normalizarRelatorio(resposta: unknown): RelatorioDesempenho {
-  if (!resposta || typeof resposta !== "object") {
-    return {
-      resumoGeral: RESUMO_GERAL_DESEMPENHO_VAZIO,
-      aderidos: [],
-    };
-  }
-
-  const relatorio = resposta as Partial<RelatorioDesempenho>;
-
-  return {
-    resumoGeral:
-      relatorio.resumoGeral || RESUMO_GERAL_DESEMPENHO_VAZIO,
-    aderidos: Array.isArray(relatorio.aderidos) ? relatorio.aderidos : [],
-  };
-}
+export type { RelatorioDesempenho } from "../types/desempenho";
 
 function normalizarHistorico(resposta: unknown): TransacaoDesempenho[] {
   if (!resposta || typeof resposta !== "object") return [];
@@ -39,9 +21,7 @@ function normalizarHistorico(resposta: unknown): TransacaoDesempenho[] {
 
 export const desempenhoService = {
   async buscarRelatorio() {
-    const resposta = await fetchAPI("/tesouraria/relatorio");
-
-    return normalizarRelatorio(resposta);
+    return relatorioTesourariaService.obterRelatorioTesouraria();
   },
 
   async buscarHistoricoDetalhado() {

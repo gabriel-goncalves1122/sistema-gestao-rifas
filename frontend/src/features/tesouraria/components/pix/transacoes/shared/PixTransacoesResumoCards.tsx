@@ -9,7 +9,10 @@ import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
+import {
+  formatarMoedaPix,
+  obterIndicadoresConsolidados,
+} from "../../../../utils/pixTransacoesUtils";
 
 interface PixTransacoesResumoCardsProps {
   resumo: PixTransacoesResumo;
@@ -75,6 +78,12 @@ function CardResumo({
 }
 
 export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsProps) {
+  const ind = obterIndicadoresConsolidados(resumo);
+  const descricaoConfirmados =
+    ind.comprovantes.valorRecebido > 0
+      ? `${ind.totalGeral.transacoesPagas} confirmados (${formatarMoedaPix(ind.pix.recebidoLiquido)} Pix • ${formatarMoedaPix(ind.comprovantes.valorRecebido)} Comp.)`
+      : `${ind.totalGeral.transacoesPagas} pagamentos confirmados`;
+
   return (
     <Box
       sx={{
@@ -90,8 +99,8 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
     >
       <CardResumo
         titulo="Total Recebido (Líq.)"
-        valor={formatarMoedaPix(resumo.totalRecebido)}
-        descricao={`${resumo.quantidadePagas} pagamentos confirmados`}
+        valor={formatarMoedaPix(ind.totalGeral.recebidoLiquido)}
+        descricao={descricaoConfirmados}
         icone={<AccountBalanceWalletIcon />}
       />
 
@@ -104,8 +113,8 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
 
       <CardResumo
         titulo="Aguardando Pagamento"
-        valor={`${resumo.quantidadeAguardando}`}
-        descricao={`Total pendente: ${formatarMoedaPix(resumo.totalPendente)}`}
+        valor={`${ind.totalGeral.transacoesPendentes}`}
+        descricao={`Total pendente: ${formatarMoedaPix(ind.totalGeral.valorPendenteBruto)}`}
         icone={<LinkOffOutlinedIcon />}
       />
 

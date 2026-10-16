@@ -10,6 +10,7 @@ import {
 } from "../../../types/pixTransacoes";
 import { montarDadosTemporaisPix } from "../../../utils/pixVisaoGeralUtils";
 import { PixRecebimentosTemporalChart } from "./visaoGeral/PixRecebimentosTemporalChart";
+import { PixResumoConsolidado } from "./visaoGeral/PixResumoConsolidado";
 import { PixVisaoGeralKpisMobile } from "./visaoGeral/PixVisaoGeralKpisMobile";
 
 interface PixVisaoGeralTabProps {
@@ -34,6 +35,8 @@ export function PixVisaoGeralTab({
       ) : (
         <PixTransacoesResumoCards resumo={resumo} />
       )}
+
+      <PixResumoConsolidado resumo={resumo} isMobile={isMobile} />
 
       <PixRecebimentosTemporalChart
         dadosTemporais={dadosTemporais}

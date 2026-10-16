@@ -29,21 +29,17 @@ export function montarDadosTemporaisPix(transacoes: PixTransacao[]) {
         };
       }
 
-      if (transacao.statusPagamento === "PAID") {
+      if (["PAID", "AUTHORIZED"].includes(transacao.statusPagamento)) {
         acc[chave].recebido += transacao.valorPago;
         acc[chave].pagas += 1;
       }
 
-      if (transacao.statusPagamento === "WAITING") {
+      if (["WAITING", "IN_ANALYSIS"].includes(transacao.statusPagamento)) {
         acc[chave].pendente += transacao.valorBruto;
       }
 
       if (["CANCELED", "DECLINED"].includes(transacao.statusPagamento)) {
         acc[chave].canceladas += 1;
-      }
-
-      if (transacao.statusConciliacao === "nao_identificada") {
-        acc[chave].naoIdentificadas += 1;
       }
 
       return acc;

@@ -53,7 +53,7 @@ export function ResumoBarChart({
         />
         <Tooltip
           cursor={{ fill: "rgba(2, 27, 22, 0.04)" }}
-          formatter={(value: number) => [`${Number(value)} registros`, "Total"]}
+          formatter={(value: any) => [`${Number(value || 0)} registros`, "Total"]}
           contentStyle={{
             borderRadius: 12,
             border: "1px solid rgba(2, 27, 22, 0.10)",

@@ -62,18 +62,14 @@ function normalizarResumo(resposta: unknown): PixTransacoesResumo {
     return RESUMO_PIX_TRANSACOES_VAZIO;
   }
 
-  return {
-    totalRecebido: valorNumericoSeguro(resumo.totalRecebido),
-    totalPendente: valorNumericoSeguro(resumo.totalPendente),
-    totalCancelado: valorNumericoSeguro(resumo.totalCancelado),
-    totalErros: valorNumericoSeguro(resumo.totalErros),
-    quantidadePagas: valorNumericoSeguro(resumo.quantidadePagas),
-    quantidadeAguardando: valorNumericoSeguro(resumo.quantidadeAguardando),
-    quantidadeCanceladas: valorNumericoSeguro(resumo.quantidadeCanceladas),
-    quantidadeErros: valorNumericoSeguro(resumo.quantidadeErros),
-    totalTransacoes: valorNumericoSeguro(resumo.totalTransacoes),
-    ticketMedio: valorNumericoSeguro(resumo.ticketMedio),
-  };
+  const resultado: PixTransacoesResumo = { ...RESUMO_PIX_TRANSACOES_VAZIO };
+  (Object.keys(RESUMO_PIX_TRANSACOES_VAZIO) as Array<keyof PixTransacoesResumo>).forEach(
+    (campo) => {
+      resultado[campo] = valorNumericoSeguro(resumo[campo]);
+    },
+  );
+
+  return resultado;
 }
 
 export const pixTransacoesService = {

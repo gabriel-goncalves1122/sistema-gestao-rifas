@@ -38,10 +38,19 @@ export interface TransacaoDesempenho {
   origem?: "PIX" | "COMPROVANTE";
 }
 
+export interface RelatorioTesourariaResponse {
+  resumoGeral: ResumoGeralDesempenho;
+  aderidos: AderidoMetricaDesempenho[];
+}
+
+export type RelatorioDesempenho = RelatorioTesourariaResponse;
+
 export interface ReceitaPorDiaDesempenho {
   data: string;
   dataOrdenacao: number;
   valor: number;
+  valorPix: number;
+  valorComprovante: number;
 }
 
 export interface BarraResumoDesempenho {
@@ -50,12 +59,19 @@ export interface BarraResumoDesempenho {
   cor: string;
 }
 
+export interface AderidoRankingDesempenho extends AderidoMetricaDesempenho {
+  posicao: number;
+  percentualMeta: number;
+  bateuMeta: boolean;
+}
+
 export interface DesempenhoDados {
   resumoGeral: ResumoGeralDesempenho;
   receitaPorDia: ReceitaPorDiaDesempenho[];
   status: {
     pagas: number;
     pendentes: number;
+    recusadas: number;
     total: number;
     barras: BarraResumoDesempenho[];
   };
@@ -65,4 +81,9 @@ export interface DesempenhoDados {
     total: number;
     barras: BarraResumoDesempenho[];
   };
+  origem: {
+    total: number;
+    barras: BarraResumoDesempenho[];
+  };
+  rankingAderidos: AderidoRankingDesempenho[];
 }

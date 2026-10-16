@@ -2,6 +2,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -25,7 +26,7 @@ export function ReceitaAreaChart({
   data,
   compact = false,
 }: ReceitaAreaChartProps) {
-  const altura = compact ? 240 : 330;
+  const altura = compact ? 260 : 340;
 
   if (data.length === 0) {
     return (
@@ -49,9 +50,13 @@ export function ReceitaAreaChart({
           }}
         >
           <defs>
-            <linearGradient id="receitaComissao" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0B7A61" stopOpacity={0.32} />
-              <stop offset="95%" stopColor="#0B7A61" stopOpacity={0.02} />
+            <linearGradient id="receitaPix" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#0B7A61" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="#0B7A61" stopOpacity={0.03} />
+            </linearGradient>
+            <linearGradient id="receitaComprovante" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#526760" stopOpacity={0.30} />
+              <stop offset="95%" stopColor="#526760" stopOpacity={0.03} />
             </linearGradient>
           </defs>
 
@@ -71,9 +76,9 @@ export function ReceitaAreaChart({
             width={compact ? 64 : 82}
           />
           <Tooltip
-            formatter={(value: number) => [
-              formatarMoedaDesempenho(Number(value)),
-              "Receita",
+            formatter={(value: any, name: any) => [
+              formatarMoedaDesempenho(Number(value || 0)),
+              String(name || "Receita"),
             ]}
             labelStyle={{ color: "#021B16", fontWeight: 800 }}
             contentStyle={{
@@ -82,14 +87,31 @@ export function ReceitaAreaChart({
               boxShadow: "0 12px 28px rgba(2, 27, 22, 0.12)",
             }}
           />
+          <Legend
+            verticalAlign="top"
+            align="right"
+            iconType="circle"
+            wrapperStyle={{ paddingBottom: 10, fontSize: compact ? 11 : 12 }}
+          />
           <Area
             type="monotone"
-            dataKey="valor"
-            name="Receita"
+            dataKey="valorPix"
+            name="Pix"
+            stackId="receita"
             stroke="#0B7A61"
-            strokeWidth={compact ? 2.5 : 3}
-            fill="url(#receitaComissao)"
-            activeDot={{ r: 5 }}
+            strokeWidth={compact ? 2 : 2.5}
+            fill="url(#receitaPix)"
+            activeDot={{ r: 4 }}
+          />
+          <Area
+            type="monotone"
+            dataKey="valorComprovante"
+            name="Comprovante"
+            stackId="receita"
+            stroke="#526760"
+            strokeWidth={compact ? 2 : 2.5}
+            fill="url(#receitaComprovante)"
+            activeDot={{ r: 4 }}
           />
         </AreaChart>
       </ResponsiveContainer>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -6,9 +6,28 @@ import {
   RESUMO_GERAL_DESEMPENHO_VAZIO,
 } from "../utils/desempenhoDataUtils";
 import { desempenhoService } from "../services/desempenhoService";
+import { AderidoRankingDesempenho, DesempenhoDados } from "../types/desempenho";
 
-export function useDesempenhoController() {
+export interface UseDesempenhoControllerRetorno {
+  dados: DesempenhoDados;
+  rankingFiltrado: AderidoRankingDesempenho[];
+  buscaRanking: string;
+  setBuscaRanking: (termo: string) => void;
+  carregando: boolean;
+  erro: string | null;
+  carregarDados: () => Promise<void>;
+}
+
+/**
+ * Hook controlador da tela de Desempenho Financeiro da Tesouraria.
+ * Orquestra o carregamento simultâneo do relatório consolidado e histórico,
+ * computando métricas, séries temporais, metas e rankings de aderidos.
+ *
+ * @returns {UseDesempenhoControllerRetorno} Dados processados e controladores de filtro.
+ */
+export function useDesempenhoController(): UseDesempenhoControllerRetorno {
   const queryClient = useQueryClient();
+  const [buscaRanking, setBuscaRanking] = useState("");
 
   const { data, isLoading: carregando, error } = useQuery({
     queryKey: ["tesouraria", "desempenho"],
@@ -31,7 +50,6 @@ export function useDesempenhoController() {
           ? resultadoHistorico.value
           : [];
 
-      // Se ambos falharem, jogamos um erro. Se um passar, mostramos o que deu.
       if (
         resultadoRelatorio.status === "rejected" &&
         resultadoHistorico.status === "rejected"
@@ -63,8 +81,28 @@ export function useDesempenhoController() {
     [aderidos, historicoTransacoes, resumoGeral],
   );
 
+  const rankingFiltrado = useMemo(() => {
+    const termo = buscaRanking.trim().toLowerCase();
+    if (!termo) return dados.rankingAderidos;
+
+    return dados.rankingAderidos.filter((item) => {
+      const campos = [
+        item.nome,
+        item.cpf,
+        item.curso,
+        item.cargo,
+      ];
+      return campos.some((campo) =>
+        String(campo || "").toLowerCase().includes(termo),
+      );
+    });
+  }, [dados.rankingAderidos, buscaRanking]);
+
   return {
     dados,
+    rankingFiltrado,
+    buscaRanking,
+    setBuscaRanking,
     carregando,
     erro,
     carregarDados,

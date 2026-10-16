@@ -1,15 +1,11 @@
-
 import { PixTransacao } from "../types/pixTransacoes";
 
 export const pixTransacoesMock: PixTransacao[] = [
   {
     id: "tx_001",
     pixOrderId: "ORDE_F87334AC-BB8B-42E2-AA85-8579F70AA328",
-    pixChargeId: "CHAR_67FC568B-00D8-431D-B2E7-755E3E6C66A0",
-    referenceId: "venda-rifas-010-011-012",
     metodo: "PIX",
     statusPagamento: "PAID",
-    statusConciliacao: "conciliada",
     valorBruto: 30,
     valorPago: 30,
     valorEstornado: 0,
@@ -38,10 +34,8 @@ export const pixTransacoesMock: PixTransacao[] = [
   {
     id: "tx_002",
     pixOrderId: "ORDE_PIX_EXPIRADO_002",
-    referenceId: "venda-rifas-020",
     metodo: "PIX",
     statusPagamento: "CANCELED",
-    statusConciliacao: "cancelada",
     valorBruto: 10,
     valorPago: 0,
     moeda: "BRL",
@@ -62,11 +56,8 @@ export const pixTransacoesMock: PixTransacao[] = [
   {
     id: "tx_003",
     pixOrderId: "ORDE_NAO_IDENTIFICADA_003",
-    pixChargeId: "CHAR_NAO_IDENTIFICADA_003",
-    referenceId: "pix-sem-venda-local",
     metodo: "PIX",
     statusPagamento: "PAID",
-    statusConciliacao: "nao_identificada",
     valorBruto: 20,
     valorPago: 20,
     valorEstornado: 0,

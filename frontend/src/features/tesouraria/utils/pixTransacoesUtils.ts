@@ -5,11 +5,11 @@ import {
   somenteNumeros,
 } from "./formatadores";
 import {
+  PixTransacao,
   PixTransacoesFiltros,
   PixTransacoesResumo,
   PixTransacoesSerieTemporal,
   StatusPagamentoPix,
-  StatusValidacaoPix,
   StatusValidacaoUI,
 } from "../types/pixTransacoes";
 
@@ -81,6 +81,32 @@ export const RESUMO_PIX_TRANSACOES_VAZIO: PixTransacoesResumo = {
   quantidadeErros: 0,
   totalTransacoes: 0,
   ticketMedio: 0,
+
+  // 1. Indicadores Pix (Gateway)
+  pixRifasPagas: 0,
+  pixRecebidoBruto: 0,
+  pixRecebidoLiquido: 0,
+  pixTransacoesAguardando: 0,
+  pixRifasAguardando: 0,
+  pixValorAguardandoBruto: 0,
+  pixValorAguardandoLiquido: 0,
+
+  // 2. Indicadores Comprovantes Manuais
+  comprovantesTransacoesPagas: 0,
+  comprovantesRifasPagas: 0,
+  comprovantesValorRecebido: 0,
+  comprovantesTransacoesPendentes: 0,
+  comprovantesRifasPendentes: 0,
+  comprovantesValorPendente: 0,
+
+  // 3. Indicadores Total Geral Consolidado
+  totalGeralTransacoesPagas: 0,
+  totalGeralRifasPagas: 0,
+  totalGeralRecebidoBruto: 0,
+  totalGeralRecebidoLiquido: 0,
+  totalGeralTransacoesPendentes: 0,
+  totalGeralRifasPendentes: 0,
+  totalGeralValorPendenteBruto: 0,
 };
 
 /**
@@ -150,9 +176,119 @@ export function obterLabelStatusPagamento(status: StatusPagamentoPix): string {
     IN_ANALYSIS: "Em análise",
     DECLINED: "Negado",
     CANCELED: "Cancelado",
+    ERROR: "Erro",
   };
 
   return labels[status] || status;
+}
+
+export interface IndicadoresConsolidadosTesouraria {
+  pix: {
+    rifasPagas: number;
+    recebidoBruto: number;
+    recebidoLiquido: number;
+    transacoesAguardando: number;
+    rifasAguardando: number;
+    valorAguardandoBruto: number;
+    valorAguardandoLiquido: number;
+  };
+  comprovantes: {
+    transacoesPagas: number;
+    rifasPagas: number;
+    valorRecebido: number;
+    transacoesPendentes: number;
+    rifasPendentes: number;
+    valorPendente: number;
+  };
+  totalGeral: {
+    transacoesPagas: number;
+    rifasPagas: number;
+    recebidoBruto: number;
+    recebidoLiquido: number;
+    transacoesPendentes: number;
+    rifasPendentes: number;
+    valorPendenteBruto: number;
+  };
+}
+
+/**
+ * Extrai e estrutura os indicadores consolidados (Pix, Comprovantes e Total Geral)
+ * com fallbacks seguros a zero para consumo pelos componentes de visualização da Tesouraria.
+ *
+ * @param {PixTransacoesResumo} resumo - Objeto de resumo retornado pela API ou calculado localmente.
+ * @returns {IndicadoresConsolidadosTesouraria} Indicadores agrupados por fonte e totalizadores.
+ */
+export function obterIndicadoresConsolidados(
+  resumo: PixTransacoesResumo,
+): IndicadoresConsolidadosTesouraria {
+  const pixRecebidoLiquido = resumo.pixRecebidoLiquido ?? resumo.totalRecebido ?? 0;
+  const pixRecebidoBruto =
+    resumo.pixRecebidoBruto ??
+    (pixRecebidoLiquido > 0 ? Number((pixRecebidoLiquido / 0.99).toFixed(2)) : 0);
+  const pixValorAguardandoBruto =
+    resumo.pixValorAguardandoBruto ?? resumo.totalPendente ?? 0;
+  const pixValorAguardandoLiquido =
+    resumo.pixValorAguardandoLiquido ??
+    Number((pixValorAguardandoBruto * 0.99).toFixed(2));
+
+  const comprovantesTransacoesPagas = resumo.comprovantesTransacoesPagas ?? 0;
+  const comprovantesRifasPagas = resumo.comprovantesRifasPagas ?? 0;
+  const comprovantesValorRecebido = resumo.comprovantesValorRecebido ?? 0;
+  const comprovantesTransacoesPendentes = resumo.comprovantesTransacoesPendentes ?? 0;
+  const comprovantesRifasPendentes = resumo.comprovantesRifasPendentes ?? 0;
+  const comprovantesValorPendente = resumo.comprovantesValorPendente ?? 0;
+
+  const totalGeralTransacoesPagas =
+    resumo.totalGeralTransacoesPagas ??
+    (resumo.quantidadePagas + comprovantesTransacoesPagas);
+  const totalGeralRifasPagas =
+    resumo.totalGeralRifasPagas ??
+    ((resumo.pixRifasPagas ?? 0) + comprovantesRifasPagas);
+  const totalGeralRecebidoBruto =
+    resumo.totalGeralRecebidoBruto ??
+    (pixRecebidoBruto + comprovantesValorRecebido);
+  const totalGeralRecebidoLiquido =
+    resumo.totalGeralRecebidoLiquido ??
+    Number((pixRecebidoLiquido + comprovantesValorRecebido).toFixed(2));
+  const totalGeralTransacoesPendentes =
+    resumo.totalGeralTransacoesPendentes ??
+    (resumo.quantidadeAguardando + comprovantesTransacoesPendentes);
+  const totalGeralRifasPendentes =
+    resumo.totalGeralRifasPendentes ??
+    ((resumo.pixRifasAguardando ?? 0) + comprovantesRifasPendentes);
+  const totalGeralValorPendenteBruto =
+    resumo.totalGeralValorPendenteBruto ??
+    (pixValorAguardandoBruto + comprovantesValorPendente);
+
+  return {
+    pix: {
+      rifasPagas: resumo.pixRifasPagas ?? 0,
+      recebidoBruto: pixRecebidoBruto,
+      recebidoLiquido: pixRecebidoLiquido,
+      transacoesAguardando:
+        resumo.pixTransacoesAguardando ?? resumo.quantidadeAguardando ?? 0,
+      rifasAguardando: resumo.pixRifasAguardando ?? 0,
+      valorAguardandoBruto: pixValorAguardandoBruto,
+      valorAguardandoLiquido: pixValorAguardandoLiquido,
+    },
+    comprovantes: {
+      transacoesPagas: comprovantesTransacoesPagas,
+      rifasPagas: comprovantesRifasPagas,
+      valorRecebido: comprovantesValorRecebido,
+      transacoesPendentes: comprovantesTransacoesPendentes,
+      rifasPendentes: comprovantesRifasPendentes,
+      valorPendente: comprovantesValorPendente,
+    },
+    totalGeral: {
+      transacoesPagas: totalGeralTransacoesPagas,
+      rifasPagas: totalGeralRifasPagas,
+      recebidoBruto: totalGeralRecebidoBruto,
+      recebidoLiquido: totalGeralRecebidoLiquido,
+      transacoesPendentes: totalGeralTransacoesPendentes,
+      rifasPendentes: totalGeralRifasPendentes,
+      valorPendenteBruto: totalGeralValorPendenteBruto,
+    },
+  };
 }
 
 /**
@@ -165,31 +301,36 @@ export function obterLabelStatusPagamento(status: StatusPagamentoPix): string {
 export function calcularResumoPixTransacoes(
   transacoes: PixTransacao[],
 ): PixTransacoesResumo {
-  const pagas = transacoes.filter(
-    (transacao) => transacao.statusPagamento === "PAID",
+  const pagas = transacoes.filter((transacao) =>
+    ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento),
   );
 
-  const aguardando = transacoes.filter(
-    (transacao) => transacao.statusPagamento === "WAITING",
+  const aguardando = transacoes.filter((transacao) =>
+    ["WAITING", "IN_ANALYSIS"].includes(transacao.statusPagamento),
   );
 
-  const canceladas = transacoes.filter(
-    (transacao) => transacao.statusPagamento === "CANCELED",
+  const canceladas = transacoes.filter((transacao) =>
+    ["CANCELED", "DECLINED"].includes(transacao.statusPagamento),
   );
 
   const erros = transacoes.filter(
     (transacao) => transacao.statusPagamento === "ERROR",
   );
 
-  const totalRecebido = pagas.reduce(
-    (acc, transacao) => acc + (transacao.valorPago * 0.99),
+  const pixRecebidoBruto = pagas.reduce(
+    (acc, transacao) => acc + (transacao.valorPago || transacao.valorBruto),
     0,
+  );
+
+  const totalRecebido = Number(
+    pagas.reduce((acc, transacao) => acc + transacao.valorPago * 0.99, 0).toFixed(2),
   );
 
   const totalPendente = aguardando.reduce(
     (acc, transacao) => acc + transacao.valorBruto,
     0,
   );
+  const pixValorAguardandoLiquido = Number((totalPendente * 0.99).toFixed(2));
 
   const totalCancelado = canceladas.reduce(
     (acc, transacao) => acc + transacao.valorBruto,
@@ -201,7 +342,14 @@ export function calcularResumoPixTransacoes(
     0,
   );
 
+  const contarRifas = (t: PixTransacao) =>
+    t.quantidadeRifas || t.rifas?.length || Math.round((t.valorPago || t.valorBruto || 0) / 10);
+
+  const pixRifasPagas = pagas.reduce((acc, t) => acc + contarRifas(t), 0);
+  const pixRifasAguardando = aguardando.reduce((acc, t) => acc + contarRifas(t), 0);
+
   return {
+    ...RESUMO_PIX_TRANSACOES_VAZIO,
     totalRecebido,
     totalPendente,
     totalCancelado,
@@ -211,7 +359,26 @@ export function calcularResumoPixTransacoes(
     quantidadeCanceladas: canceladas.length,
     quantidadeErros: erros.length,
     totalTransacoes: transacoes.length,
-    ticketMedio: pagas.length > 0 ? totalRecebido / pagas.length : 0,
+    ticketMedio:
+      pagas.length > 0 ? Number((totalRecebido / pagas.length).toFixed(2)) : 0,
+
+    // Indicadores Pix
+    pixRifasPagas,
+    pixRecebidoBruto,
+    pixRecebidoLiquido: totalRecebido,
+    pixTransacoesAguardando: aguardando.length,
+    pixRifasAguardando,
+    pixValorAguardandoBruto: totalPendente,
+    pixValorAguardandoLiquido,
+
+    // Total Geral (no fallback local são equivalentes ao Pix isolado)
+    totalGeralTransacoesPagas: pagas.length,
+    totalGeralRifasPagas: pixRifasPagas,
+    totalGeralRecebidoBruto: pixRecebidoBruto,
+    totalGeralRecebidoLiquido: totalRecebido,
+    totalGeralTransacoesPendentes: aguardando.length,
+    totalGeralRifasPendentes: pixRifasAguardando,
+    totalGeralValorPendenteBruto: totalPendente,
   };
 }
 

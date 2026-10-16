@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { pixTransacoesService } from "@/features/tesouraria/services/pixTransacoesService";
 import { PixTransacao } from "@/features/tesouraria/types/pixTransacoes";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesUtils";
 import { fetchAPI } from "@/shared/services/api";
 
 vi.mock("@/shared/services/api", () => ({
@@ -81,16 +82,9 @@ describe("Service: pixTransacoesService", () => {
       "/tesouraria/transacoes-bancarias/resumo",
     );
     expect(resultado).toEqual({
+      ...RESUMO_PIX_TRANSACOES_VAZIO,
       totalRecebido: 50,
-      totalPendente: 0,
-      totalCancelado: 0,
-      totalErros: 0,
       quantidadePagas: 2,
-      quantidadeAguardando: 0,
-      quantidadeCanceladas: 0,
-      quantidadeErros: 0,
-      totalTransacoes: 0,
-      ticketMedio: 0,
     });
   });
 

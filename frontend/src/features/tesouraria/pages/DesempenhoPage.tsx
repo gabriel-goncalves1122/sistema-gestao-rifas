@@ -6,7 +6,13 @@ import { useDesempenhoController } from "../hooks/useDesempenhoController";
 import { useTesourariaLayout } from "../hooks/useTesourariaLayout";
 
 export function DesempenhoPage() {
-  const { dados, carregando } = useDesempenhoController();
+  const {
+    dados,
+    rankingFiltrado,
+    buscaRanking,
+    setBuscaRanking,
+    carregando,
+  } = useDesempenhoController();
   const { isMobile } = useTesourariaLayout();
 
   if (carregando) {
@@ -18,8 +24,18 @@ export function DesempenhoPage() {
   }
 
   return isMobile ? (
-    <DesempenhoMobileView dados={dados} />
+    <DesempenhoMobileView
+      dados={dados}
+      rankingFiltrado={rankingFiltrado}
+      buscaRanking={buscaRanking}
+      onBuscaRankingChange={setBuscaRanking}
+    />
   ) : (
-    <DesempenhoDesktopView dados={dados} />
+    <DesempenhoDesktopView
+      dados={dados}
+      rankingFiltrado={rankingFiltrado}
+      buscaRanking={buscaRanking}
+      onBuscaRankingChange={setBuscaRanking}
+    />
   );
 }

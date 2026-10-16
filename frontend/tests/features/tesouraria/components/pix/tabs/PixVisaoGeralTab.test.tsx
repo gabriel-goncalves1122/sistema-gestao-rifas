@@ -63,7 +63,8 @@ describe("Aba: PixVisaoGeralTab", () => {
     expect(screen.getByText("Pagas")).toBeInTheDocument();
     expect(screen.getByText("Pendentes")).toBeInTheDocument();
     expect(screen.getByText("Canceladas")).toBeInTheDocument();
-    expect(screen.getByText("Não vinculadas")).toBeInTheDocument();
+    expect(screen.getByText("Comprovantes")).toBeInTheDocument();
+    expect(screen.getByText("TOTAL GERAL CONSOLIDADO")).toBeInTheDocument();
   });
 
   it("Deve renderizar KPIs compactos no mobile sem texto explicativo longo", () => {
@@ -76,9 +77,9 @@ describe("Aba: PixVisaoGeralTab", () => {
       />,
     );
 
-    expect(screen.getByText("Recebido")).toBeInTheDocument();
+    expect(screen.getByText("Recebido (Líq)")).toBeInTheDocument();
     expect(screen.getByText("Pendentes")).toBeInTheDocument();
-    expect(screen.getByText("Não vinculadas")).toBeInTheDocument();
+    expect(screen.getByText("Comprovantes")).toBeInTheDocument();
     expect(screen.getByText("Ticket médio")).toBeInTheDocument();
     expect(
       screen.queryByText(

@@ -1,7 +1,10 @@
 import { Box, Typography } from "@mui/material";
 
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
+import {
+  formatarMoedaPix,
+  obterIndicadoresConsolidados,
+} from "../../../../utils/pixTransacoesUtils";
 import { colors } from "@/shared/tokens/colors";
 
 interface PixMetricasOperacionaisProps {
@@ -11,16 +14,18 @@ interface PixMetricasOperacionaisProps {
 export function PixMetricasOperacionais({
   resumo,
 }: PixMetricasOperacionaisProps) {
+  const ind = obterIndicadoresConsolidados(resumo);
+
   const metricasOperacionais = [
     {
       label: "Pagas",
-      valor: resumo.quantidadePagas,
-      detalhe: formatarMoedaPix(resumo.totalRecebido),
+      valor: ind.totalGeral.transacoesPagas,
+      detalhe: formatarMoedaPix(ind.totalGeral.recebidoLiquido),
     },
     {
       label: "Pendentes",
-      valor: resumo.quantidadeAguardando,
-      detalhe: formatarMoedaPix(resumo.totalPendente),
+      valor: ind.totalGeral.transacoesPendentes,
+      detalhe: formatarMoedaPix(ind.totalGeral.valorPendenteBruto),
     },
     {
       label: "Canceladas",
@@ -28,9 +33,9 @@ export function PixMetricasOperacionais({
       detalhe: formatarMoedaPix(resumo.totalCancelado),
     },
     {
-      label: "Não vinculadas",
-      valor: resumo.quantidadeNaoIdentificadas,
-      detalhe: formatarMoedaPix(resumo.totalDivergente),
+      label: "Comprovantes",
+      valor: ind.comprovantes.transacoesPagas,
+      detalhe: `${ind.comprovantes.rifasPagas} rifas (${formatarMoedaPix(ind.comprovantes.valorRecebido)})`,
     },
   ];
 

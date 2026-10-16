@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { desempenhoService } from "@/features/tesouraria/services/desempenhoService";
+import { RESUMO_GERAL_DESEMPENHO_VAZIO } from "@/features/tesouraria/utils/desempenhoDataUtils";
 import { fetchAPI } from "@/shared/services/api";
 
 vi.mock("@/shared/services/api", () => ({
@@ -13,16 +14,37 @@ describe("Service: desempenhoService", () => {
   });
 
   it("Deve buscar relatório de desempenho no endpoint legado atual", async () => {
-    const relatorio = {
+    const relatorioApi = {
       resumoGeral: { totalArrecadado: 500, rifasPagas: 50, aderidosAtivos: 10 },
       aderidos: [{ arrecadado: 150, meta: 100 }],
     };
-    vi.mocked(fetchAPI).mockResolvedValueOnce(relatorio);
+    vi.mocked(fetchAPI).mockResolvedValueOnce(relatorioApi);
 
     const resultado = await desempenhoService.buscarRelatorio();
 
     expect(fetchAPI).toHaveBeenCalledWith("/tesouraria/relatorio");
-    expect(resultado).toEqual(relatorio);
+    expect(resultado).toEqual({
+      resumoGeral: {
+        ...RESUMO_GERAL_DESEMPENHO_VAZIO,
+        totalArrecadado: 500,
+        totalArrecadadoLiquido: 500,
+        rifasPagas: 50,
+        aderidosAtivos: 10,
+      },
+      aderidos: [
+        {
+          nome: "Aderido Não Identificado",
+          cpf: "-",
+          arrecadado: 150,
+          arrecadadoLiquido: 150,
+          meta: 100,
+          rifasVendidas: 0,
+          rifasVendidasPix: 0,
+          rifasVendidasComprovante: 0,
+          rifasPendentes: 0,
+        },
+      ],
+    });
   });
 
   it("Deve normalizar relatório vazio sem quebrar a tela", async () => {
@@ -31,7 +53,7 @@ describe("Service: desempenhoService", () => {
     const resultado = await desempenhoService.buscarRelatorio();
 
     expect(resultado).toEqual({
-      resumoGeral: { totalArrecadado: 0, rifasPagas: 0, aderidosAtivos: 0 },
+      resumoGeral: RESUMO_GERAL_DESEMPENHO_VAZIO,
       aderidos: [],
     });
   });

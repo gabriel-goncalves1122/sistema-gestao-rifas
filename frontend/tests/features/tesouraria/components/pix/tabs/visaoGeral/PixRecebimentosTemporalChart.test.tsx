@@ -34,7 +34,7 @@ describe("Componente: PixRecebimentosTemporalChart", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Pagas")).toBeInTheDocument();
-    expect(screen.getByText("Não vinculadas")).toBeInTheDocument();
+    expect(screen.getByText("Comprovantes")).toBeInTheDocument();
   });
 
   it("Deve renderizar empty state quando não houver dados temporais", () => {
