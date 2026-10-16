@@ -45,6 +45,13 @@ const STATUS_AJUDA = [
     border: "#85C89F",
   },
   {
+    label: "Paga (revisão de dados)",
+    description:
+      "Pagamento aprovado, mas a tesouraria solicitou correção no cadastro do comprador.",
+    color: "#EAF7EF",
+    border: "#CBA64D",
+  },
+  {
     label: "Negada",
     description: "A venda precisa de correção antes de seguir.",
     color: "#FBEAEA",

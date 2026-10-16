@@ -55,4 +55,30 @@ describe("PainelRifasPrincipal", () => {
 
     expect(onToggleSelecao).toHaveBeenCalledWith("001", "disponivel");
   });
+
+  it("Deve filtrar as rifas visíveis ao digitar no campo de busca rápida", () => {
+    render(
+      <PainelRifasPrincipal
+        filtro="todas"
+        contadoresRifas={contadores}
+        rifasFiltradas={[
+          { numero: "001", status: "disponivel" },
+          { numero: "042", status: "pago", comprador_nome: "Carlos" },
+        ]}
+        selecionadas={[]}
+        onChangeFiltro={vi.fn()}
+        onToggleSelecao={vi.fn()}
+        onAbrirDetalhes={vi.fn()}
+      />,
+    );
+
+    const inputBusca = screen.getByPlaceholderText(
+      /buscar nº da rifa ou comprador/i,
+    );
+    fireEvent.change(inputBusca, { target: { value: "042" } });
+
+    expect(screen.getByText("1 na lista")).toBeInTheDocument();
+    expect(screen.getByText("042")).toBeInTheDocument();
+    expect(screen.queryByText("001")).not.toBeInTheDocument();
+  });
 });

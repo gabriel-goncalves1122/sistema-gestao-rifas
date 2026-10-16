@@ -49,16 +49,22 @@ function montarEstiloRifa(
     };
   }
 
+  const temCorrecaoPendente = rifa.correcao_pendente === true;
+
   return {
     bgcolor: config.bg,
     color: config.color,
-    borderColor: config.border,
+    borderColor: temCorrecaoPendente ? "#CBA64D" : config.border,
     boxShadow:
       "0 8px 18px rgba(2, 27, 22, 0.055), 0 1px 3px rgba(6, 61, 49, 0.045)",
 
     "&:hover": {
       bgcolor: config.hoverBg,
-      borderColor: podeClicar ? "#8DBEAD" : config.border,
+      borderColor: temCorrecaoPendente
+        ? "#B45309"
+        : podeClicar
+          ? "#8DBEAD"
+          : config.border,
       transform: podeClicar ? "translateY(-1px)" : "none",
       boxShadow: podeClicar
         ? "0 14px 28px rgba(2, 27, 22, 0.10), 0 2px 8px rgba(6, 61, 49, 0.07)"
@@ -102,10 +108,13 @@ const RifaItem = React.memo(function RifaItem({
 }: RifaItemProps) {
   const config = obterConfigStatusRifa(rifa.status);
   const podeClicar = config.selecionavel || config.abreDetalhes;
+  const temCorrecaoPendente = rifa.correcao_pendente === true;
   const tooltip = config.selecionavel
     ? "Clique para vender"
     : config.abreDetalhes
-      ? "Clique para ver detalhes"
+      ? temCorrecaoPendente
+        ? "Clique para ver detalhes (correção pendente)"
+        : "Clique para ver detalhes"
       : "";
   const ariaLabel = config.selecionavel
     ? `Rifa ${rifa.numero} disponível para vender`
@@ -143,6 +152,21 @@ const RifaItem = React.memo(function RifaItem({
         willChange: "transform, opacity",
       }}
     >
+      {temCorrecaoPendente && (
+        <Box
+          data-testid={`rifa-${rifa.numero}-alerta-correcao`}
+          sx={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            bgcolor: "#D97706",
+            boxShadow: "0 0 0 2px #FFF4D8",
+          }}
+        />
+      )}
       {config.abreDetalhes && (
         <InfoOutlinedIcon
           data-testid={`rifa-${rifa.numero}-detalhes-icon`}

@@ -1,7 +1,7 @@
 // ============================================================================
 // ARQUIVO: frontend/tests/features/rifas/components/BlocoVendasHeader.test.tsx
 // ============================================================================
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { BlocoVendasHeader } from "@/features/aderidos/components/BlocoVendasHeader";
@@ -15,13 +15,17 @@ describe("Componente: BlocoVendasHeader", () => {
     expect(screen.getByText("42 na lista")).toBeInTheDocument();
   });
 
-  it("Deve renderizar o botão de ajuda com orientação acessível", () => {
+  it("Deve renderizar o botão de ajuda e abrir o diálogo de status ao clicar", () => {
     render(<BlocoVendasHeader />);
 
-    expect(
-      screen.getByRole("button", {
-        name: /toque nas rifas disponíveis para selecionar/i,
-      }),
-    ).toBeInTheDocument();
+    const botaoAjuda = screen.getByRole("button", {
+      name: /toque nas rifas disponíveis para selecionar/i,
+    });
+    expect(botaoAjuda).toBeInTheDocument();
+
+    fireEvent.click(botaoAjuda);
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Entenda os status")).toBeInTheDocument();
   });
 });

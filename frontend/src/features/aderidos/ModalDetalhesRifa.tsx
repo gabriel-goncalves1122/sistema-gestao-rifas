@@ -18,6 +18,8 @@ import PhoneOutlinedIcon from "@mui/icons-material/PhoneOutlined";
 import AlternateEmailOutlinedIcon from "@mui/icons-material/AlternateEmailOutlined";
 import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
 import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
+import ReportGmailerrorredIcon from "@mui/icons-material/ReportGmailerrorred";
+import BuildCircleIcon from "@mui/icons-material/BuildCircle";
 
 import { RifaAderido } from "./types/painelAderido";
 import { formatarData, formatarTelefone } from "@/shared/utils/formatadores";
@@ -28,14 +30,18 @@ interface ModalDetalhesRifaProps {
   open: boolean;
   onClose: () => void;
   rifa: RifaAderido | null;
+  onCorrigirDados?: (rifa: RifaAderido) => void;
 }
 
 export function ModalDetalhesRifa({
   open,
   onClose,
   rifa,
+  onCorrigirDados,
 }: ModalDetalhesRifaProps) {
   if (!rifa) return null;
+
+  const temCorrecaoPendente = rifa.correcao_pendente === true;
 
   return (
     <Dialog
@@ -94,6 +100,72 @@ export function ModalDetalhesRifa({
 
       <DialogContent sx={{ p: 3 }}>
         <Stack spacing={3}>
+          {temCorrecaoPendente && (
+            <Box
+              sx={{
+                p: 1.75,
+                borderRadius: 2.5,
+                bgcolor: "#FFF4D8",
+                border: "1px solid #CBA64D",
+              }}
+            >
+              <Stack spacing={1.25}>
+                <Stack direction="row" spacing={1} alignItems="flex-start">
+                  <ReportGmailerrorredIcon
+                    fontSize="small"
+                    sx={{ color: "#8A5300", mt: 0.15 }}
+                  />
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "#8A5300",
+                        fontWeight: 900,
+                        fontSize: "0.75rem",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      Correção de cadastro solicitada
+                    </Typography>
+                    <Typography
+                      sx={{
+                        mt: 0.35,
+                        color: "#5C3700",
+                        fontWeight: 700,
+                        fontSize: "0.88rem",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {rifa.motivo_recusa ||
+                        "A tesouraria solicitou a revisão dos dados do comprador."}
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                {onCorrigirDados && (
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<BuildCircleIcon />}
+                    onClick={() => onCorrigirDados(rifa)}
+                    sx={{
+                      alignSelf: "flex-start",
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontWeight: 800,
+                      bgcolor: "#8A5300",
+                      "&:hover": {
+                        bgcolor: "#6B4000",
+                      },
+                    }}
+                  >
+                    Corrigir dados
+                  </Button>
+                )}
+              </Stack>
+            </Box>
+          )}
+
           {/* BLOCO: Comprador */}
           <Box>
             <Typography variant="overline" sx={{ color: "#8E9E98", fontWeight: 800, mb: 1, display: "block" }}>

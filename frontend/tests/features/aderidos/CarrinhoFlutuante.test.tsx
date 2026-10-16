@@ -98,4 +98,27 @@ describe("Componente <CarrinhoFlutuante />", () => {
     expect(screen.getByTestId("carrinho-vender").closest("[data-keyboard-height]"))
       .toHaveAttribute("data-keyboard-height", "180");
   });
+
+  it("Deve exibir o resumo dos números selecionados e acionar onLimparClick", () => {
+    const mockOnLimpar = vi.fn();
+
+    render(
+      <CarrinhoFlutuante
+        quantidade={5}
+        valorTotal={50}
+        onVenderClick={mockOnVenderClick}
+        numerosSelecionados={["001", "002", "003", "004", "005"]}
+        onLimparClick={mockOnLimpar}
+      />,
+    );
+
+    expect(screen.getByTestId("carrinho-resumo-numeros")).toHaveTextContent(
+      "#001, #002, #003, #004 +1",
+    );
+
+    const btnLimpar = screen.getByTestId("carrinho-limpar");
+    fireEvent.click(btnLimpar);
+
+    expect(mockOnLimpar).toHaveBeenCalledTimes(1);
+  });
 });

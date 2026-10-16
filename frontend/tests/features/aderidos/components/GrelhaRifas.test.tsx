@@ -188,4 +188,25 @@ describe("Componente <GrelhaRifas />", () => {
       }),
     );
   });
+
+  it("Deve exibir indicador de alerta âmbar quando rifa paga possuir correcao_pendente", () => {
+    render(
+      <GrelhaRifas
+        rifas={[
+          {
+            numero: "005",
+            status: "pago",
+            correcao_pendente: true,
+            motivo_recusa: "Telefone incorreto",
+          },
+        ]}
+        selecionadas={[]}
+        onToggleSelecao={vi.fn()}
+        onAbrirDetalhes={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("rifa-005-alerta-correcao")).toBeInTheDocument();
+    expect(screen.getByTestId("rifa-005-detalhes-icon")).toBeInTheDocument();
+  });
 });

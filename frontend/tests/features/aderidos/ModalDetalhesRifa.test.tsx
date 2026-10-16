@@ -45,4 +45,32 @@ describe("Componente <ModalDetalhesRifa />", () => {
 
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
+
+  it("Deve exibir alerta de correção solicitada e acionar onCorrigirDados quando correcao_pendente for true", () => {
+    const mockCorrigir = vi.fn();
+    const rifaComPendencia = {
+      ...rifa,
+      correcao_pendente: true,
+      motivo_recusa: "Telefone incompleto no cadastro",
+    };
+
+    render(
+      <ModalDetalhesRifa
+        open={true}
+        onClose={vi.fn()}
+        rifa={rifaComPendencia}
+        onCorrigirDados={mockCorrigir}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Correção de cadastro solicitada/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Telefone incompleto no cadastro/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Corrigir dados/i }));
+    expect(mockCorrigir).toHaveBeenCalledWith(rifaComPendencia);
+  });
 });

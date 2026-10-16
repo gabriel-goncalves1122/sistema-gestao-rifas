@@ -26,6 +26,7 @@ describe("Componente: StatusRifasHelpDialog", () => {
     expect(screen.getByText("Selecionada")).toBeInTheDocument();
     expect(screen.getByText("Em análise")).toBeInTheDocument();
     expect(screen.getByText("Paga")).toBeInTheDocument();
+    expect(screen.getByText("Paga (revisão de dados)")).toBeInTheDocument();
     expect(screen.getByText("Negada")).toBeInTheDocument();
 
     expect(

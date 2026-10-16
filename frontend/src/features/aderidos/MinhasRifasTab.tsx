@@ -57,6 +57,7 @@ export function MinhasRifasTab() {
             possuiSelecao={painel.possuiSelecao}
             valorTotalSelecionado={painel.valorTotalSelecionado}
             onVenderClick={() => painel.setModalCheckoutAberto(true)}
+            onLimparSelecao={painel.limparSelecao}
           />
         )}
 
@@ -87,6 +88,18 @@ export function MinhasRifasTab() {
           open={Boolean(painel.rifaParaDetalhes)}
           onClose={() => painel.setRifaParaDetalhes(null)}
           rifa={painel.rifaParaDetalhes}
+          onCorrigirDados={(rifa) => {
+            painel.setRifaParaDetalhes(null);
+            const grupo = painel.gruposRecusados.find((g) =>
+              g.bilhetes.includes(rifa.numero),
+            );
+            if (grupo) {
+              painel.setGrupoParaCorrigir(grupo);
+              painel.setModalCorrecaoAberto(true);
+            } else {
+              painel.abrirRecusadas();
+            }
+          }}
         />
       </Box>
     </Box>
