@@ -15,6 +15,8 @@ export interface AuditoriaComprasFiltros {
   dataFim: string;
 }
 
+export type OrigemTransacaoTesouraria = "PIX" | "COMPROVANTE";
+
 export interface TransacaoTesouraria {
   id: string;
   dataReserva: string | null;
@@ -30,6 +32,12 @@ export interface TransacaoTesouraria {
   comprovanteUrl: string | null;
   bilhetes: string[];
   valorTotal: number;
+  valorLiquido?: number;
+  origem?: OrigemTransacaoTesouraria;
+  pixOrderId?: string | null;
+  statusPagamentoBanco?: string | null;
+  statusValidacao?: string | null;
+  correcaoPendente?: boolean;
 }
 
 export interface ResumoAuditoriaCompras {

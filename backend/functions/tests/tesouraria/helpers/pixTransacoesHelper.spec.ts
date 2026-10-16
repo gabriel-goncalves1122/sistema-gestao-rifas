@@ -191,17 +191,27 @@ describe("Helper: pixTransacoesHelper", () => {
       },
     ]);
 
-    expect(resumo).toEqual({
-      totalRecebido: 128.7,
-      totalPendente: 20,
-      totalCancelado: 10,
-      quantidadePagas: 2,
-      quantidadeAguardando: 1,
-      quantidadeCanceladas: 1,
-      ticketMedio: 64.35,
-      quantidadeErros: 1,
-      totalErros: 50,
-      totalTransacoes: 5,
-    });
+    expect(resumo).toEqual(
+      expect.objectContaining({
+        totalRecebido: 128.7,
+        totalPendente: 20,
+        totalCancelado: 10,
+        quantidadePagas: 2,
+        quantidadeAguardando: 1,
+        quantidadeCanceladas: 1,
+        ticketMedio: 64.35,
+        quantidadeErros: 1,
+        totalErros: 50,
+        totalTransacoes: 5,
+        pixRecebidoBruto: 130,
+        pixRecebidoLiquido: 128.7,
+        pixRifasPagas: 13,
+        pixTransacoesAguardando: 1,
+        pixRifasAguardando: 2,
+        totalGeralRecebidoBruto: 130,
+        totalGeralRecebidoLiquido: 128.7,
+        totalGeralTransacoesPagas: 2,
+      }),
+    );
   });
 });

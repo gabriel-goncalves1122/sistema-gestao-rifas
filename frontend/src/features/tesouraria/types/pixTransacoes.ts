@@ -80,6 +80,32 @@ export interface PixTransacoesResumo {
   totalTransacoes: number;
 
   ticketMedio: number;
+
+  // 1. Indicadores detalhados de Pagamentos via Pix (Gateway)
+  pixRifasPagas?: number;
+  pixRecebidoBruto?: number;
+  pixRecebidoLiquido?: number;
+  pixTransacoesAguardando?: number;
+  pixRifasAguardando?: number;
+  pixValorAguardandoBruto?: number;
+  pixValorAguardandoLiquido?: number;
+
+  // 2. Indicadores de Rifas negociadas via Comprovante Manual (Legado)
+  comprovantesTransacoesPagas?: number;
+  comprovantesRifasPagas?: number;
+  comprovantesValorRecebido?: number;
+  comprovantesTransacoesPendentes?: number;
+  comprovantesRifasPendentes?: number;
+  comprovantesValorPendente?: number;
+
+  // 3. Indicadores do Total Geral Consolidado (Pix + Comprovantes)
+  totalGeralTransacoesPagas?: number;
+  totalGeralRifasPagas?: number;
+  totalGeralRecebidoBruto?: number;
+  totalGeralRecebidoLiquido?: number;
+  totalGeralTransacoesPendentes?: number;
+  totalGeralRifasPendentes?: number;
+  totalGeralValorPendenteBruto?: number;
 }
 
 export interface PixTransacoesResumoUI extends PixTransacoesResumo {
