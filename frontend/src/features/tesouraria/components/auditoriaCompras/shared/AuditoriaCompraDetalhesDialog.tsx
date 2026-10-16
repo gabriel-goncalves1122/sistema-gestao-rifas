@@ -15,7 +15,9 @@ import {
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 import {
   formatarDataAuditoria,
+  formatarMoedaAuditoria,
   statusLabelAuditoria,
+  origemLabelAuditoria,
 } from "../../../utils/auditoriaComprasUtils";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
@@ -24,11 +26,23 @@ import { typographyScale as typography } from "@/shared/tokens/typography";
 import { layout } from "../../../styles/layout";
 import { useTesourariaLayout } from "../../../hooks/useTesourariaLayout";
 
-interface AuditoriaCompraDetalhesDialogProps {
+/**
+ * Propriedades para renderização do diálogo/drawer com os detalhes completos da compra auditada.
+ */
+export interface AuditoriaCompraDetalhesDialogProps {
+  /** Transação inspecionada ou `null` se fechado */
   compra: TransacaoTesouraria | null;
+  /** Callback para fechamento do modal */
   onClose: () => void;
 }
 
+/**
+ * Modal adaptativo (Dialog no desktop e BottomDrawer no mobile) com todos os detalhes
+ * e conciliações financeiras da transação de compra selecionada.
+ *
+ * @param {AuditoriaCompraDetalhesDialogProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Modal/Drawer com dados detalhados.
+ */
 export function AuditoriaCompraDetalhesDialog({
   compra,
   onClose,
@@ -47,9 +61,7 @@ export function AuditoriaCompraDetalhesDialog({
         ))}
       </Stack>
 
-      <Box
-        sx={layout.gridDois}
-      >
+      <Box sx={layout.gridDois}>
         <TextField
           label="Comprador ID"
           value={compra.compradorId || "Sem compradorId"}
@@ -59,6 +71,42 @@ export function AuditoriaCompraDetalhesDialog({
         <TextField
           label="Status"
           value={statusLabelAuditoria(compra.status)}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="Canal / Origem"
+          value={origemLabelAuditoria(compra.origem)}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="Correção pendente"
+          value={compra.correcaoPendente ? "Sim" : "Não"}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="Valor nominal bruto"
+          value={formatarMoedaAuditoria(compra.valorTotal)}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="Valor líquido arrecadado"
+          value={formatarMoedaAuditoria(compra.valorLiquido ?? compra.valorTotal)}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="ID Pedido Pix (Gateway)"
+          value={compra.pixOrderId || "Não aplicável"}
+          size="small"
+          disabled
+        />
+        <TextField
+          label="Status bancário"
+          value={compra.statusPagamentoBanco || "Não aplicável"}
           size="small"
           disabled
         />
@@ -141,9 +189,7 @@ export function AuditoriaCompraDetalhesDialog({
         sx: surfaces.dialog,
       }}
     >
-      <DialogTitle
-        sx={surfaces.dialogTitle}
-      >
+      <DialogTitle sx={surfaces.dialogTitle}>
         Detalhes da compra
         <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.88rem", mt: 0.45 }}>
           Conferência de vínculos, bilhetes e dados protegidos.

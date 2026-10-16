@@ -11,19 +11,21 @@ import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 
+interface ContadorAuditoriaProps {
+  label: string;
+  valor: string;
+  detalhe: string;
+  icon: ReactNode;
+  destaque?: boolean;
+}
+
 function ContadorAuditoria({
   label,
   valor,
   detalhe,
   icon,
   destaque = false,
-}: {
-  label: string;
-  valor: string;
-  detalhe: string;
-  icon: ReactNode;
-  destaque?: boolean;
-}) {
+}: ContadorAuditoriaProps) {
   return (
     <Paper
       elevation={0}
@@ -114,13 +116,28 @@ function ContadorAuditoria({
   );
 }
 
-interface AuditoriaComprasResumoProps {
+/**
+ * Propriedades para renderização do resumo quantitativo e financeiro da auditoria.
+ */
+export interface AuditoriaComprasResumoProps {
+  /** Estrutura com valores e quantidades consolidadas das compras */
   resumo: ResumoAuditoriaCompras;
 }
 
+/**
+ * Componente dumb para exibição dos cards de resumo consolidados da auditoria de compras,
+ * destacando arrecadação líquida e separação entre Pix e Comprovantes manuais.
+ *
+ * @param {AuditoriaComprasResumoProps} props - Propriedades contendo o resumo calculado.
+ * @returns {JSX.Element} Grid com os 4 cartões de indicadores.
+ */
 export function AuditoriaComprasResumo({
   resumo,
 }: AuditoriaComprasResumoProps) {
+  const detalheValor = `Bruto: ${formatarMoedaAuditoria(
+    resumo.valorTotal,
+  )} • Pix: ${resumo.comprasPix} • Comp: ${resumo.comprasComprovante}`;
+
   return (
     <Box
       sx={{
@@ -135,9 +152,9 @@ export function AuditoriaComprasResumo({
     >
       <Box sx={{ gridColumn: { xs: "1 / -1", md: "auto" } }}>
         <ContadorAuditoria
-          label="Valor auditável"
-          valor={formatarMoedaAuditoria(resumo.valorTotal)}
-          detalhe="Total no resultado filtrado"
+          label="Valor auditável (Líquido)"
+          valor={formatarMoedaAuditoria(resumo.valorLiquido)}
+          detalhe={detalheValor}
           icon={<AttachMoneyOutlinedIcon fontSize="small" />}
           destaque
         />

@@ -8,6 +8,7 @@ import {
   AuditoriaComprasFiltros,
   ResumoAuditoriaCompras,
   StatusAuditoriaCompras,
+  FiltroOrigemAuditoria,
 } from "../types/auditoriaCompras";
 import { colors } from "@/shared/tokens/colors";
 
@@ -23,9 +24,20 @@ export const STATUS_FILTROS_AUDITORIA_COMPRAS: Array<{
   { label: "Recusadas", value: "recusado" },
 ];
 
+export const ORIGEM_FILTROS_AUDITORIA_COMPRAS: Array<{
+  label: string;
+  value: FiltroOrigemAuditoria;
+}> = [
+  { label: "Todas", value: "TODAS" },
+  { label: "Pix", value: "PIX" },
+  { label: "Comprovante", value: "COMPROVANTE" },
+];
+
 export const FILTROS_AUDITORIA_COMPRAS_VAZIOS: AuditoriaComprasFiltros = {
   busca: "",
   status: "todas",
+  origem: "TODAS",
+  somenteCorrecaoPendente: false,
   dataInicio: "",
   dataFim: "",
 };
@@ -118,6 +130,56 @@ export function statusSxAuditoria(status: string) {
 }
 
 /**
+ * Retorna o rótulo legível para o canal de origem do pagamento.
+ *
+ * @param {string} [origem] - Chave da origem ('PIX', 'COMPROVANTE').
+ * @returns {string} 'Pix' ou 'Comprovante'.
+ */
+export function origemLabelAuditoria(origem?: string): string {
+  const normalizada = String(origem || "").toUpperCase();
+  if (normalizada === "PIX") return "Pix";
+  return "Comprovante";
+}
+
+/**
+ * Retorna os estilos visuais MUI `sx` para identificação rápida do canal de pagamento.
+ *
+ * @param {string} [origem] - Canal da transação ('PIX' ou 'COMPROVANTE').
+ * @returns {Object} Configuração sx com cores e bordas temáticas.
+ */
+export function origemSxAuditoria(origem?: string) {
+  const normalizada = String(origem || "").toUpperCase();
+  if (normalizada === "PIX") {
+    return {
+      bgcolor: "rgba(10, 110, 89, 0.12)",
+      color: colors.verdeEscuro,
+      border: "1px solid rgba(10, 110, 89, 0.28)",
+      fontWeight: 800,
+    };
+  }
+  return {
+    bgcolor: "rgba(107, 78, 0, 0.10)",
+    color: colors.amareloEscuro,
+    border: "1px solid rgba(107, 78, 0, 0.22)",
+    fontWeight: 800,
+  };
+}
+
+/**
+ * Retorna os estilos MUI `sx` para a tag de alerta quando houver correção cadastral pendente.
+ *
+ * @returns {Object} Objeto sx com paleta de aviso âmbar.
+ */
+export function correcaoPendenteSxAuditoria() {
+  return {
+    bgcolor: "rgba(194, 65, 12, 0.12)",
+    color: "#C2410C",
+    border: "1px solid rgba(194, 65, 12, 0.3)",
+    fontWeight: 850,
+  };
+}
+
+/**
  * Avalia se a data de reserva de uma compra está dentro do período selecionado (dataInicio e dataFim).
  *
  * @param {TransacaoTesouraria} compra - Transação de compra avaliada.
@@ -137,6 +199,37 @@ function compraPassaPeriodo(
   if (dataFim && dataCompra > dataFim) return false;
 
   return true;
+}
+
+/**
+ * Avalia se o canal de origem da compra coincide com o filtro selecionado.
+ *
+ * @param {TransacaoTesouraria} compra - Transação de compra.
+ * @param {FiltroOrigemAuditoria} [origemFiltro] - Filtro de canal ('TODAS', 'PIX', 'COMPROVANTE').
+ * @returns {boolean} `true` se atender ao filtro.
+ */
+function compraPassaOrigem(
+  compra: TransacaoTesouraria,
+  origemFiltro?: FiltroOrigemAuditoria,
+): boolean {
+  if (!origemFiltro || origemFiltro === "TODAS") return true;
+  const origemCompra = (compra.origem || "COMPROVANTE").toUpperCase();
+  return origemCompra === origemFiltro;
+}
+
+/**
+ * Avalia se o filtro de correção cadastral pendente é satisfeito.
+ *
+ * @param {TransacaoTesouraria} compra - Transação de compra.
+ * @param {boolean} [somenteCorrecao] - Flag de filtro ativo.
+ * @returns {boolean} `true` se passar pelo filtro.
+ */
+function compraPassaCorrecaoPendente(
+  compra: TransacaoTesouraria,
+  somenteCorrecao?: boolean,
+): boolean {
+  if (!somenteCorrecao) return true;
+  return Boolean(compra.correcaoPendente);
 }
 
 /**
@@ -161,6 +254,7 @@ function compraPassaBusca(compra: TransacaoTesouraria, busca: string): boolean {
     compra.vendedorCpf,
     compra.vendedorId || "",
     compra.status,
+    compra.pixOrderId || "",
     formatarDataAuditoria(compra.dataReserva),
     compra.bilhetes.join(" "),
   ];
@@ -177,7 +271,7 @@ function compraPassaBusca(compra: TransacaoTesouraria, busca: string): boolean {
 }
 
 /**
- * Aplica simultaneamente os filtros de status, intervalo de datas e busca textual sobre a listagem de compras auditáveis.
+ * Aplica simultaneamente os filtros de status, origem, pendência de correção, datas e busca textual.
  *
  * @param {TransacaoTesouraria[]} compras - Lista de transações da tesouraria.
  * @param {AuditoriaComprasFiltros} filtros - Conjunto de filtros ativos.
@@ -195,16 +289,18 @@ export function filtrarComprasAuditaveis(
     return (
       statusValido &&
       compraPassaPeriodo(compra, filtros.dataInicio, filtros.dataFim) &&
+      compraPassaOrigem(compra, filtros.origem) &&
+      compraPassaCorrecaoPendente(compra, filtros.somenteCorrecaoPendente) &&
       compraPassaBusca(compra, filtros.busca)
     );
   });
 }
 
 /**
- * Computa as contagens e valores totais consolidados para os cards de resumo da auditoria.
+ * Computa as contagens e valores consolidados (brutos e líquidos) para os cards de resumo da auditoria.
  *
  * @param {TransacaoTesouraria[]} compras - Lista de compras auditadas.
- * @returns {ResumoAuditoriaCompras} Quantitativos e valor total em reais.
+ * @returns {ResumoAuditoriaCompras} Quantitativos e totais financeiros.
  */
 export function calcularResumoAuditoria(
   compras: TransacaoTesouraria[],
@@ -214,7 +310,11 @@ export function calcularResumoAuditoria(
     0,
   );
   const valorTotal = compras.reduce(
-    (acc, compra) => acc + compra.valorTotal,
+    (acc, compra) => acc + (compra.valorTotal || 0),
+    0,
+  );
+  const valorLiquido = compras.reduce(
+    (acc, compra) => acc + (compra.valorLiquido ?? compra.valorTotal ?? 0),
     0,
   );
   const pagas = compras.filter(
@@ -227,10 +327,18 @@ export function calcularResumoAuditoria(
     (compra) => normalizarTexto(compra.status) === "recusado",
   ).length;
 
+  const comprasPix = compras.filter(
+    (compra) => (compra.origem || "").toUpperCase() === "PIX",
+  ).length;
+  const comprasComprovante = compras.length - comprasPix;
+
   return {
     totalCompras: compras.length,
     totalRifas,
     valorTotal,
+    valorLiquido,
+    comprasPix,
+    comprasComprovante,
     pagas,
     pendentes,
     recusadas,
@@ -241,19 +349,22 @@ export function calcularResumoAuditoria(
  * Verifica se algum filtro além do padrão está ativo na tela de auditoria.
  *
  * @param {AuditoriaComprasFiltros} filtros - Filtros atuais da tela.
- * @returns {boolean} `true` se houver busca, data ou status diferente de "todas".
+ * @returns {boolean} `true` se houver busca, data, canal, correção ou status diferente de "todas".
  */
 export function filtrosAuditoriaAtivos(filtros: AuditoriaComprasFiltros): boolean {
   return Boolean(
     filtros.busca.trim() ||
       filtros.status !== "todas" ||
+      (filtros.origem && filtros.origem !== "TODAS") ||
+      Boolean(filtros.somenteCorrecaoPendente) ||
       filtros.dataInicio ||
       filtros.dataFim,
   );
 }
 
 /**
- * Converte a lista de transações de compras em formato CSV compatível com Excel brasileiro (delimitador ponto-e-vírgula).
+ * Converte a lista de transações de compras em formato CSV compatível com Excel (delimitador ponto-e-vírgula).
+ * Inclui canal de origem, valores bruto e líquido, status bancário e pendência de correção.
  *
  * @param {TransacaoTesouraria[]} compras - Lista de compras a exportar.
  * @returns {string} Conteúdo em string CSV pronto para download.
@@ -262,10 +373,14 @@ export function criarCsvAuditoriaCompras(compras: TransacaoTesouraria[]): string
   const headers = [
     "Data Reserva",
     "Data Pagamento",
+    "Origem",
     "Status",
     "Rifas",
     "Qtd",
-    "Valor Total (R$)",
+    "Valor Bruto (R$)",
+    "Valor Líquido (R$)",
+    "Status Banco",
+    "Correção Pendente",
     "Vendedor",
     "CPF Vendedor",
     "Comprador",
@@ -276,10 +391,14 @@ export function criarCsvAuditoriaCompras(compras: TransacaoTesouraria[]): string
   const linhas = compras.map((compra) => [
     formatarDataAuditoria(compra.dataReserva),
     formatarDataAuditoria(compra.dataPagamento),
+    origemLabelAuditoria(compra.origem),
     statusLabelAuditoria(compra.status),
     `"${compra.bilhetes.join(", ")}"`,
     compra.bilhetes.length,
     compra.valorTotal,
+    compra.valorLiquido ?? compra.valorTotal,
+    compra.statusPagamentoBanco || "-",
+    compra.correcaoPendente ? "Sim" : "Não",
     `"${compra.vendedorNome}"`,
     `"${compra.vendedorCpf}"`,
     `"${compra.compradorNome}"`,

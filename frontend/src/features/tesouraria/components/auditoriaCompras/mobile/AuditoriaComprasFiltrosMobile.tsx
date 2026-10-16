@@ -8,11 +8,10 @@ import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Button,
-  Chip,
+  Divider,
   Drawer,
   IconButton,
   InputAdornment,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -22,9 +21,21 @@ import {
 
 import { safeAreaStickyTop } from "@/shared/tokens/safeArea";
 import { AuditoriaComprasFiltrosProps } from "../shared/auditoriaComprasFiltrosTypes";
-import { AuditoriaFiltroDatas, AuditoriaFiltroStatusChips } from "../shared/AuditoriaFiltrosUtils";
+import {
+  AuditoriaFiltroDatas,
+  AuditoriaFiltroStatusChips,
+  AuditoriaFiltroOrigemChips,
+  AuditoriaFiltroCorrecaoChip,
+} from "../shared/AuditoriaFiltrosUtils";
 import { colors } from "@/shared/tokens/colors";
 
+/**
+ * Painel de filtros compacto e adaptativo para dispositivos móveis,
+ * com barra horizontal deslizante e gaveta inferior (bottom drawer) de opções avançadas.
+ *
+ * @param {AuditoriaComprasFiltrosProps} props - Propriedades de filtros e callbacks.
+ * @returns {JSX.Element} Componente mobile de filtros.
+ */
 export function AuditoriaComprasFiltrosMobile({
   filtros,
   filtrosAtivos,
@@ -105,6 +116,8 @@ export function AuditoriaComprasFiltrosMobile({
           }}
         >
           <AuditoriaFiltroStatusChips filtros={filtros} onChangeFiltros={onChangeFiltros} />
+          <AuditoriaFiltroOrigemChips filtros={filtros} onChangeFiltros={onChangeFiltros} />
+          <AuditoriaFiltroCorrecaoChip filtros={filtros} onChangeFiltros={onChangeFiltros} />
         </Box>
 
         <Drawer
@@ -136,11 +149,40 @@ export function AuditoriaComprasFiltrosMobile({
                 fontWeight: 850,
               }}
             >
-              Refine por período e disponibilidade de comprovante.
+              Refine por período, canal de pagamento e correções.
             </Typography>
 
             <AuditoriaFiltroDatas filtros={filtros} onChangeFiltros={onChangeFiltros} />
 
+            <Typography
+              sx={{
+                color: colors.cinzaTexto,
+                fontSize: "0.78rem",
+                fontWeight: 850,
+                mt: 1,
+              }}
+            >
+              Canal de Pagamento
+            </Typography>
+            <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+              <AuditoriaFiltroOrigemChips filtros={filtros} onChangeFiltros={onChangeFiltros} />
+            </Box>
+
+            <Typography
+              sx={{
+                color: colors.cinzaTexto,
+                fontSize: "0.78rem",
+                fontWeight: 850,
+                mt: 1,
+              }}
+            >
+              Pendências Cadastrais
+            </Typography>
+            <Box>
+              <AuditoriaFiltroCorrecaoChip filtros={filtros} onChangeFiltros={onChangeFiltros} />
+            </Box>
+
+            <Divider sx={{ my: 1 }} />
 
             <Stack direction="row" spacing={1.5}>
               <Button

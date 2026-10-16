@@ -5,9 +5,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Button,
-  Chip,
+  Divider,
   InputAdornment,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -19,8 +18,20 @@ import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
 
 import { AuditoriaComprasFiltrosProps } from "../shared/auditoriaComprasFiltrosTypes";
-import { AuditoriaFiltroDatas, AuditoriaFiltroStatusChips } from "../shared/AuditoriaFiltrosUtils";
+import {
+  AuditoriaFiltroDatas,
+  AuditoriaFiltroStatusChips,
+  AuditoriaFiltroOrigemChips,
+  AuditoriaFiltroCorrecaoChip,
+} from "../shared/AuditoriaFiltrosUtils";
 
+/**
+ * Painel de filtros avançados para a auditoria de compras no ambiente Desktop.
+ * Oferece busca textual, intervalo de datas, status, canal de origem e pendência de correção.
+ *
+ * @param {AuditoriaComprasFiltrosProps} props - Propriedades do filtro.
+ * @returns {JSX.Element} Painel de filtros desktop.
+ */
 export function AuditoriaComprasFiltrosDesktop({
   filtros,
   filtrosAtivos,
@@ -60,7 +71,7 @@ export function AuditoriaComprasFiltrosDesktop({
               Filtros da auditoria
             </Typography>
             <Typography sx={{ color: colors.textoSuave, fontSize: "0.84rem", mt: 0.3 }}>
-              Localize uma compra por comprador, contato, vendedor ou rifa.
+              Localize uma compra por comprador, contato, vendedor, rifa ou ID Pix.
             </Typography>
           </Box>
 
@@ -154,8 +165,16 @@ export function AuditoriaComprasFiltrosDesktop({
           flexWrap="wrap"
           useFlexGap
         >
-          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <AuditoriaFiltroStatusChips filtros={filtros} onChangeFiltros={onChangeFiltros} />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24, alignSelf: "center" }} />
+
+            <AuditoriaFiltroOrigemChips filtros={filtros} onChangeFiltros={onChangeFiltros} />
+
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24, alignSelf: "center" }} />
+
+            <AuditoriaFiltroCorrecaoChip filtros={filtros} onChangeFiltros={onChangeFiltros} />
           </Stack>
 
           {filtrosAtivos && (
