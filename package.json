@@ -15,7 +15,16 @@
     "test:frontend": "npm --prefix frontend run test:run",
     "test:backend": "npm --prefix backend/functions test",
     "test": "npm run test:backend && npm run test:frontend",
+    "check:docs": "node scripts/check-inline-docs.mjs",
     "setup:linux": "bash scripts/dev/configurar-inotify-linux.sh",
-    "ngrok": "npx ngrok http 5001"
+    "ngrok": "npx ngrok http 5001",
+    "copiar:producao": "npm --prefix backend/functions run copiar:producao",
+    "install:frontend": "npm --prefix frontend install",
+    "install:backend": "npm --prefix backend/functions install",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "postinstall": "npm run install:all",
+    "ci:frontend": "npm --prefix frontend ci",
+    "ci:backend": "npm --prefix backend/functions ci",
+    "ci:all": "npm run ci:frontend && npm run ci:backend"
   }
 }

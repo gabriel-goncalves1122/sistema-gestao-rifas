@@ -5,7 +5,7 @@
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "build:watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "emulators:check": "node ../scripts/verificarPortasEmuladores.mjs",
-    "emulators:start": "npm run emulators:check && CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=800 firebase emulators:start --config ../../firebase.json --project rifasaderidos2026 --only firestore,auth,storage,functions --import ../banco-local --export-on-exit ../banco-local",
+    "emulators:start": "npm run emulators:check && firebase emulators:start --config ../../firebase.json --project rifasaderidos2026 --only firestore,auth,storage,functions --import ../banco-local --export-on-exit ../banco-local",
     "dev:emulators": "npm run build && node ../scripts/executarEmuladores.mjs",
     "serve": "npm run dev:emulators",
     "shell": "npm run build && firebase functions:shell --config ../../firebase.json --project rifasaderidos2026",
@@ -15,7 +15,8 @@
     "test:unit": "jest --testPathIgnorePatterns=/tests/security/",
     "test:rules": "firebase emulators:exec --config ../../firebase.json --project rifasaderidos2026 --only firestore \"jest tests/security --runInBand\"",
     "test": "node scripts/run-tests.mjs",
-    "backfill:claims": "npx tsx src/scripts/backfillCustomClaims.ts"
+    "backfill:claims": "npx tsx src/scripts/backfillCustomClaims.ts",
+    "copiar:producao": "npx tsx src/scripts/copiarProducao.ts"
   },
   "engines": {
     "node": "20"

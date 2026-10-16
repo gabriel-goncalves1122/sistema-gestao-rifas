@@ -17,6 +17,8 @@ export default defineConfig({
     allowedHosts: true,
 
     watch: {
+      usePolling: true,
+      interval: 500,
       // Os scripts padrao usam polling para funcionar mesmo antes do setup
       // Linux. `dev:inotify` usa este mesmo escopo com eventos nativos.
       ignored: [

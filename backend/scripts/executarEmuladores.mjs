@@ -2,16 +2,33 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
+import fs from "node:fs";
+
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.resolve(scriptsDir, "../functions");
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const usaGrupoDeProcesso = process.platform !== "win32";
 
+const jdk21Padrao = "C:\\Program Files\\Microsoft\\jdk-21.0.12.101-hotspot";
+const javaOverride =
+  process.platform === "win32" && fs.existsSync(jdk21Padrao)
+    ? {
+        JAVA_HOME: jdk21Padrao,
+        PATH: `${path.join(jdk21Padrao, "bin")};${process.env.PATH || ""}`,
+      }
+    : {};
+
 function iniciarScript(nome) {
   return spawn(npmCommand, ["run", nome], {
     cwd: functionsDir,
     detached: usaGrupoDeProcesso,
-    env: process.env,
+    env: {
+      ...process.env,
+      ...javaOverride,
+      CHOKIDAR_USEPOLLING: "true",
+      CHOKIDAR_INTERVAL: "800",
+    },
+    shell: process.platform === "win32",
     stdio: "inherit",
   });
 }

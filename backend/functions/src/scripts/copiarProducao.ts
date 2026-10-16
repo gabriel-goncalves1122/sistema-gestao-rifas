@@ -38,14 +38,22 @@ const COLECOES_PARA_COPIAR = [
 // Por isso usamos process.cwd(), que deve apontar para backend/functions.
 //
 
-const serviceAccountPath = path.resolve(
-  process.cwd(),
-  "src/scripts/chave-privada.json",
-);
+const caminhosPossiveis = [
+  path.resolve(process.cwd(), "src/scripts/chave-privada.json"),
+  path.resolve(process.cwd(), "src/scripts/chave-privada.json.json"),
+  path.resolve(process.cwd(), "backend/functions/src/scripts/chave-privada.json"),
+  path.resolve(process.cwd(), "backend/functions/src/scripts/chave-privada.json.json"),
+  path.resolve(__dirname, "chave-privada.json"),
+  path.resolve(__dirname, "chave-privada.json.json"),
+  path.resolve(__dirname, "../../src/scripts/chave-privada.json"),
+  path.resolve(__dirname, "../../src/scripts/chave-privada.json.json"),
+];
 
-if (!fs.existsSync(serviceAccountPath)) {
+const serviceAccountPath = caminhosPossiveis.find((caminho) => fs.existsSync(caminho));
+
+if (!serviceAccountPath) {
   throw new Error(
-    `Arquivo chave-privada.json não encontrado em: ${serviceAccountPath}`,
+    `Arquivo chave-privada.json não encontrado. Verifique se ele está em backend/functions/src/scripts/chave-privada.json`,
   );
 }
 

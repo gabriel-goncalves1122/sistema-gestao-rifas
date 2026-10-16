@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=500 vite",
-    "dev:network": "CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=500 vite --host 0.0.0.0",
+    "dev": "vite",
+    "dev:network": "vite --host 0.0.0.0",
     "dev:inotify": "vite",
-    "dev:poll": "CHOKIDAR_USEPOLLING=true CHOKIDAR_INTERVAL=500 vite",
+    "dev:poll": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src tests --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
