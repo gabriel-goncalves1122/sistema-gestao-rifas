@@ -13,8 +13,8 @@ export function SecretariaMobileFAB({ onClick }: SecretariaMobileFABProps) {
       onClick={onClick}
       sx={{
         position: "fixed",
-        bottom: 24,
-        right: 24,
+        bottom: "max(24px, calc(env(safe-area-inset-bottom) + 16px))",
+        right: "max(20px, calc(env(safe-area-inset-right) + 16px))",
         zIndex: 1200,
       }}
     >

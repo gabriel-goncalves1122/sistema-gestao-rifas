@@ -3,6 +3,7 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -16,6 +17,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import PersonIcon from "@mui/icons-material/Person";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 
 import { formatarNomeMembro } from "../../utils/formatadoresSecretaria";
 import type { AderidoSecretaria, FormEditarAderido as FormEditarAderidoData } from "@/shared/types/secretaria";
@@ -109,6 +111,27 @@ export function ModalDetalhesAderido({
             >
               {aderido.email || "E-mail não informado"}
             </Typography>
+
+            {aderido.faixa_rifas?.inicio && aderido.faixa_rifas?.fim && (
+              <Chip
+                size="small"
+                variant="outlined"
+                icon={
+                  <ConfirmationNumberIcon
+                    sx={{ fontSize: "14px !important" }}
+                  />
+                }
+                label={`Faixa: #${aderido.faixa_rifas.inicio}–${aderido.faixa_rifas.fim}`}
+                sx={{
+                  mt: 0.75,
+                  height: 24,
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                }}
+              />
+            )}
           </Box>
         </Stack>
       </DialogTitle>
@@ -123,7 +146,12 @@ export function ModalDetalhesAderido({
 
       <Divider />
 
-      <DialogActions sx={{ p: 2.5 }}>
+      <DialogActions
+        sx={{
+          p: 2.5,
+          pb: { xs: "max(16px, env(safe-area-inset-bottom))", sm: 2.5 },
+        }}
+      >
         {!editando ? (
           <>
             <Button onClick={onClose} color="inherit" disabled={salvando} startIcon={<CloseIcon />}>

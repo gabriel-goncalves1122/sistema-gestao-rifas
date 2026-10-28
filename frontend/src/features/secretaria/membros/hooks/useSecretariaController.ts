@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { secretariaService } from "../services/secretariaService";
 import type {
@@ -10,14 +11,29 @@ import type { Notificacao } from "../types/secretariaLocalTypes";
 
 /**
  * Controller React (Hook) que gerencia o estado da visualização de membros da secretaria.
- * Orquestra carregamento assíncrono de aderidos, seleção individual para painel de detalhes,
+ * Orquestra carregamento assíncrono com cache inteligente (React Query), seleção individual para painel de detalhes,
  * seleção em lote (batch), controle de modais e disparos de notificações (feedback toasts).
  *
  * @returns Retorna os estados de listagem, busca, seleção, loading e as funções manipuladoras.
  */
 export function useSecretariaController() {
-  const [aderidos, setAderidos] = useState<AderidoSecretaria[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const {
+    data: aderidos = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["secretaria", "membros"],
+    queryFn: () => secretariaService.buscarAderidos(),
+    staleTime: 180_000,
+    gcTime: 600_000,
+  });
+
+  const [loadingManual, setLoadingManual] = useState(false);
+  const loading = isLoading || isFetching || loadingManual;
+
   const [notificacao, setNotificacao] = useState<Notificacao>({
     open: false,
     mensagem: "",
@@ -67,21 +83,29 @@ export function useSecretariaController() {
   };
 
   const carregarAderidos = useCallback(async () => {
-    setLoading(true);
+    setLoadingManual(true);
     try {
-      const dados = await secretariaService.buscarAderidos();
-      setAderidos(dados);
-      return dados;
+      const { data } = await refetch();
+      return data ?? [];
     } finally {
-      setLoading(false);
+      setLoadingManual(false);
     }
-  }, []);
+  }, [refetch]);
 
   const adicionarAderidoIndividual = async (dados: FormNovoAderido) => {
     try {
-      await secretariaService.adicionarAderidoIndividual(dados);
-      await carregarAderidos();
-      mostrarNotificacao("Aderido autorizado com sucesso!");
+      const resposta =
+        await secretariaService.adicionarAderidoIndividual(dados);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["secretaria", "membros"] }),
+        queryClient.invalidateQueries({ queryKey: ["tesouraria"] }),
+      ]);
+      await refetch();
+      const faixaMsg =
+        resposta?.faixaRifas?.inicio && resposta?.faixaRifas?.fim
+          ? ` (Rifas #${resposta.faixaRifas.inicio} a #${resposta.faixaRifas.fim})`
+          : "";
+      mostrarNotificacao(`Aderido autorizado com sucesso!${faixaMsg}`);
     } catch (error: any) {
       mostrarNotificacao(
         error?.message || "Erro ao autorizar aderido",
@@ -97,7 +121,17 @@ export function useSecretariaController() {
   ) => {
     try {
       await secretariaService.atualizarAderidoSecretaria(id, dados);
-      await carregarAderidos();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["secretaria", "membros"] }),
+        queryClient.invalidateQueries({ queryKey: ["tesouraria"] }),
+      ]);
+      const { data: listaAtualizada } = await refetch();
+      if (Array.isArray(listaAtualizada)) {
+        const atualizado = listaAtualizada.find((a) => a.id === id);
+        if (atualizado) {
+          setAderidoSelecionado(atualizado);
+        }
+      }
       mostrarNotificacao("Dados atualizados com sucesso!");
     } catch (error: any) {
       mostrarNotificacao(

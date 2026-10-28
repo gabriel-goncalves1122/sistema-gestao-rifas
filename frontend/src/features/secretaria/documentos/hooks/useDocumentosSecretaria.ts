@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useDebounce } from "@/shared/hooks/useDebounce";
 
@@ -18,9 +19,26 @@ import type {
 } from "../types/documentosSecretariaTypes";
 
 export function useDocumentosSecretaria() {
-  const [documentos, setDocumentos] = useState<DocumentoComissao[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  const {
+    data: documentosServidor = [],
+    isLoading,
+    isFetching,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ["secretaria", "documentos"],
+    queryFn: () => documentosSecretariaService.listarDocumentos(),
+    staleTime: 180_000,
+    gcTime: 600_000,
+  });
+
+  const [documentosLocais, setDocumentosLocais] = useState<DocumentoComissao[] | null>(null);
+  const documentos = documentosLocais ?? documentosServidor;
+  const loading = isLoading || isFetching;
+  const erro = queryError ? "Não foi possível carregar os documentos." : null;
+
   const [busca, setBusca] = useState("");
   const [area, setArea] = useState<AreaDocumentoComissao | "todas">("todas");
   const [preview, setPreview] = useState<DocumentoPreviewState>({
@@ -40,22 +58,10 @@ export function useDocumentosSecretaria() {
   });
 
   const carregarDocumentos = useCallback(async () => {
-    setLoading(true);
-    setErro(null);
-
-    try {
-      const resposta = await documentosSecretariaService.listarDocumentos();
-      setDocumentos(resposta);
-    } catch {
-      setErro("Não foi possível carregar os documentos.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    carregarDocumentos();
-  }, [carregarDocumentos]);
+    setDocumentosLocais(null);
+    const { data } = await refetch();
+    return data ?? [];
+  }, [refetch]);
 
   const debouncedBusca = useDebounce(busca, 250);
 
@@ -150,32 +156,40 @@ export function useDocumentosSecretaria() {
           dados,
         );
 
-        setDocumentos((atuais) =>
-          atuais.map((documento) =>
+        setDocumentosLocais((atuais) => {
+          const base = atuais ?? documentosServidor;
+          return base.map((documento) =>
             documento.id === atualizado.id ? atualizado : documento,
-          ),
-        );
+          );
+        });
         if (preview.documento?.id === atualizado.id) {
           fecharPreview();
         }
-        await carregarDocumentos();
+        await queryClient.invalidateQueries({ queryKey: ["secretaria", "documentos"] });
+        await refetch();
         fecharEditor();
         return;
       }
 
       const novoDocumento =
         await documentosSecretariaService.criarDocumento(dados);
-      setDocumentos((atuais) => [novoDocumento, ...atuais]);
-      await carregarDocumentos();
+      setDocumentosLocais((atuais) => {
+        const base = atuais ?? documentosServidor;
+        return [novoDocumento, ...base];
+      });
+      await queryClient.invalidateQueries({ queryKey: ["secretaria", "documentos"] });
+      await refetch();
       fecharEditor();
     },
     [
-      carregarDocumentos,
+      documentosServidor,
       editor.documento,
       editor.modo,
       fecharEditor,
       fecharPreview,
       preview.documento?.id,
+      queryClient,
+      refetch,
     ],
   );
 

@@ -59,3 +59,38 @@ export function formatarCpf(valor?: string | number | null): string {
 
   return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`;
 }
+
+/**
+ * Sanitiza e normaliza números de telefone inseridos por digitação ou colagem.
+ * Lida de forma segura com colagens contendo DDI internacional (+55),
+ * preservando integralmente números nacionais normais sem 55 (10 ou 11 dígitos, ex: DDD 35, DDD 55, etc.).
+ *
+ * @param {string | number | null} [valor] - Telefone bruto ou formatado.
+ * @returns {string} Sequência de até 11 dígitos numéricos limpos.
+ */
+export function sanitizarTelefoneColagem(
+  valor?: string | number | null,
+): string {
+  let numeros = somenteNumeros(valor);
+
+  // Somente se houver 12 ou 13 dígitos começando com "55", o DDI internacional é removido
+  if (
+    numeros.startsWith("55") &&
+    (numeros.length === 12 || numeros.length === 13)
+  ) {
+    numeros = numeros.slice(2);
+  }
+
+  return numeros.slice(0, 11);
+}
+
+/**
+ * Sanitiza e normaliza CPF inserido por digitação ou colagem, removendo pontuações,
+ * espaços e caracteres espúrios, garantindo no máximo 11 dígitos.
+ *
+ * @param {string | number | null} [valor] - CPF bruto ou formatado.
+ * @returns {string} Sequência de até 11 dígitos numéricos limpos.
+ */
+export function sanitizarCpfColagem(valor?: string | number | null): string {
+  return somenteNumeros(valor).slice(0, 11);
+}

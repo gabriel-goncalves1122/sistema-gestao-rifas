@@ -38,7 +38,7 @@ function obterNomeOrdenacao(aderido: AderidoSecretaria): string {
  * @param {AderidoSecretaria} b - Segundo aderido.
  * @returns {number} -1 se a é ativo e b não, 1 se b é ativo e a não, ou 0 se empatados.
  */
-function compararAtivosPrimeiro(
+export function compararAtivosPrimeiro(
   a: AderidoSecretaria,
   b: AderidoSecretaria,
 ): number {
@@ -71,7 +71,7 @@ const COLUNA_CHAVE: Record<string, keyof AderidoSecretaria> = {
 
 /**
  * Hook customizado responsável pelo controle de ordenação da tabela de membros da secretaria.
- * Mantém os aderidos ativos no topo por padrão e permite alternar ordenação por coluna clicada.
+ * Mantém ordem alfabética estrita (A a Z) por padrão e permite alternar ordenação por coluna clicada.
  *
  * @param {AderidoSecretaria[]} aderidos - Lista de aderidos a ordenar.
  * @returns {{ sorted: AderidoSecretaria[]; sortBy: string | null; sortDir: SortDir; toggleSort: (coluna: string) => void }}
@@ -92,13 +92,14 @@ export function useSecretariaSort(aderidos: AderidoSecretaria[]) {
 
   const sorted = useMemo(() => {
     const baseOrdenada = [...aderidos].sort((a, b) => {
-      const prioridadeStatus = compararAtivosPrimeiro(a, b);
-      if (prioridadeStatus !== 0) return prioridadeStatus;
-
-      if (!sortBy) return compararNome(a, b);
+      if (!sortBy || sortBy === "nome") {
+        return compararValores(obterNomeOrdenacao(a), obterNomeOrdenacao(b), sortDir);
+      }
 
       const chave = COLUNA_CHAVE[sortBy];
-      if (!chave) return compararNome(a, b);
+      if (!chave) {
+        return compararValores(obterNomeOrdenacao(a), obterNomeOrdenacao(b), sortDir);
+      }
 
       const comparacaoColuna = compararValores(a[chave], b[chave], sortDir);
       if (comparacaoColuna !== 0) return comparacaoColuna;

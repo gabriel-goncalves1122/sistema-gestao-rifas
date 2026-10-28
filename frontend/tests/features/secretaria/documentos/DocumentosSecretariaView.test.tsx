@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -64,7 +65,14 @@ vi.mock("@/features/secretaria/documentos/services/documentosSecretariaService",
 }));
 
 function DocumentosHarness() {
-  return <DocumentosSecretariaView />;
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DocumentosSecretariaView />
+    </QueryClientProvider>
+  );
 }
 
 describe("<DocumentosSecretariaView />", () => {

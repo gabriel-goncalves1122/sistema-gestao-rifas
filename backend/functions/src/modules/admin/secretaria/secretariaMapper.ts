@@ -55,8 +55,12 @@ export function montarCamposAtualizacaoAderido(dados: DadosAtualizacaoAderido) {
   if (dados.curso !== undefined)
     campos.curso = normalizarTextoMaiusculo(dados.curso);
   if (dados.genero !== undefined) campos.genero = normalizarTexto(dados.genero);
-  if (dados.data_nascimento !== undefined) {
-    campos.data_nascimento = normalizarTexto(dados.data_nascimento);
+  if (dados.data_nascimento !== undefined || dados.dataNascimento !== undefined) {
+    const dataNasc =
+      dados.data_nascimento !== undefined
+        ? dados.data_nascimento
+        : dados.dataNascimento;
+    campos.data_nascimento = normalizarTexto(dataNasc);
   }
   if (dados.cargo !== undefined) campos.cargo = dados.cargo;
 
@@ -81,7 +85,9 @@ export function normalizarDadosNovoAderido(dados: DadosNovoAderido) {
     email: normalizarEmail(dados.email),
     nome: normalizarTextoMaiusculo(dados.nome),
     curso: normalizarTextoMaiusculo(dados.curso),
-    data_nascimento: normalizarTexto(dados.data_nascimento),
+    data_nascimento: normalizarTexto(
+      dados.data_nascimento || dados.dataNascimento,
+    ),
     telefone: normalizarTexto(dados.telefone),
     cargo: dados.cargo || "aderido",
     modalidade_adesao: dados.modalidade_adesao || "completo",

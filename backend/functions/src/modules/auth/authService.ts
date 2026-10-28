@@ -85,7 +85,11 @@ export const authService = {
     // Define custom claims com o cargo do documento para a regra firestore.rules funcionar
     const role = dadosAntigos.role || "aderido";
     try {
-      await auth.setCustomUserClaims(uid, { role, roleAtualizado: true });
+      await auth.setCustomUserClaims(uid, {
+        role,
+        cargo: role,
+        roleAtualizado: true,
+      });
     } catch (error) {
       console.error("[AuthService] Erro ao definir custom claims:", error);
     }

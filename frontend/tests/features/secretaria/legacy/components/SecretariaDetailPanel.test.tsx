@@ -28,7 +28,7 @@ describe("SecretariaDetailPanel", () => {
     );
 
     expect(screen.getAllByText("Gabriel Sampaio").length).toBeGreaterThan(0);
-    expect(screen.getByText("gabriel@teste.com")).toBeInTheDocument();
+    expect(screen.getAllByText("gabriel@teste.com").length).toBeGreaterThan(0);
     expect(screen.getByText("Editar dados")).toBeInTheDocument();
   });
 

@@ -10,6 +10,7 @@ import {
   formatarNomeMembro,
   formatarTelefone,
 } from "../../utils/formatadoresSecretaria";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 import type { AderidoSecretaria } from "@/shared/types/secretaria";
 
 interface InformacoesAderidoCardProps {
@@ -70,6 +71,10 @@ export function InformacoesAderidoCard({ aderido }: InformacoesAderidoCardProps)
   const cargo = aderido.cargo || "aderido";
   const cargoTexto = cargo === "aderido" ? "Aderido" : cargo;
   const dataNascimento = aderido.data_nascimento || aderido.dataNascimento;
+  const faixaRifasTexto =
+    aderido.faixa_rifas?.inicio && aderido.faixa_rifas?.fim
+      ? `#${aderido.faixa_rifas.inicio} até #${aderido.faixa_rifas.fim}`
+      : "Não informada";
 
   return (
     <Paper
@@ -87,6 +92,7 @@ export function InformacoesAderidoCard({ aderido }: InformacoesAderidoCardProps)
         <SecaoInformacao titulo="Contato">
           <Stack spacing={1.5}>
             <LinhaInformacao label="Nome" valor={formatarNomeMembro(aderido.nome)} />
+            <LinhaInformacao label="E-mail" valor={aderido.email} />
             <Box
               sx={{
                 display: "grid",
@@ -111,6 +117,26 @@ export function InformacoesAderidoCard({ aderido }: InformacoesAderidoCardProps)
             <LinhaInformacao label="Curso" valor={aderido.curso} />
             <LinhaInformacao label="Gênero" valor={aderido.genero} />
             <LinhaInformacao label="Data de nascimento" valor={dataNascimento} />
+          </Box>
+        </SecaoInformacao>
+
+        <SecaoInformacao titulo="Alocação de rifas">
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
+              gap: 1.5,
+            }}
+          >
+            <LinhaInformacao label="Faixa alocada" valor={faixaRifasTexto} />
+            <LinhaInformacao
+              label="Rifas vendidas"
+              valor={String(aderido.rifas_vendidas ?? 0)}
+            />
+            <LinhaInformacao
+              label="Total arrecadado"
+              valor={formatarMoeda(aderido.total_arrecadado ?? 0)}
+            />
           </Box>
         </SecaoInformacao>
 

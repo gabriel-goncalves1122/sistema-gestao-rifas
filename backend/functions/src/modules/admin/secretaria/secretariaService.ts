@@ -207,7 +207,7 @@ export const secretariaService = {
         data_nascimento: dados.data_nascimento,
         telefone: dados.telefone,
 
-        role: dados.cargo,
+        cargo: dados.cargo,
         modalidade_adesao: dados.modalidade_adesao,
 
         faixa_rifas: {
@@ -309,13 +309,62 @@ export const secretariaService = {
         );
       }
 
+      // Se o e-mail foi alterado, realiza pré-checagem e sincronização do índice dentro da transação
+      let novoIndiceRef: FirebaseFirestore.DocumentReference | null = null;
+      let antigoIndiceRef: FirebaseFirestore.DocumentReference | null = null;
+      const novoEmail =
+        typeof camposAtualizacao.email === "string"
+          ? camposAtualizacao.email
+          : undefined;
+
+      if (novoEmail && novoEmail !== aderidoAtual?.email) {
+        const idNovoIndice = gerarIdIndiceEmailSecretaria(novoEmail);
+        novoIndiceRef = db.collection(COLECAO_INDICES_EMAIL).doc(idNovoIndice);
+        const novoIndiceSnap = await transaction.get(novoIndiceRef);
+
+        if (novoIndiceSnap.exists) {
+          const donoIndice = novoIndiceSnap.data()?.usuario_id;
+          if (donoIndice && donoIndice !== idAderido) {
+            throw new AppError(
+              "EMAIL_DUPLICADO",
+              "Este e-mail já pertence a outro aderido.",
+              400,
+            );
+          }
+        }
+
+        if (aderidoAtual?.email) {
+          const idAntigoIndice = gerarIdIndiceEmailSecretaria(
+            aderidoAtual.email,
+          );
+          antigoIndiceRef = db
+            .collection(COLECAO_INDICES_EMAIL)
+            .doc(idAntigoIndice);
+        }
+      }
+
+      if (novoIndiceRef && novoEmail) {
+        transaction.set(novoIndiceRef, {
+          email: novoEmail,
+          usuario_id: idAderido,
+          criado_em: new Date().toISOString(),
+        });
+        if (antigoIndiceRef) {
+          transaction.delete(antigoIndiceRef);
+        }
+      }
+
       transaction.update(aderidoRef, camposAtualizacao);
     });
 
     // Se o cargo foi alterado e o usuário já vinculou Firebase Auth, atualiza custom claims
     if (novoCargo && uidAderido) {
       try {
-        await auth.setCustomUserClaims(uidAderido, { cargo: novoCargo });
+        await auth.setCustomUserClaims(uidAderido, {
+          cargo: novoCargo,
+          role: novoCargo,
+          roleAtualizado: true,
+        });
       } catch (error) {
         console.error("[SecretariaService] Erro ao atualizar custom claims:", error);
       }

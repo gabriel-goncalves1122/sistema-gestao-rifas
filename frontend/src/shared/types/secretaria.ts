@@ -51,7 +51,8 @@ export interface FormNovoAderido {
   nome: string;
   curso: string;
   telefone: string;
-  data_nascimento: string;
+  data_nascimento?: string;
+  dataNascimento?: string;
   cargo: string;
   modalidade_adesao: ModalidadeAdesao;
 }
@@ -63,7 +64,8 @@ export interface FormEditarAderido {
   cpf: string;
   curso: string;
   genero: string;
-  data_nascimento: string;
+  data_nascimento?: string;
+  dataNascimento?: string;
   cargo: string;
   status_cadastro: StatusCadastro;
 }

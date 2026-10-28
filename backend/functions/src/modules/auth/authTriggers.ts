@@ -19,7 +19,11 @@ export const onCreateUserSetClaims = functions.auth
       const userData = userDocs.docs[0].data();
       const role = userData.role || "aderido";
 
-      await auth.setCustomUserClaims(uid, { role, roleAtualizado: true });
+      await auth.setCustomUserClaims(uid, {
+        role,
+        cargo: role,
+        roleAtualizado: true,
+      });
     } catch (error) {
       console.error("[AuthTrigger] Erro ao definir custom claims:", error);
     }

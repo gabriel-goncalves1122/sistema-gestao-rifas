@@ -15,7 +15,11 @@ async function backfillCustomClaims() {
     if (!uid || typeof uid !== "string") continue;
 
     try {
-      await auth.setCustomUserClaims(uid, { role });
+      await auth.setCustomUserClaims(uid, {
+        role,
+        cargo: role,
+        roleAtualizado: true,
+      });
       atualizados++;
     } catch (error) {
       console.error(`[Backfill] Erro ao atualizar ${doc.id} (uid: ${uid}):`, error);

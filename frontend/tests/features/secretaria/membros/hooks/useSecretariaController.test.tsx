@@ -1,5 +1,7 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 
 vi.mock("@/features/secretaria/membros/services/secretariaService", () => ({
   secretariaService: {
@@ -17,23 +19,41 @@ const mockAderidos = [
   { id: "2", email: "outro@teste.com", cargo: "admin", status_cadastro: "ativo" as const },
 ];
 
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: Infinity,
+      },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
 describe("useSecretariaController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("Deve iniciar com estado vazio", () => {
-    const { result } = renderHook(() => useSecretariaController());
+    const { result } = renderHook(() => useSecretariaController(), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.aderidos).toEqual([]);
-    expect(result.current.loading).toBe(false);
+    expect(result.current.loading).toBe(true);
     expect(result.current.notificacao.open).toBe(false);
   });
 
   it("Deve carregar aderidos", async () => {
     (secretariaService.buscarAderidos as any).mockResolvedValue(mockAderidos);
 
-    const { result } = renderHook(() => useSecretariaController());
+    const { result } = renderHook(() => useSecretariaController(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.carregarAderidos();
@@ -47,7 +67,9 @@ describe("useSecretariaController", () => {
     (secretariaService.buscarAderidos as any).mockResolvedValue([]);
     (secretariaService.adicionarAderidoIndividual as any).mockResolvedValue({ idAderido: "3" });
 
-    const { result } = renderHook(() => useSecretariaController());
+    const { result } = renderHook(() => useSecretariaController(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       await result.current.adicionarAderidoIndividual({
@@ -70,7 +92,9 @@ describe("useSecretariaController", () => {
     (secretariaService.buscarAderidos as any).mockResolvedValue([]);
     (secretariaService.adicionarAderidoIndividual as any).mockRejectedValue(new Error("Falha na API"));
 
-    const { result } = renderHook(() => useSecretariaController());
+    const { result } = renderHook(() => useSecretariaController(), {
+      wrapper: createWrapper(),
+    });
 
     await act(async () => {
       try {
@@ -93,7 +117,9 @@ describe("useSecretariaController", () => {
   });
 
   it("Deve fechar notificacao", () => {
-    const { result } = renderHook(() => useSecretariaController());
+    const { result } = renderHook(() => useSecretariaController(), {
+      wrapper: createWrapper(),
+    });
 
     act(() => {
       result.current.mostrarNotificacao("teste", "info");

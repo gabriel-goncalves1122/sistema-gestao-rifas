@@ -24,6 +24,8 @@ import type {
 import {
   formatarCpf,
   formatarTelefone,
+  sanitizarCpfColagem,
+  sanitizarTelefoneColagem,
   somenteNumeros,
 } from "../../utils/formatadoresSecretaria";
 import { colors } from "@/shared/tokens/colors";
@@ -97,6 +99,13 @@ export function FormEditarAderido({
           label={`Modalidade: ${obterLabelModalidade(aderido)}`}
           sx={chipSx}
         />
+        {aderido.faixa_rifas?.inicio && aderido.faixa_rifas?.fim && (
+          <Chip
+            size="small"
+            label={`Rifas: #${aderido.faixa_rifas.inicio} a #${aderido.faixa_rifas.fim}`}
+            sx={chipSx}
+          />
+        )}
       </Stack>
 
       <Stack spacing={1.5}>
@@ -132,14 +141,13 @@ export function FormEditarAderido({
             value={formatarCpf(form.cpf)}
             onChange={(event) => {
               // Mantém o estado limpo para persistência, mas exibe formatado na tela.
-              onChange("cpf", somenteNumeros(event.target.value).slice(0, 11));
+              onChange("cpf", sanitizarCpfColagem(event.target.value));
             }}
             fullWidth
             size="small"
             sx={components.formField}
             inputProps={{
               inputMode: "numeric",
-              maxLength: 14,
             }}
           />
 
@@ -150,7 +158,7 @@ export function FormEditarAderido({
               // Mantém o estado limpo para persistência, mas exibe formatado na tela.
               onChange(
                 "telefone",
-                somenteNumeros(event.target.value).slice(0, 11),
+                sanitizarTelefoneColagem(event.target.value),
               );
             }}
             fullWidth
@@ -158,7 +166,6 @@ export function FormEditarAderido({
             sx={components.formField}
             inputProps={{
               inputMode: "numeric",
-              maxLength: 15,
             }}
           />
         </Stack>

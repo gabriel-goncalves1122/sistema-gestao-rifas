@@ -45,7 +45,7 @@ describe("Componente <ModalDetalhesAderido />", () => {
     const modal = screen.getByRole("dialog", { name: /Dados do Aderido/i });
 
     expect(within(modal).getAllByText("Gabriel Sampaio").length).toBeGreaterThan(0);
-    expect(within(modal).getByText("gabriel@teste.com")).toBeInTheDocument();
+    expect(within(modal).getAllByText("gabriel@teste.com").length).toBeGreaterThan(0);
 
     const informacoes = within(modal).getByTestId("informacoes-aderido-card");
 
@@ -72,7 +72,7 @@ describe("Componente <ModalDetalhesAderido />", () => {
     expect(
       screen.getAllByText("Gabriel Sampaio de Almeida Pereira dos Santos").length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("gabriel@teste.com")).toBeInTheDocument();
+    expect(screen.getAllByText("gabriel@teste.com").length).toBeGreaterThan(0);
   });
 
   it("Deve entrar em modo edição ao clicar em Editar Dados", () => {

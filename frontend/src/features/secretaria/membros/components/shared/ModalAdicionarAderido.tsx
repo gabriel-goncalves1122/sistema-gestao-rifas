@@ -1,5 +1,6 @@
 import { type ChangeEvent, type MouseEvent, useState } from "react";
 import {
+  Box,
   Button,
   CircularProgress,
   Collapse,
@@ -20,6 +21,7 @@ import {
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
 import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 
 import {
   CURSOS_UNIFEI,
@@ -31,6 +33,7 @@ import { components } from "@/shared/tokens/components";
 import {
   formatarNomeMembro,
   formatarTelefone,
+  sanitizarTelefoneColagem,
   somenteNumeros,
 } from "../../utils/formatadoresSecretaria";
 
@@ -99,7 +102,7 @@ export function ModalAdicionarAderido({
   ) => {
     setForm((prev) => ({
       ...prev,
-      telefone: somenteNumeros(event.target.value).slice(0, 11),
+      telefone: sanitizarTelefoneColagem(event.target.value),
     }));
   };
 
@@ -134,7 +137,9 @@ export function ModalAdicionarAderido({
         ...form,
         nome: formatarNomeMembro(form.nome),
         email: form.email.trim().toLocaleLowerCase("pt-BR"),
-        telefone: somenteNumeros(form.telefone).slice(0, 11),
+        telefone: sanitizarTelefoneColagem(form.telefone),
+        data_nascimento: form.dataNascimento,
+        dataNascimento: form.dataNascimento,
         cargo: isComissao ? form.cargo : "aderido",
       });
       limparFormulario();
@@ -192,6 +197,52 @@ export function ModalAdicionarAderido({
               <ToggleButton value="completo">Aderido completo</ToggleButton>
               <ToggleButton value="meio">Meio-aderido</ToggleButton>
             </ToggleButtonGroup>
+
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor:
+                  form.modalidade_adesao === "completo"
+                    ? "rgba(46, 125, 50, 0.08)"
+                    : "rgba(237, 108, 2, 0.08)",
+                border: "1px solid",
+                borderColor:
+                  form.modalidade_adesao === "completo"
+                    ? "rgba(46, 125, 50, 0.25)"
+                    : "rgba(237, 108, 2, 0.25)",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.25,
+              }}
+            >
+              <ConfirmationNumberIcon
+                color={
+                  form.modalidade_adesao === "completo" ? "primary" : "warning"
+                }
+                sx={{ fontSize: 24 }}
+              />
+              <Box>
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={800}
+                  color="text.primary"
+                >
+                  {form.modalidade_adesao === "completo"
+                    ? "Alocação: 120 Rifas Sequenciais"
+                    : "Alocação: 60 Rifas Sequenciais"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  fontWeight={600}
+                >
+                  {form.modalidade_adesao === "completo"
+                    ? "Meta financeira: R$ 1.200,00 • Geradas na autorização"
+                    : "Meta financeira: R$ 600,00 • Geradas na autorização"}
+                </Typography>
+              </Box>
+            </Box>
           </Stack>
 
           <Divider />
@@ -270,7 +321,6 @@ export function ModalAdicionarAderido({
               sx={components.formField}
               inputProps={{
                 inputMode: "numeric",
-                maxLength: 15,
               }}
             />
           </Stack>
@@ -313,7 +363,14 @@ export function ModalAdicionarAderido({
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ p: 2, px: 3, borderTop: `1px solid ${colors.borda}` }}>
+      <DialogActions
+        sx={{
+          p: 2,
+          px: 3,
+          pb: { xs: "max(16px, env(safe-area-inset-bottom))", sm: 2 },
+          borderTop: `1px solid ${colors.borda}`,
+        }}
+      >
         <Button
           onClick={onClose}
           color="inherit"

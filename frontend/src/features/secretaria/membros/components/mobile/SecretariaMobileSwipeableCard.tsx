@@ -4,11 +4,15 @@ import {
   Card,
   CardActionArea,
   CardContent,
+  Chip,
   Stack,
   Typography,
 } from "@mui/material";
+import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 
 import { CargoChip } from "../shared/CargoChip";
+import { StatusChip } from "../shared/StatusChip";
+import { ModalidadeChip } from "../shared/ModalidadeChip";
 import type { AderidoSecretaria } from "@/shared/types/secretaria";
 import { surfaces } from "@/shared/tokens/surfaces";
 
@@ -28,6 +32,10 @@ export function SecretariaMobileSwipeableCard({
   onSelecionar,
 }: SecretariaMobileSwipeableCardProps) {
   const nomeAderido = aderido.nome || "Não definido";
+  const temFaixa =
+    aderido.faixa_rifas?.inicio && aderido.faixa_rifas?.fim;
+  const statusCor =
+    STATUS_DOT[aderido.status_cadastro] || "#9e9e9e";
 
   return (
     <Card
@@ -35,6 +43,7 @@ export function SecretariaMobileSwipeableCard({
       sx={{
         ...surfaces.card,
         overflow: "hidden",
+        borderLeft: `4px solid ${statusCor}`,
       }}
     >
       <CardActionArea
@@ -56,7 +65,10 @@ export function SecretariaMobileSwipeableCard({
                 sx={{
                   width: 40,
                   height: 40,
-                  bgcolor: aderido.status_cadastro === "ativo" ? "primary.main" : "grey.400",
+                  bgcolor:
+                    aderido.status_cadastro === "ativo"
+                      ? "primary.main"
+                      : "grey.400",
                 }}
               >
                 {aderido.nome ? aderido.nome.charAt(0).toUpperCase() : "?"}
@@ -70,20 +82,61 @@ export function SecretariaMobileSwipeableCard({
                   height: 12,
                   borderRadius: "50%",
                   border: "2px solid #fff",
-                  bgcolor: STATUS_DOT[aderido.status_cadastro] || "#9e9e9e",
+                  bgcolor: statusCor,
                 }}
               />
             </Box>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body1" fontWeight={700} noWrap sx={{ fontFamily: "Inter, sans-serif" }}>
+              <Typography
+                variant="body1"
+                fontWeight={700}
+                noWrap
+                sx={{ fontFamily: "Inter, sans-serif" }}
+              >
                 {nomeAderido}
               </Typography>
-              <Typography variant="body2" color="text.secondary" noWrap display="block" sx={{ mb: 0.5, fontFamily: "Inter, sans-serif" }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                noWrap
+                display="block"
+                sx={{ mb: 0.75, fontFamily: "Inter, sans-serif" }}
+              >
                 {aderido.email}
               </Typography>
-              <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
+              >
+                <StatusChip status={aderido.status_cadastro} />
+                <ModalidadeChip modalidade={aderido.modalidade_adesao} />
                 <CargoChip cargo={aderido.cargo} />
+
+                {temFaixa && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    icon={
+                      <ConfirmationNumberIcon
+                        sx={{ fontSize: "14px !important" }}
+                      />
+                    }
+                    label={`#${aderido.faixa_rifas?.inicio}–${aderido.faixa_rifas?.fim}`}
+                    sx={{
+                      height: 24,
+                      fontSize: "0.72rem",
+                      fontWeight: 600,
+                      borderColor: "divider",
+                      bgcolor: "action.hover",
+                    }}
+                  />
+                )}
               </Box>
             </Box>
           </Stack>

@@ -12,6 +12,7 @@ export interface DadosNovoAderido {
   nome?: string;
   curso?: string;
   data_nascimento?: string;
+  dataNascimento?: string;
   telefone?: string;
   cargo?: CargoComissao;
   modalidade_adesao?: ModalidadeAdesao;
@@ -25,6 +26,7 @@ export interface DadosAtualizacaoAderido {
   curso?: string;
   genero?: string;
   data_nascimento?: string;
+  dataNascimento?: string;
   cargo?: CargoComissao;
   status_cadastro?: StatusCadastroSecretaria;
 }

@@ -13,10 +13,11 @@ const statusCadastroSchema = yup
 
 export const criarAderidoSchema = yup.object().shape({
   email: yup.string().email("E-mail inválido").required("E-mail é obrigatório"),
-  nome: yup.string().required("Nome é obrigatório"),
+  nome: yup.string().optional().default(""),
   curso: yup.string().optional().default(""),
   telefone: yup.string().optional().default(""),
   data_nascimento: yup.string().optional().default(""),
+  dataNascimento: yup.string().optional().default(""),
   cargo: yup.string().optional().nullable(),
   modalidade_adesao: modalidadeAdesaoSchema.required("Modalidade é obrigatória"),
 });
@@ -29,6 +30,7 @@ export const atualizarAderidoSchema = yup.object().shape({
   curso: yup.string().optional(),
   genero: yup.string().optional(),
   data_nascimento: yup.string().optional(),
+  dataNascimento: yup.string().optional(),
   cargo: yup.string().optional().nullable(),
   status_cadastro: statusCadastroSchema.optional(),
 });

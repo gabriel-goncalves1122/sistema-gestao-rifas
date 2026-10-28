@@ -171,7 +171,8 @@ export function normalizarAderidoSecretaria(
     data_nascimento: dataNascimento,
     dataNascimento,
 
-    cargo: obterPrimeiroTextoValido(data.cargo, data.Cargo) || "aderido",
+    cargo:
+      obterPrimeiroTextoValido(data.cargo, data.Cargo, data.role) || "aderido",
     modalidade_adesao: normalizarModalidade(data),
 
     status_cadastro: normalizarStatus(data),
