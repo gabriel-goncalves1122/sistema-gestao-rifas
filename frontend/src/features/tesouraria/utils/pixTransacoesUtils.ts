@@ -142,8 +142,10 @@ function atendeFiltroRapido(
   status: PixTransacoesFiltros["status"],
 ): boolean {
   if (status === "novas") return podeValidarPixTransacao(transacao);
+  if (status === "aprovadas") return transacao.statusValidacao === "aceita";
   if (status === "recusadas") return transacao.statusValidacao === "negada";
   if (status === "aguardando_pagamento") return !pixPagamentoConfirmadoBanco(transacao);
+  if (status === "todas") return true;
 
   return true;
 }

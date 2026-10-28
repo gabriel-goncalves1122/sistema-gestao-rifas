@@ -162,6 +162,22 @@ export interface TransacaoTesouraria {
   correcaoPendente?: boolean;
 }
 
+/**
+ * Representa uma transação resumida vinculada a um aderido específico no relatório consolidado.
+ */
+export interface TransacaoResumoAderido {
+  id: string;
+  compradorNome: string;
+  dataPagamento: string | null;
+  dataCriacao: string;
+  valorBruto: number;
+  valorPago: number;
+  quantidadeRifas: number;
+  rifas: RifaResumoTransacao[];
+  origem: OrigemTransacaoTesouraria;
+  statusPagamento: StatusPagamentoPix;
+}
+
 export interface AderidoRelatorioTesouraria {
   id: string;
   nome: string;
@@ -171,11 +187,16 @@ export interface AderidoRelatorioTesouraria {
   cargo?: string;
   arrecadado: number;
   arrecadadoLiquido?: number;
+  valorPix?: number;
+  valorPixLiquido?: number;
+  valorComprovante?: number;
+  comprasCount?: number;
   meta: number;
   rifasVendidas: number;
   rifasVendidasPix?: number;
   rifasVendidasComprovante?: number;
   rifasPendentes?: number;
+  transacoes?: TransacaoResumoAderido[];
 }
 
 export interface ResumoGeralRelatorioTesouraria {
@@ -197,4 +218,3 @@ export interface RelatorioTesourariaResponse {
   resumoGeral: ResumoGeralRelatorioTesouraria;
   aderidos: AderidoRelatorioTesouraria[];
 }
-

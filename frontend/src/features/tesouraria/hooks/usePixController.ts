@@ -40,8 +40,11 @@ export function usePixController({
     negarTransacao,
   } = usePixTransacoes();
 
-  const { relatorio } = useRelatorioTesouraria();
-  const aderidosServidor = relatorio?.rankingAderidos || [];
+  const { aderidos, relatorio } = useRelatorioTesouraria();
+  const aderidosServidor =
+    aderidos && aderidos.length > 0
+      ? aderidos
+      : relatorio?.rankingAderidos || [];
 
   const abaVisivel = abaAtual;
 
@@ -50,6 +53,7 @@ export function usePixController({
       resumo,
       filtros,
       transacoes: transacoesFiltradas,
+      todasTransacoes: transacoes,
       onChangeFiltros: setFiltros,
       validandoPixPorId,
       erroValidacaoPixPorId,
@@ -63,6 +67,7 @@ export function usePixController({
       negarTransacao,
       resumo,
       setFiltros,
+      transacoes,
       transacoesFiltradas,
       validandoPixPorId,
     ],

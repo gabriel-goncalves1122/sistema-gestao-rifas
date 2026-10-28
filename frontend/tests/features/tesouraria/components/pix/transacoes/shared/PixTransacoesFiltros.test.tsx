@@ -39,26 +39,51 @@ describe("Componente: PixTransacoesFiltros", () => {
     vi.restoreAllMocks();
   });
 
-  it("Deve renderizar os filtros essenciais para auditoria Pix", () => {
-    render(<PixTransacoesFiltros filtros={filtrosBase} onChangeFiltros={vi.fn()} />);
+  it("Deve renderizar os filtros essenciais para auditoria Pix, incluindo Aprovadas e Todas", () => {
+    render(
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={vi.fn()}
+        contagens={{
+          novas: 5,
+          aprovadas: 12,
+          recusadas: 2,
+          aguardando_pagamento: 3,
+          todas: 22,
+        }}
+      />,
+    );
 
     expect(screen.getByPlaceholderText("Buscar Pix")).toBeInTheDocument();
 
     expect(screen.getByText("Novas")).toBeInTheDocument();
+    expect(screen.getByText("Aprovadas")).toBeInTheDocument();
     expect(screen.getByText("Recusadas")).toBeInTheDocument();
     expect(screen.getByText("Aguardando Pagamento")).toBeInTheDocument();
+    expect(screen.getByText("Todas")).toBeInTheDocument();
+
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("22")).toBeInTheDocument();
 
     expect(screen.queryByText("Para validar")).not.toBeInTheDocument();
     expect(screen.queryByText("Aceitas")).not.toBeInTheDocument();
     expect(screen.queryByText("Negadas")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sem confirmação bancária")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Sem confirmação bancária"),
+    ).not.toBeInTheDocument();
   });
 
   it("Deve atualizar busca ao digitar no campo", () => {
     const onChangeFiltros = vi.fn();
 
     render(
-      <PixTransacoesFiltros filtros={filtrosBase} onChangeFiltros={onChangeFiltros} />,
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={onChangeFiltros}
+      />,
     );
 
     fireEvent.change(screen.getByPlaceholderText("Buscar Pix"), {
@@ -71,11 +96,14 @@ describe("Componente: PixTransacoesFiltros", () => {
     });
   });
 
-  it("Deve alterar filtro rápido para Recusadas", () => {
+  it("Deve alterar filtro rápido para Recusadas e para Aprovadas", () => {
     const onChangeFiltros = vi.fn();
 
     render(
-      <PixTransacoesFiltros filtros={filtrosBase} onChangeFiltros={onChangeFiltros} />,
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={onChangeFiltros}
+      />,
     );
 
     fireEvent.click(screen.getByText("Recusadas"));
@@ -84,6 +112,37 @@ describe("Componente: PixTransacoesFiltros", () => {
       ...filtrosBase,
       status: "recusadas",
     });
+
+    fireEvent.click(screen.getByText("Aprovadas"));
+
+    expect(onChangeFiltros).toHaveBeenCalledWith({
+      ...filtrosBase,
+      status: "aprovadas",
+    });
+  });
+
+  it("Deve limpar filtros ativos no desktop", () => {
+    const onChangeFiltros = vi.fn();
+
+    render(
+      <PixTransacoesFiltros
+        filtros={{ status: "aprovadas", busca: "Maria" }}
+        onChangeFiltros={onChangeFiltros}
+        totalResultados={10}
+      />,
+    );
+
+    const botaoLimpar = screen.getByRole("button", {
+      name: /limpar filtros/i,
+    });
+    expect(botaoLimpar).toBeInTheDocument();
+
+    fireEvent.click(botaoLimpar);
+
+    expect(onChangeFiltros).toHaveBeenCalledWith({
+      status: "novas",
+      busca: "",
+    });
   });
 
   it("Deve manter a busca visível no mobile e mostrar contador de filtros", () => {
@@ -91,7 +150,10 @@ describe("Componente: PixTransacoesFiltros", () => {
     simularMobile();
 
     render(
-      <PixTransacoesFiltros filtros={filtrosBase} onChangeFiltros={onChangeFiltros} />,
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={onChangeFiltros}
+      />,
     );
 
     expect(screen.getByText("Sem filtros ativos")).toBeInTheDocument();
@@ -119,7 +181,9 @@ describe("Componente: PixTransacoesFiltros", () => {
 
     expect(screen.getByText("2 filtros ativos")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /limpar filtros pix/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /limpar filtros pix/i }),
+    );
 
     expect(onChangeFiltros).toHaveBeenCalledWith({
       status: "novas",

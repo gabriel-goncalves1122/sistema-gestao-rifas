@@ -54,7 +54,7 @@ export function normalizarResumoGeral(resumo: unknown): ResumoGeralDesempenho {
 }
 
 /**
- * Normaliza a lista de aderidos recebida da API preenchendo splits de Pix e Comprovante.
+ * Normaliza a lista de aderidos recebida da API preenchendo splits de Pix, Comprovante e histórico de transações.
  *
  * @param {unknown} lista - Lista de aderidos brutos do backend.
  * @returns {AderidoMetricaDesempenho[]} Lista normalizada de métricas por aderido.
@@ -64,26 +64,39 @@ export function normalizarAderidos(lista: unknown): AderidoMetricaDesempenho[] {
 
   return lista.map((item) => {
     const a = (item || {}) as Partial<AderidoMetricaDesempenho>;
-    const arrecadado = valorNumericoSeguro(a.arrecadado);
+    const arrecadado = valorNumericoSeguro(a.arrecadado ?? a.valorTotal);
     const arrecadadoLiquido =
       typeof a.arrecadadoLiquido === "number"
         ? valorNumericoSeguro(a.arrecadadoLiquido)
         : arrecadado;
 
     return {
-      id: a.id || undefined,
-      nome: a.nome || "Aderido Não Identificado",
-      cpf: a.cpf || "-",
+      id: a.id || a.vendedorId || undefined,
+      nome: a.nome || a.vendedorNome || "Aderido Não Identificado",
+      cpf: a.cpf || a.vendedorCpf || "-",
       curso: a.curso || undefined,
       modalidadeAdesao: a.modalidadeAdesao || undefined,
       cargo: a.cargo || undefined,
       arrecadado,
       arrecadadoLiquido,
+      ...(typeof a.valorPix === "number"
+        ? { valorPix: valorNumericoSeguro(a.valorPix) }
+        : {}),
+      ...(typeof a.valorPixLiquido === "number"
+        ? { valorPixLiquido: valorNumericoSeguro(a.valorPixLiquido) }
+        : {}),
+      ...(typeof a.valorComprovante === "number"
+        ? { valorComprovante: valorNumericoSeguro(a.valorComprovante) }
+        : {}),
+      ...(typeof a.comprasCount === "number"
+        ? { comprasCount: valorNumericoSeguro(a.comprasCount) }
+        : {}),
       meta: valorNumericoSeguro(a.meta) || 1200,
       rifasVendidas: valorNumericoSeguro(a.rifasVendidas),
       rifasVendidasPix: valorNumericoSeguro(a.rifasVendidasPix),
       rifasVendidasComprovante: valorNumericoSeguro(a.rifasVendidasComprovante),
       rifasPendentes: valorNumericoSeguro(a.rifasPendentes),
+      ...(Array.isArray(a.transacoes) ? { transacoes: a.transacoes } : {}),
     };
   });
 }

@@ -62,7 +62,7 @@ describe("Service: TesourariaRelatorioService", () => {
           { id: "u1", data: () => ({ role: "aderido", cpf: "111", nome: "Aderido 1" }) },
           { id: "u2", data: () => ({ role: "aderido", cpf: "222", nome: "Aderido 2", meta_vendas: 2000 }) },
           { id: "u3", data: () => ({ role: "admin", cpf: "333", nome: "Admin ignorado no relatório" }) },
-        ]
+        ],
       });
 
       mockBilhetesGet.mockResolvedValueOnce({
@@ -70,7 +70,7 @@ describe("Service: TesourariaRelatorioService", () => {
           cb({ data: () => ({ status: "pago", vendedor_cpf: "111" }) });
           cb({ data: () => ({ status: "pago", vendedor_cpf: "111" }) });
           cb({ data: () => ({ status: "pago", vendedor_cpf: "222" }) });
-        }
+        },
       });
 
       const relatorio = await TesourariaRelatorioService.obterRelatorioTesouraria();
@@ -81,22 +81,141 @@ describe("Service: TesourariaRelatorioService", () => {
       expect(relatorio.resumoGeral.totalArrecadado).toBe(30);
       expect(relatorio.resumoGeral.rifasPagas).toBe(3);
     });
+
+    it("Deve vincular vendas por vendedor_id quando vendedor_cpf for 'CPF não registado', incluir membros da comissão que são aderidos e retornar o histórico de transações do aderido", async () => {
+      mockUsuariosGet.mockResolvedValueOnce({
+        docs: [
+          {
+            id: "ADERIDO_001",
+            data: () => ({
+              id_aderido: "ADERIDO_001",
+              role: "tesouraria",
+              cpf: "123.456.789-00",
+              nome: "Comissão e Aderido",
+              modalidade_adesao: "completo",
+            }),
+          },
+        ],
+      });
+
+      mockBilhetesGet.mockResolvedValueOnce({
+        docs: [
+          {
+            id: "00001",
+            data: () => ({
+              status: "pago",
+              vendedor_id: "ADERIDO_001",
+              vendedor_cpf: "CPF não registado",
+              comprador_nome: "Comprador Pix",
+              pix_order_id: "ORD_PIX_1",
+            }),
+          },
+          {
+            id: "00002",
+            data: () => ({
+              status: "pago",
+              vendedor_id: "ADERIDO_001",
+              vendedor_cpf: "12345678900",
+              comprador_nome: "Comprador Comprovante",
+              comprovante_url: "https://storage.mock/comp.png",
+            }),
+          },
+        ],
+      });
+
+      const relatorio = await TesourariaRelatorioService.obterRelatorioTesouraria();
+
+      expect(relatorio.aderidos).toHaveLength(1);
+      expect(relatorio.aderidos[0]).toEqual(
+        expect.objectContaining({
+          id: "ADERIDO_001",
+          cpf: "123.456.789-00",
+          rifasVendidas: 2,
+          rifasVendidasPix: 1,
+          rifasVendidasComprovante: 1,
+          arrecadado: 20,
+          arrecadadoLiquido: 19.9,
+          valorPix: 10,
+          valorPixLiquido: 9.9,
+          valorComprovante: 10,
+          comprasCount: 2,
+        }),
+      );
+      expect(relatorio.aderidos[0].transacoes).toHaveLength(2);
+      expect(relatorio.aderidos[0].transacoes).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            compradorNome: "Comprador Pix",
+            origem: "PIX",
+            statusPagamento: "PAID",
+            valorBruto: 10,
+            valorPago: 9.9,
+            quantidadeRifas: 1,
+          }),
+          expect.objectContaining({
+            compradorNome: "Comprador Comprovante",
+            origem: "COMPROVANTE",
+            statusPagamento: "PAID",
+            valorBruto: 10,
+            valorPago: 10,
+            quantidadeRifas: 1,
+          }),
+        ]),
+      );
+      expect(relatorio.resumoGeral).toEqual(
+        expect.objectContaining({
+          totalArrecadado: 20,
+          totalArrecadadoLiquido: 19.9,
+          rifasPagas: 2,
+          rifasPagasPix: 1,
+          rifasPagasComprovante: 1,
+          aderidosAtivos: 1,
+        }),
+      );
+    });
   });
 
   describe("obterHistoricoDetalhado", () => {
-    it("Deve retornar histórico detalhado ordenado por data_reserva desc", async () => {
+    it("Deve retornar histórico detalhado ordenado por data efetiva desc com fallback de data_pagamento e origem", async () => {
       mockBilhetesGet.mockResolvedValueOnce({
         docs: [
-          { id: "b1", data: () => ({ status: "pago", data_reserva: "2026-08-01T10:00:00Z" }) },
-          { id: "b2", data: () => ({ status: "pendente", data_reserva: "2026-08-05T10:00:00Z" }) }
-        ]
+          {
+            id: "b1",
+            data: () => ({
+              status: "pago",
+              data_reserva: "2026-08-01T10:00:00Z",
+              comprovante_url: "https://storage.mock/c1.jpg",
+            }),
+          },
+          {
+            id: "b2",
+            data: () => ({
+              status: "pendente",
+              data_reserva: "2026-08-05T10:00:00Z",
+              pix_order_id: "ORD_02",
+            }),
+          },
+          {
+            id: "b3",
+            data: () => ({
+              status: "pago",
+              data_reserva: null,
+              data_pagamento: "2026-08-10T12:00:00Z",
+              comprovante_url: "https://storage.mock/c3.jpg",
+            }),
+          },
+        ],
       });
 
       const historico = await TesourariaRelatorioService.obterHistoricoDetalhado();
 
-      expect(historico.length).toBe(2);
-      expect(historico[0].bilhetes).toContain("b2");
-      expect(historico[1].bilhetes).toContain("b1");
+      expect(historico.length).toBe(3);
+      expect(historico[0].bilhetes).toContain("b3");
+      expect(historico[0].dataReserva).toBe("2026-08-10T12:00:00Z");
+      expect(historico[0].origem).toBe("COMPROVANTE");
+      expect(historico[1].bilhetes).toContain("b2");
+      expect(historico[1].origem).toBe("PIX");
+      expect(historico[2].bilhetes).toContain("b1");
     });
   });
 

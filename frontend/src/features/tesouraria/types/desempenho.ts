@@ -1,3 +1,4 @@
+import { RifaResumoTransacao, StatusPagamentoPix } from "./pixTransacoes";
 
 export interface ResumoGeralDesempenho {
   totalArrecadado: number;
@@ -14,6 +15,19 @@ export interface ResumoGeralDesempenho {
   aderidosAtivos: number;
 }
 
+export interface TransacaoResumoAderido {
+  id: string;
+  compradorNome: string;
+  dataPagamento: string | null;
+  dataCriacao: string;
+  valorBruto: number;
+  valorPago: number;
+  quantidadeRifas: number;
+  rifas: RifaResumoTransacao[];
+  origem: "PIX" | "COMPROVANTE";
+  statusPagamento: StatusPagamentoPix;
+}
+
 export interface AderidoMetricaDesempenho {
   id?: string;
   nome?: string;
@@ -28,6 +42,7 @@ export interface AderidoMetricaDesempenho {
   arrecadadoLiquido?: number;
   valorTotal?: number;
   valorPix?: number;
+  valorPixLiquido?: number;
   valorComprovante?: number;
   meta: number;
   rifasVendidas?: number;
@@ -36,6 +51,7 @@ export interface AderidoMetricaDesempenho {
   rifasPendentes?: number;
   comprasCount?: number;
   ultimaVendaEm?: string | null;
+  transacoes?: TransacaoResumoAderido[];
 }
 
 export interface TransacaoDesempenho {

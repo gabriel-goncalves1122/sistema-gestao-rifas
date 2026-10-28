@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 
 import { useAuditoriaComprasController } from "@/features/tesouraria/hooks/useAuditoriaComprasController";
 import { auditoriaComprasService } from "@/features/tesouraria/services/auditoriaComprasService";
@@ -14,6 +16,20 @@ vi.mock("@/features/tesouraria/services/auditoriaComprasService", () => ({
     reenviarEmailComprovante: vi.fn(),
   },
 }));
+
+function criarWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
 
 const historicoMock = [
   {
@@ -63,15 +79,17 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
   });
 
   it("Deve carregar histórico e montar compras agrupadas e resumo", async () => {
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
     });
 
-    expect(auditoriaComprasService.buscarHistoricoDetalhado).toHaveBeenCalledTimes(
-      1,
-    );
+    expect(
+      auditoriaComprasService.buscarHistoricoDetalhado,
+    ).toHaveBeenCalledTimes(1);
     expect(result.current.comprasFiltradas).toHaveLength(2);
     expect(result.current.resumo.totalCompras).toBe(2);
     expect(result.current.resumo.totalRifas).toBe(3);
@@ -79,7 +97,9 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
   });
 
   it("Deve aplicar filtros e limpar o estado de filtros", async () => {
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
@@ -105,7 +125,9 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
   });
 
   it("Deve controlar detalhes, edição e comprovante selecionado", async () => {
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
@@ -150,7 +172,9 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
@@ -169,7 +193,9 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
       auditoriaComprasService.buscarHistoricoDetalhado,
     ).mockRejectedValueOnce(new Error("Histórico indisponível"));
 
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
@@ -180,11 +206,13 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
   });
 
   it("Deve tratar falhas (catch) ao reenviar e-mail do comprovante", async () => {
-    vi.mocked(auditoriaComprasService.reenviarEmailComprovante).mockRejectedValueOnce(
-      new Error("Erro SMTP")
-    );
+    vi.mocked(
+      auditoriaComprasService.reenviarEmailComprovante,
+    ).mockRejectedValueOnce(new Error("Erro SMTP"));
 
-    const { result } = renderHook(() => useAuditoriaComprasController());
+    const { result } = renderHook(() => useAuditoriaComprasController(), {
+      wrapper: criarWrapper(),
+    });
     await waitFor(() => {
       expect(result.current.carregando).toBe(false);
     });

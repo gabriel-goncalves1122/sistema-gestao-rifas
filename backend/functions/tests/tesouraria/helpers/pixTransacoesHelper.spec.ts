@@ -4,13 +4,14 @@
 import { describe, expect, it } from "@jest/globals";
 
 import {
+  calcularResumoComprovantes,
   calcularResumoPixTransacoes,
   chaveCompra,
   montarPixTransacao,
   normalizarId,
-  statusConciliacao,
   statusPagamento,
 } from "../../../src/modules/tesouraria/helpers/pixTransacoesHelper";
+import { criarMapaVendedores } from "../../../src/modules/tesouraria/helpers/vendedorLookupHelper";
 import { BilheteComNumero } from "../../../src/modules/tesouraria/types/tesourariaTypes";
 
 function criarBilhete(
@@ -70,47 +71,69 @@ describe("Helper: pixTransacoesHelper", () => {
     expect(statusPagamento("reservado", "PAID")).toBe("PAID");
   });
 
-
-
-  it("Deve montar uma transação Pix ordenando rifas numericamente", () => {
-    const transacao = montarPixTransacao([
-      criarBilhete({
-        numero: "010",
-        status: "pago",
-        comprador_id: "COMPRA_001",
-        comprador_nome: "Ana",
-        comprador_email: "ana@teste.com",
-        comprador_telefone: "11999999999",
-        vendedor_id: "ADERIDO_001",
-        vendedor_nome: "Aderido Um",
-        vendedor_cpf: "111",
-        comprovante_url: "https://storage.mock/comprovante-1.png",
-        data_pagamento: "2026-01-02T10:00:00.000Z",
-      }),
-      criarBilhete({
-        numero: "002",
-        status: "pago",
-        comprador_id: "COMPRA_001",
-        comprador_nome: "Ana",
-        comprador_email: "ana@teste.com",
-        vendedor_id: "ADERIDO_001",
-        vendedor_nome: "Aderido Um",
-        vendedor_cpf: "111",
-        comprovante_url: "https://storage.mock/comprovante-1.png",
-        data_pagamento: "2026-01-02T10:00:00.000Z",
-      }),
+  it("Deve montar uma transação Pix ordenando rifas numericamente e enriquecendo vendedor", () => {
+    const mapa = criarMapaVendedores([
+      {
+        id: "ADERIDO_001",
+        data: () => ({
+          id_aderido: "ADERIDO_001",
+          nome: "Aderido Um",
+          cpf: "111.222.333-44",
+          modalidade_adesao: "completo",
+        }),
+      },
     ]);
+
+    const transacao = montarPixTransacao(
+      [
+        criarBilhete({
+          numero: "010",
+          status: "pago",
+          pix_order_id: "ORD_01",
+          comprador_id: "COMPRA_001",
+          comprador_nome: "Ana",
+          comprador_email: "ana@teste.com",
+          comprador_telefone: "11999999999",
+          vendedor_id: "ADERIDO_001",
+          vendedor_nome: "Aderido Um",
+          vendedor_cpf: "CPF não registado",
+          comprovante_url: "https://storage.mock/comprovante-1.png",
+          data_pagamento: "2026-01-02T10:00:00.000Z",
+        }),
+        criarBilhete({
+          numero: "002",
+          status: "pago",
+          pix_order_id: "ORD_01",
+          comprador_id: "COMPRA_001",
+          comprador_nome: "Ana",
+          comprador_email: "ana@teste.com",
+          vendedor_id: "ADERIDO_001",
+          vendedor_nome: "Aderido Um",
+          vendedor_cpf: "CPF não registado",
+          comprovante_url: "https://storage.mock/comprovante-1.png",
+          data_pagamento: "2026-01-02T10:00:00.000Z",
+        }),
+      ],
+      mapa,
+    );
 
     expect(transacao).toEqual(
       expect.objectContaining({
-        
         metodo: "PIX",
         statusPagamento: "PAID",
+        statusValidacao: "aceita",
         valorBruto: 20,
         valorPago: 20,
         compradorNome: "Ana",
         compradorEmail: "ana@teste.com",
         quantidadeRifas: 2,
+      }),
+    );
+    expect(transacao.aderido).toEqual(
+      expect.objectContaining({
+        id: "ADERIDO_001",
+        nome: "Aderido Um",
+        cpf: "111.222.333-44",
       }),
     );
     expect(transacao.rifas).toEqual([
@@ -132,86 +155,122 @@ describe("Helper: pixTransacoesHelper", () => {
     expect(transacao.observacao).toBe("Valor divergente");
   });
 
-  it("Deve calcular resumo financeiro das transações Pix", () => {
-    const resumo = calcularResumoPixTransacoes([
-      {
-        id: "paga",
-        referenceId: "paga",
-        metodo: "PIX",
-        statusPagamento: "PAID",
-        statusConciliacao: "conciliada",
-        valorBruto: 100,
-        valorPago: 100,
-        moeda: "BRL",
-        dataCriacao: "2026-01-01T00:00:00.000Z",
-      },
-      {
-        id: "pendente",
-        referenceId: "pendente",
-        metodo: "PIX",
-        statusPagamento: "WAITING",
-        statusConciliacao: "pendente",
-        valorBruto: 20,
-        valorPago: 0,
-        moeda: "BRL",
-        dataCriacao: "2026-01-02T00:00:00.000Z",
-      },
-      {
-        id: "recusada",
-        referenceId: "recusada",
-        metodo: "PIX",
-        statusPagamento: "DECLINED",
-        statusConciliacao: "divergente",
-        valorBruto: 10,
-        valorPago: 0,
-        moeda: "BRL",
-        dataCriacao: "2026-01-03T00:00:00.000Z",
-      },
-      {
-        id: "sem-aderido",
-        referenceId: "sem-aderido",
-        metodo: "PIX",
-        statusPagamento: "PAID",
-        statusConciliacao: "nao_identificada",
-        valorBruto: 30,
-        valorPago: 30,
-        moeda: "BRL",
-        dataCriacao: "2026-01-04T00:00:00.000Z",
-      },
-      {
-        id: "com-erro",
-        referenceId: "com-erro",
-        metodo: "PIX",
-        statusPagamento: "ERROR",
-        statusConciliacao: "nao_identificada",
-        valorBruto: 50,
-        valorPago: 0,
-        moeda: "BRL",
-        dataCriacao: "2026-01-05T00:00:00.000Z",
-      },
+  it("Deve calcular resumo financeiro das transações Pix e unificar com comprovantes", () => {
+    const resumoComprovantes = calcularResumoComprovantes([
+      criarBilhete({
+        numero: "101",
+        status: "pago",
+        comprovante_url: "https://storage.mock/comp1.jpg",
+        valor_bruto: 10,
+      }),
+      criarBilhete({
+        numero: "102",
+        status: "pago",
+        comprovante_url: "https://storage.mock/comp1.jpg",
+        valor_bruto: 10,
+      }),
+      criarBilhete({
+        numero: "103",
+        status: "pendente",
+        comprovante_url: "https://storage.mock/comp2.jpg",
+        valor_bruto: 10,
+      }),
     ]);
 
-    expect(resumo).toEqual(
-      expect.objectContaining({
-        totalRecebido: 128.7,
-        totalPendente: 20,
-        totalCancelado: 10,
-        quantidadePagas: 2,
-        quantidadeAguardando: 1,
-        quantidadeCanceladas: 1,
-        ticketMedio: 64.35,
-        quantidadeErros: 1,
-        totalErros: 50,
-        totalTransacoes: 5,
-        pixRecebidoBruto: 130,
-        pixRecebidoLiquido: 128.7,
-        pixRifasPagas: 13,
-        pixTransacoesAguardando: 1,
-        pixRifasAguardando: 2,
-        totalGeralRecebidoBruto: 130,
-        totalGeralRecebidoLiquido: 128.7,
-        totalGeralTransacoesPagas: 2,
-      }),
+    const resumo = calcularResumoPixTransacoes(
+      [
+        {
+          id: "paga",
+          metodo: "PIX",
+          statusPagamento: "PAID",
+          statusValidacao: "aceita",
+          valorBruto: 100,
+          valorPago: 100,
+          quantidadeRifas: 10,
+          moeda: "BRL",
+          dataCriacao: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "pendente_validacao_tesouraria",
+          metodo: "PIX",
+          statusPagamento: "PAID",
+          rifas: [
+            { numero: "050", status: "pendente" },
+            { numero: "051", status: "pendente" },
+          ],
+          quantidadeRifas: 2,
+          valorBruto: 20,
+          valorPago: 20,
+          moeda: "BRL",
+          dataCriacao: "2026-01-02T00:00:00.000Z",
+        },
+        {
+          id: "recusada",
+          metodo: "PIX",
+          statusPagamento: "DECLINED",
+          valorBruto: 10,
+          valorPago: 0,
+          moeda: "BRL",
+          dataCriacao: "2026-01-03T00:00:00.000Z",
+        },
+        {
+          id: "sem-aderido",
+          metodo: "PIX",
+          statusPagamento: "PAID",
+          statusValidacao: "aceita",
+          valorBruto: 30,
+          valorPago: 30,
+          quantidadeRifas: 3,
+          moeda: "BRL",
+          dataCriacao: "2026-01-04T00:00:00.000Z",
+        },
+        {
+          id: "com-erro",
+          metodo: "PIX",
+          statusPagamento: "ERROR",
+          valorBruto: 50,
+          valorPago: 0,
+          moeda: "BRL",
+          dataCriacao: "2026-01-05T00:00:00.000Z",
+        },
+      ],
+      resumoComprovantes,
     );
+
+    expect(resumo).toEqual({
+      totalRecebido: 128.7,
+      totalPendente: 20,
+      totalCancelado: 10,
+      quantidadePagas: 2,
+      quantidadeAguardando: 1,
+      quantidadeCanceladas: 1,
+      ticketMedio: 64.35,
+      quantidadeErros: 1,
+      totalErros: 50,
+      totalTransacoes: 5,
+
+      pixRifasPagas: 13,
+      pixRecebidoBruto: 130,
+      pixRecebidoLiquido: 128.7,
+      pixTransacoesAguardando: 1,
+      pixRifasAguardando: 2,
+      pixValorAguardandoBruto: 20,
+      pixValorAguardandoLiquido: 19.8,
+
+      comprovantesTransacoesPagas: 1,
+      comprovantesRifasPagas: 2,
+      comprovantesValorRecebido: 20,
+      comprovantesTransacoesPendentes: 1,
+      comprovantesRifasPendentes: 1,
+      comprovantesValorPendente: 10,
+
+      totalGeralTransacoesPagas: 3,
+      totalGeralRifasPagas: 15,
+      totalGeralRecebidoBruto: 150,
+      totalGeralRecebidoLiquido: 148.7,
+      totalGeralTransacoesPendentes: 2,
+      totalGeralRifasPendentes: 3,
+      totalGeralValorPendenteBruto: 30,
+    });
   });
 });

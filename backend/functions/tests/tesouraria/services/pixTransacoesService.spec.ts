@@ -128,7 +128,7 @@ describe("Service: PixTransacoesService", () => {
     });
   });
 
-  it("Deve calcular o resumo das transações Pix", async () => {
+  it("Deve calcular o resumo unificado das transações Pix e comprovantes manuais", async () => {
     mockGet.mockResolvedValueOnce({
       docs: [
         {
@@ -141,6 +141,16 @@ describe("Service: PixTransacoesService", () => {
             data_reserva: "2026-01-01T10:00:00.000Z",
           }),
         },
+        {
+          id: "002",
+          data: () => ({
+            status: "pago",
+            comprovante_url: "https://storage.mock/comprovante_manual.jpg",
+            comprador_id: "COMPRA_002",
+            comprador_nome: "Carlos",
+            data_reserva: "2026-01-01T11:00:00.000Z",
+          }),
+        },
       ],
     });
 
@@ -149,7 +159,16 @@ describe("Service: PixTransacoesService", () => {
       expect.objectContaining({
         quantidadePagas: 1,
         totalRecebido: 9.9,
-      })
+        pixRifasPagas: 1,
+        pixRecebidoBruto: 10,
+        comprovantesTransacoesPagas: 1,
+        comprovantesRifasPagas: 1,
+        comprovantesValorRecebido: 10,
+        totalGeralTransacoesPagas: 2,
+        totalGeralRifasPagas: 2,
+        totalGeralRecebidoBruto: 20,
+        totalGeralRecebidoLiquido: 19.9,
+      }),
     );
   });
 

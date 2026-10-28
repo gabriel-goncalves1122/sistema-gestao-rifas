@@ -1,12 +1,10 @@
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import SearchIcon from "@mui/icons-material/Search";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
-import { Box, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
-import { typographyScale as typography } from "@/shared/tokens/typography";
 
 import { TesourariaSectionHeader } from "../../shared/TesourariaSectionHeader";
 import {
@@ -21,7 +19,6 @@ import { DesempenhoChartCard } from "../shared/DesempenhoChartCard";
 import { DesempenhoKpiCard } from "../shared/DesempenhoKpiCard";
 import { ReceitaAreaChart } from "../shared/ReceitaAreaChart";
 import { ResumoBarChart } from "../shared/ResumoBarChart";
-import { DesempenhoRankingTable } from "./DesempenhoRankingTable";
 
 /**
  * Propriedades para renderização da visão desktop de Desempenho.
@@ -29,32 +26,29 @@ import { DesempenhoRankingTable } from "./DesempenhoRankingTable";
 export interface DesempenhoDesktopViewProps {
   /** Dados agregados financeiros e analíticos de desempenho. */
   dados: DesempenhoDados;
-  /** Lista filtrada de ranking de aderidos. */
+  /** Lista filtrada de ranking de aderidos (mantida para compatibilidade de contrato). */
   rankingFiltrado?: AderidoRankingDesempenho[];
-  /** Termo atual do campo de busca do ranking. */
+  /** Termo atual do campo de busca do ranking (mantido para compatibilidade). */
   buscaRanking?: string;
-  /** Callback para alteração do termo de busca. */
+  /** Callback para alteração do termo de busca (mantido para compatibilidade). */
   onBuscaRankingChange?: (termo: string) => void;
 }
 
 /**
  * Visualização completa em desktop da tela de Desempenho Financeiro da Tesouraria.
+ * Foca nos indicadores macro e gráficos analíticos da comissão (o detalhamento individual
+ * de aderidos fica na aba Aderidos da tela de Transações).
  *
  * @param {DesempenhoDesktopViewProps} props - Propriedades do componente.
- * @returns {JSX.Element} Painel analítico de desempenho com gráficos e ranking.
+ * @returns {JSX.Element} Painel analítico de desempenho com KPIs e gráficos.
  */
 export function DesempenhoDesktopView({
   dados,
-  rankingFiltrado,
-  buscaRanking = "",
-  onBuscaRankingChange,
 }: DesempenhoDesktopViewProps) {
   const percentualMeta =
     dados.metas.total > 0
       ? Math.round((dados.metas.bateramMeta / dados.metas.total) * 100)
       : 0;
-
-  const rankingExibido = rankingFiltrado ?? dados.rankingAderidos;
 
   return (
     <Box sx={{ pb: 4, px: { xs: 1.5, md: 0.5 } }}>
@@ -141,7 +135,6 @@ export function DesempenhoDesktopView({
             md: "repeat(3, minmax(0, 1fr))",
           },
           gap: 2.5,
-          mb: 4,
         }}
       >
         <DesempenhoChartCard
@@ -176,50 +169,6 @@ export function DesempenhoDesktopView({
             emptyMessage="Sem aderidos registrados."
           />
         </DesempenhoChartCard>
-      </Box>
-
-      {/* Seção de Ranking de Aderidos */}
-      <Box sx={{ mt: 3 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          alignItems={{ xs: "flex-start", sm: "center" }}
-          spacing={2}
-          sx={{ mb: 2 }}
-        >
-          <Box>
-            <Typography
-              sx={{
-                ...typography.sectionTitle,
-                color: colors.pretoEsverdeado,
-                fontSize: "1.25rem",
-                fontWeight: 900,
-              }}
-            >
-              Ranking de Arrecadação por Aderido
-            </Typography>
-            <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.85rem" }}>
-              Desempenho individual, cumprimento de metas e canais de venda de cada formando.
-            </Typography>
-          </Box>
-
-          <TextField
-            size="small"
-            placeholder="Buscar por nome, curso ou CPF..."
-            value={buscaRanking}
-            onChange={(e) => onBuscaRankingChange?.(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: colors.cinzaIcone, fontSize: 20 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ minWidth: { xs: "100%", sm: 280 } }}
-          />
-        </Stack>
-
-        <DesempenhoRankingTable ranking={rankingExibido} />
       </Box>
     </Box>
   );

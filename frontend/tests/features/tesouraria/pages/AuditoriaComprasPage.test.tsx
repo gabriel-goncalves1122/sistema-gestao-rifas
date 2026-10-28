@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import React from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuditoriaComprasPage } from "@/features/tesouraria/pages/AuditoriaComprasPage";
 import { auditoriaComprasService } from "@/features/tesouraria/services/auditoriaComprasService";
 
@@ -15,6 +17,22 @@ vi.mock("@/features/tesouraria/services/auditoriaComprasService", () => ({
     reenviarEmailComprovante: vi.fn(),
   },
 }));
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <AuditoriaComprasPage />
+    </QueryClientProvider>,
+  );
+}
 
 const matchMediaOriginal = window.matchMedia;
 
@@ -104,7 +122,7 @@ describe("Página <AuditoriaComprasPage />", () => {
   });
 
   it("Deve renderizar auditoria, resumo e compras agrupadas", async () => {
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     expect(await screen.findByText("Auditoria de compras")).toBeInTheDocument();
     expect(screen.getByText(/sem alterar vínculos da venda/i)).toBeInTheDocument();
@@ -120,7 +138,7 @@ describe("Página <AuditoriaComprasPage />", () => {
   });
 
   it("Deve filtrar por busca textual e status", async () => {
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     const busca = await screen.findByPlaceholderText(
       /buscar comprador, cpf, e-mail, telefone ou rifa/i,
@@ -139,7 +157,7 @@ describe("Página <AuditoriaComprasPage />", () => {
   });
 
   it("Deve mostrar estado vazio e manter ações futuras desabilitadas", async () => {
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     const busca = await screen.findByPlaceholderText(
       /buscar comprador, cpf, e-mail, telefone ou rifa/i,
@@ -157,7 +175,7 @@ describe("Página <AuditoriaComprasPage />", () => {
   it("Deve renderizar filtros mobile recolhíveis e cards de compra", async () => {
     simularViewport(true);
 
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     expect(await screen.findByPlaceholderText(/buscar compra, rifa ou contato/i))
       .toBeInTheDocument();
@@ -176,7 +194,7 @@ describe("Página <AuditoriaComprasPage />", () => {
   });
 
   it("Deve abrir detalhes, editar comprador e visualizar comprovante", async () => {
-    const detalhes = render(<AuditoriaComprasPage />);
+    const detalhes = renderPage();
 
     await screen.findByText("Auditoria de compras");
 
@@ -186,7 +204,7 @@ describe("Página <AuditoriaComprasPage />", () => {
 
     detalhes.unmount();
 
-    const edicao = render(<AuditoriaComprasPage />);
+    const edicao = renderPage();
 
     await screen.findByText("Auditoria de compras");
 
@@ -224,7 +242,7 @@ describe("Página <AuditoriaComprasPage />", () => {
 
     edicao.unmount();
 
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     await screen.findByText("Auditoria de compras");
 
@@ -248,7 +266,7 @@ describe("Página <AuditoriaComprasPage />", () => {
       }),
     );
 
-    render(<AuditoriaComprasPage />);
+    renderPage();
 
     await screen.findByText("Auditoria de compras");
 

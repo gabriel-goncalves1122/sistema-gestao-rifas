@@ -1,11 +1,9 @@
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
-import SearchIcon from "@mui/icons-material/Search";
-import { Box, InputAdornment, Stack, TextField, Typography } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
-import { typographyScale as typography } from "@/shared/tokens/typography";
 
 import { TesourariaSectionHeader } from "../../shared/TesourariaSectionHeader";
 import {
@@ -20,7 +18,6 @@ import { DesempenhoChartCard } from "../shared/DesempenhoChartCard";
 import { DesempenhoKpiCard } from "../shared/DesempenhoKpiCard";
 import { ReceitaAreaChart } from "../shared/ReceitaAreaChart";
 import { ResumoBarChart } from "../shared/ResumoBarChart";
-import { DesempenhoRankingCardList } from "./DesempenhoRankingCardList";
 
 /**
  * Propriedades para renderização da visão móvel de Desempenho.
@@ -28,11 +25,11 @@ import { DesempenhoRankingCardList } from "./DesempenhoRankingCardList";
 export interface DesempenhoMobileViewProps {
   /** Dados agregados financeiros e analíticos de desempenho. */
   dados: DesempenhoDados;
-  /** Lista filtrada de ranking de aderidos. */
+  /** Lista filtrada de ranking de aderidos (mantida para compatibilidade). */
   rankingFiltrado?: AderidoRankingDesempenho[];
-  /** Termo atual do campo de busca do ranking. */
+  /** Termo atual do campo de busca do ranking (mantido para compatibilidade). */
   buscaRanking?: string;
-  /** Callback para alteração do termo de busca. */
+  /** Callback para alteração do termo de busca (mantido para compatibilidade). */
   onBuscaRankingChange?: (termo: string) => void;
 }
 
@@ -40,16 +37,11 @@ export interface DesempenhoMobileViewProps {
  * Visualização compacta e adaptada para dispositivos móveis da tela de Desempenho.
  *
  * @param {DesempenhoMobileViewProps} props - Propriedades do componente.
- * @returns {JSX.Element} Visualização mobile com safe areas e cards tocáveis.
+ * @returns {JSX.Element} Visualização mobile com safe areas e gráficos consolidados.
  */
 export function DesempenhoMobileView({
   dados,
-  rankingFiltrado,
-  buscaRanking = "",
-  onBuscaRankingChange,
 }: DesempenhoMobileViewProps) {
-  const rankingExibido = rankingFiltrado ?? dados.rankingAderidos;
-
   return (
     <Box sx={{ pb: "max(24px, env(safe-area-inset-bottom))", px: { xs: 1.25, sm: 0 } }}>
       <TesourariaSectionHeader
@@ -135,42 +127,6 @@ export function DesempenhoMobileView({
             compact
           />
         </DesempenhoChartCard>
-
-        {/* Ranking de Aderidos Mobile */}
-        <Box sx={{ pt: 1 }}>
-          <Typography
-            sx={{
-              ...typography.sectionTitle,
-              color: colors.pretoEsverdeado,
-              fontSize: "1.05rem",
-              fontWeight: 900,
-              mb: 0.5,
-            }}
-          >
-            Ranking de Aderidos
-          </Typography>
-          <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mb: 1.5 }}>
-            Progresso individual e vendas por canal.
-          </Typography>
-
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Buscar por nome, curso ou CPF..."
-            value={buscaRanking}
-            onChange={(e) => onBuscaRankingChange?.(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: colors.cinzaIcone, fontSize: 18 }} />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ mb: 1.5 }}
-          />
-
-          <DesempenhoRankingCardList ranking={rankingExibido} />
-        </Box>
       </Stack>
     </Box>
   );

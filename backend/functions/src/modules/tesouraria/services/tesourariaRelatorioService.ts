@@ -12,9 +12,16 @@ import {
   DadosAtualizacaoCompradorCompra,
   OrigemTransacaoTesouraria,
   RelatorioTesourariaResponse,
+  TransacaoResumoAderido,
   TransacaoTesouraria,
 } from "../types/tesourariaTypes";
-import { chaveCompra, valorDataSeguro } from "../helpers/pixTransacoesHelper";
+import {
+  chaveCompra,
+  normalizarId,
+  primeiraDataValida,
+  statusPagamento,
+  valorDataSeguro,
+} from "../helpers/pixTransacoesHelper";
 import {
   cpfEhValido,
   criarMapaVendedores,
@@ -33,6 +40,71 @@ interface AcumuladorVendasAderido {
   valorBrutoPix: number;
   valorBrutoComprovante: number;
   rifasPendentes: number;
+  gruposCompra: Map<string, BilheteComNumero[]>;
+}
+
+/**
+ * Converte os grupos de bilhetes de um aderido em uma lista ordenada de transações resumidas.
+ *
+ * @param {Map<string, BilheteComNumero[]>} gruposCompra - Mapa de bilhetes agrupados por compra.
+ * @returns {TransacaoResumoAderido[]} Lista de transações ordenada pela data mais recente.
+ */
+function montarTransacoesDoAderido(
+  gruposCompra: Map<string, BilheteComNumero[]>,
+): TransacaoResumoAderido[] {
+  return Array.from(gruposCompra.values())
+    .map((grupo) => {
+      const ordenados = [...grupo].sort((a, b) =>
+        a.numero.localeCompare(b.numero, "pt-BR", { numeric: true }),
+      );
+      const base = ordenados[0];
+      const ehPix = Boolean(base.pix_order_id);
+      const origem: OrigemTransacaoTesouraria = ehPix ? "PIX" : "COMPROVANTE";
+      const statusPag = statusPagamento(
+        base.status || "pago",
+        base.status_pagamento_banco,
+      );
+      const valorBruto = ordenados.reduce(
+        (soma, b) => soma + (b.valor_pago || b.valor_bruto || VALOR_RIFA),
+        0,
+      );
+      const valorPago = ["PAID", "AUTHORIZED"].includes(statusPag)
+        ? ehPix
+          ? Number((valorBruto * 0.99).toFixed(2))
+          : valorBruto
+        : 0;
+      const dataCriacao = primeiraDataValida(
+        base.data_reserva,
+        base.data_pagamento,
+      );
+      const dataPagamento = ["PAID", "AUTHORIZED"].includes(statusPag)
+        ? primeiraDataValida(base.data_pagamento, base.data_reserva)
+        : null;
+      const numerosStr = ordenados.map((b) => b.numero).join("-");
+      const idNormalizado =
+        normalizarId(chaveCompra(base) || numerosStr) || `rifas-${numerosStr}`;
+
+      return {
+        id: idNormalizado,
+        compradorNome: base.comprador_nome || "Pagador não informado",
+        dataPagamento,
+        dataCriacao,
+        valorBruto,
+        valorPago,
+        quantidadeRifas: ordenados.length,
+        rifas: ordenados.map((b) => ({
+          numero: b.numero,
+          status: b.status || "pago",
+        })),
+        origem,
+        statusPagamento: statusPag,
+      };
+    })
+    .sort(
+      (a, b) =>
+        valorDataSeguro(b.dataPagamento || b.dataCriacao) -
+        valorDataSeguro(a.dataPagamento || a.dataCriacao),
+    );
 }
 
 export class TesourariaRelatorioService {
@@ -40,7 +112,7 @@ export class TesourariaRelatorioService {
    * Gera o relatório financeiro consolidado da Tesouraria e de Desempenho.
    * Vincula bilhetes aos aderidos de forma resiliente (via `vendedor_id` e fallback de `vendedor_cpf` normalizado)
    * e inclui todos os formandos aderidos (inclusive aqueles com cargo na comissão), separando métricas
-   * de Pix automatizado e comprovantes manuais.
+   * de Pix automatizado e comprovantes manuais, bem como o histórico de transações de cada aderido.
    *
    * @returns {Promise<RelatorioTesourariaResponse>} Resumo geral e lista de desempenho por aderido.
    */
@@ -74,6 +146,7 @@ export class TesourariaRelatorioService {
         valorBrutoPix: 0,
         valorBrutoComprovante: 0,
         rifasPendentes: 0,
+        gruposCompra: new Map(),
       };
       vendasPorDocId.set(docId, novo);
       return novo;
@@ -86,12 +159,25 @@ export class TesourariaRelatorioService {
     let rifasPendentesPixGlobal = 0;
     let rifasPendentesComprovanteGlobal = 0;
 
-    bilhetesDocs.forEach((doc) => {
+    bilhetesDocs.forEach((doc, idx) => {
       const data = doc.data() as Bilhete;
       const status = data.status || "pago";
       const ehPix = Boolean(data.pix_order_id);
       const valorBilhete = data.valor_pago || data.valor_bruto || VALOR_RIFA;
       const vendedor = resolverVendedorDoBilhete(data, mapaVendedores);
+
+      if (vendedor) {
+        const acc = obterAcumulador(vendedor.docId);
+        const numero = doc.id || `bilhete-${idx}`;
+        const bilheteComNumero: BilheteComNumero = {
+          ...data,
+          numero,
+        };
+        const chave = chaveCompra(bilheteComNumero);
+        const grupoAtual = acc.gruposCompra.get(chave) || [];
+        grupoAtual.push(bilheteComNumero);
+        acc.gruposCompra.set(chave, grupoAtual);
+      }
 
       if (status === "pago") {
         if (ehPix) {
@@ -153,13 +239,19 @@ export class TesourariaRelatorioService {
           valorBrutoPix: 0,
           valorBrutoComprovante: 0,
           rifasPendentes: 0,
+          gruposCompra: new Map<string, BilheteComNumero[]>(),
         };
 
         const rifasVendidas = acc.rifasPagasPix + acc.rifasPagasComprovante;
         const arrecadado = acc.valorBrutoPix + acc.valorBrutoComprovante;
+        const valorPixLiquido = Number((acc.valorBrutoPix * 0.99).toFixed(2));
         const arrecadadoLiquido = Number(
-          (acc.valorBrutoPix * 0.99 + acc.valorBrutoComprovante).toFixed(2),
+          (valorPixLiquido + acc.valorBrutoComprovante).toFixed(2),
         );
+        const transacoes = montarTransacoesDoAderido(acc.gruposCompra);
+        const comprasCount = transacoes.filter(
+          (t) => t.statusPagamento === "PAID",
+        ).length;
 
         return {
           id: doc.id,
@@ -172,11 +264,16 @@ export class TesourariaRelatorioService {
           ...(vendedor?.cargo ? { cargo: vendedor.cargo } : {}),
           arrecadado,
           arrecadadoLiquido,
+          valorPix: acc.valorBrutoPix,
+          valorPixLiquido,
+          valorComprovante: acc.valorBrutoComprovante,
+          comprasCount,
           meta: vendedor?.metaVendas || 1200,
           rifasVendidas,
           rifasVendidasPix: acc.rifasPagasPix,
           rifasVendidasComprovante: acc.rifasPagasComprovante,
           rifasPendentes: acc.rifasPendentes,
+          transacoes,
         };
       });
 

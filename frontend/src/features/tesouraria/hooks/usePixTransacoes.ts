@@ -16,7 +16,9 @@ import {
 
 function resumoPossuiDados(resumo: PixTransacoesResumo | null) {
   if (!resumo) return false;
-  return Object.values(resumo).some((valor) => typeof valor === "number" && valor > 0);
+  return Object.values(resumo).some(
+    (valor) => typeof valor === "number" && valor > 0,
+  );
 }
 
 export function usePixTransacoes() {
@@ -54,7 +56,7 @@ export function usePixTransacoes() {
     : calcularResumoPixTransacoes(transacoes);
 
   const carregarDados = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] });
+    await queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
   }, [queryClient]);
 
   const sincronizarBanco = async () => {

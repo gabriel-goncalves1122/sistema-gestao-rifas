@@ -24,6 +24,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { pixTransacoesService } from "@/features/tesouraria/services/pixTransacoesService";
 import { desempenhoService } from "@/features/tesouraria/services/desempenhoService";
 import { auditoriaComprasService } from "@/features/tesouraria/services/auditoriaComprasService";
+import { relatorioTesourariaService } from "@/features/tesouraria/services/relatorioTesourariaService";
+import { secretariaService } from "@/features/secretaria/membros/services/secretariaService";
+import { documentosSecretariaService } from "@/features/secretaria/documentos/services/documentosSecretariaService";
 
 export type Contexto = "aderido" | "tesouraria" | "secretaria";
 
@@ -98,6 +101,14 @@ export function DashboardPage() {
       });
 
       queryClient.prefetchQuery({
+        queryKey: ["tesouraria", "relatorio"],
+        staleTime: 180_000,
+        queryFn: async () => {
+          return await relatorioTesourariaService.obterRelatorioTesouraria();
+        },
+      });
+
+      queryClient.prefetchQuery({
         queryKey: ["tesouraria", "desempenho"],
         staleTime: 180_000,
         queryFn: async () => {
@@ -121,7 +132,21 @@ export function DashboardPage() {
         },
       });
     }
-  }, [contextoAtual, hasTesourariaAccess, queryClient]);
+
+    if (contextoAtual === "secretaria" && hasSecretariaAccess) {
+      queryClient.prefetchQuery({
+        queryKey: ["secretaria", "membros"],
+        staleTime: 180_000,
+        queryFn: () => secretariaService.buscarAderidos(),
+      });
+
+      queryClient.prefetchQuery({
+        queryKey: ["secretaria", "documentos"],
+        staleTime: 180_000,
+        queryFn: () => documentosSecretariaService.listarDocumentos(),
+      });
+    }
+  }, [contextoAtual, hasTesourariaAccess, hasSecretariaAccess, queryClient]);
 
   const limiteAbasPorContexto: Record<Contexto, number> = {
     aderido: 1,

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { relatorioTesourariaService } from "../services/relatorioTesourariaService";
@@ -11,6 +11,11 @@ import { RESUMO_GERAL_DESEMPENHO_VAZIO } from "../utils/desempenhoDataUtils";
 export interface UseRelatorioTesourariaRetorno {
   resumoGeral: ResumoGeralDesempenho;
   aderidos: AderidoMetricaDesempenho[];
+  relatorio: {
+    resumoGeral: ResumoGeralDesempenho;
+    aderidos: AderidoMetricaDesempenho[];
+    rankingAderidos: AderidoMetricaDesempenho[];
+  };
   carregando: boolean;
   erro: string | null;
   recarregar: () => Promise<void>;
@@ -38,6 +43,15 @@ export function useRelatorioTesouraria(): UseRelatorioTesourariaRetorno {
   const aderidos = data?.aderidos || [];
   const erro = error instanceof Error ? error.message : null;
 
+  const relatorio = useMemo(
+    () => ({
+      resumoGeral,
+      aderidos,
+      rankingAderidos: aderidos,
+    }),
+    [aderidos, resumoGeral],
+  );
+
   const recarregar = useCallback(async () => {
     await queryClient.invalidateQueries({
       queryKey: ["tesouraria", "relatorio"],
@@ -47,6 +61,7 @@ export function useRelatorioTesouraria(): UseRelatorioTesourariaRetorno {
   return {
     resumoGeral,
     aderidos,
+    relatorio,
     carregando,
     erro,
     recarregar,

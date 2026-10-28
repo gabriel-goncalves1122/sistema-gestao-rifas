@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
   calcularResumoAuditoria,
@@ -15,11 +16,28 @@ interface DadosEdicaoComprador {
   telefone?: string | null;
 }
 
+/**
+ * Hook de controlador para a página de Auditoria de Compras da Tesouraria.
+ * Orquestra carregamento via cache do React Query, filtros, ações de conciliação
+ * manual e diálogos de edição e inspeção.
+ */
 export function useAuditoriaComprasController() {
-  const [carregando, setCarregando] = useState(true);
-  const [historicoTransacoes, setHistoricoTransacoes] = useState<
-    TransacaoTesouraria[]
-  >([]);
+  const queryClient = useQueryClient();
+
+  const {
+    data: historicoTransacoes = [],
+    isLoading: carregando,
+  } = useQuery<TransacaoTesouraria[]>({
+    queryKey: ["tesouraria", "auditoria-historico"],
+    queryFn: async () => {
+      try {
+        return await auditoriaComprasService.buscarHistoricoDetalhado();
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 180_000,
+  });
 
   // Modals state
   const [compraSelecionada, setCompraSelecionada] = useState<TransacaoTesouraria | null>(null);
@@ -28,20 +46,10 @@ export function useAuditoriaComprasController() {
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
 
   const carregarHistorico = useCallback(async () => {
-    setCarregando(true);
-    try {
-      const dados = await auditoriaComprasService.buscarHistoricoDetalhado();
-      setHistoricoTransacoes(dados);
-    } catch {
-      setHistoricoTransacoes([]);
-    } finally {
-      setCarregando(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    carregarHistorico();
-  }, [carregarHistorico]);
+    await queryClient.invalidateQueries({
+      queryKey: ["tesouraria"],
+    });
+  }, [queryClient]);
 
   // Hook composition
   const {
@@ -100,14 +108,14 @@ export function useAuditoriaComprasController() {
   }, []);
 
   const abrirEdicao = useCallback((compra: TransacaoTesouraria) => {
-    setErroEdicao(null);
     setCompraEdicao(compra);
+    setErroEdicao(null);
   }, [setErroEdicao]);
 
   const fecharEdicao = useCallback(() => {
     if (salvandoEdicao) return;
-    setErroEdicao(null);
     setCompraEdicao(null);
+    setErroEdicao(null);
   }, [salvandoEdicao, setErroEdicao]);
 
   const wrapperSalvarEdicaoComprador = useCallback(

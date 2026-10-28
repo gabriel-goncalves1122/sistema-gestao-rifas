@@ -1,4 +1,3 @@
-
 export type StatusPagamentoPix =
   | "WAITING"
   | "PAID"
@@ -128,8 +127,10 @@ export interface PixTransacoesSerieTemporal {
 
 export type FiltroRapidoTransacoesPix =
   | "novas"
+  | "aprovadas"
   | "recusadas"
-  | "aguardando_pagamento";
+  | "aguardando_pagamento"
+  | "todas";
 
 export interface PixTransacoesFiltros {
   status: FiltroRapidoTransacoesPix;
