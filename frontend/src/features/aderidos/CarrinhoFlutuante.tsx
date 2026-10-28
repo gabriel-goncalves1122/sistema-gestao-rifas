@@ -2,19 +2,33 @@
 // ARQUIVO: frontend/src/features/aderidos/CarrinhoFlutuante.tsx
 // ============================================================================
 import ShoppingCartCheckoutIcon from "@mui/icons-material/ShoppingCartCheckout";
-import DeleteSweepOutlinedIcon from "@mui/icons-material/DeleteSweepOutlined";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { useKeyboardHeight } from "@/shared/hooks/useKeyboardHeight";
 import { painelAderidoStyles } from "./styles/painelAderidoStyles";
 import { formatarMoeda } from "@/shared/utils/formatadores";
 
-interface CarrinhoFlutuanteProps {
+/**
+ * Propriedades para renderização do carrinho flutuante de checkout do aderido.
+ */
+export interface CarrinhoFlutuanteProps {
+  /** Quantidade total de rifas selecionadas */
   quantidade: number;
+  /** Valor monetário consolidado das rifas selecionadas */
   valorTotal: number;
-  onVenderClick: () => void;
+  /** Ação principal disparada ao clicar no botão de pagamento */
+  onPagarClick?: () => void;
+  /**
+   * Alias retrocompatível para onPagarClick.
+   */
+  onVenderClick?: () => void;
+  /** Lista opcional de números das rifas para renderização do resumo */
   numerosSelecionados?: string[];
+  /**
+   * @deprecated O botão Limpar foi removido de dentro do carrinho flutuante.
+   * A deseleção de rifas é realizada diretamente pelo clique na rifa na grelha.
+   */
   onLimparClick?: () => void;
 }
 
@@ -26,17 +40,25 @@ function formatarResumoNumeros(numeros?: string[]): string | null {
   return restantes > 0 ? `${visiveis} +${restantes}` : visiveis;
 }
 
+/**
+ * Componente de Carrinho Flutuante para checkout das rifas do aderido.
+ * Exibe a quantidade e o valor total selecionados com botão único de pagamento ("Pagar").
+ *
+ * @param {CarrinhoFlutuanteProps} props - Propriedades do carrinho.
+ * @returns {JSX.Element} Elemento animado do carrinho flutuante.
+ */
 export function CarrinhoFlutuante({
   quantidade,
   valorTotal,
+  onPagarClick,
   onVenderClick,
   numerosSelecionados,
-  onLimparClick,
 }: CarrinhoFlutuanteProps) {
   const keyboardHeight = useKeyboardHeight();
   const textoQuantidade =
     quantidade === 1 ? "rifa selecionada" : "rifas selecionadas";
   const resumoNumeros = formatarResumoNumeros(numerosSelecionados);
+  const handleAcaoPagar = onPagarClick ?? onVenderClick;
 
   return (
     <AnimatePresence>
@@ -96,42 +118,15 @@ export function CarrinhoFlutuante({
                   </Box>
                 </Box>
 
-                <Stack direction="row" spacing={1} alignItems="center">
-                  {onLimparClick && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<DeleteSweepOutlinedIcon fontSize="small" />}
-                      data-testid="carrinho-limpar"
-                      onClick={onLimparClick}
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 800,
-                        color: "#063D31",
-                        borderColor: "rgba(6, 61, 49, 0.24)",
-                        minHeight: 40,
-                        px: 1.5,
-                        "&:hover": {
-                          borderColor: "#063D31",
-                          bgcolor: "rgba(6, 61, 49, 0.06)",
-                        },
-                      }}
-                    >
-                      Limpar
-                    </Button>
-                  )}
-
-                  <Button
-                    variant="contained"
-                    startIcon={<ShoppingCartCheckoutIcon />}
-                    data-testid="carrinho-vender"
-                    onClick={onVenderClick}
-                    sx={painelAderidoStyles.carrinhoFixoBotao}
-                  >
-                    Vender
-                  </Button>
-                </Stack>
+                <Button
+                  variant="contained"
+                  startIcon={<ShoppingCartCheckoutIcon />}
+                  data-testid="carrinho-pagar"
+                  onClick={handleAcaoPagar}
+                  sx={painelAderidoStyles.carrinhoFixoBotao}
+                >
+                  Pagar
+                </Button>
               </Box>
             </Paper>
           </Box>

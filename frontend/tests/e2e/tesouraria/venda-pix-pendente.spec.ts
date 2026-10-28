@@ -124,7 +124,7 @@ test("vende 3 rifas com comprovante e exibe a compra pendente na tesouraria nova
   await expect(page).toHaveURL(/\/dashboard/);
   const numerosRifas = await selecionarTresRifasDisponiveis(page);
 
-  await page.getByTestId("carrinho-vender").click();
+  await page.locator('[data-testid="carrinho-pagar"], [data-testid="carrinho-vender"]').click();
   await expect(
     page.getByRole("heading", { name: "Finalizar venda" }),
   ).toBeVisible();

@@ -9,7 +9,10 @@ import { painelAderidoStyles } from "../../styles/painelAderidoStyles";
 import type { GrupoRifasRecusadas, FiltroRifasAderido, RifaAderido, VisaoPainelAderido } from "../../types/painelAderido";
 import type { ContadoresRifas } from "../../utils/filtrosRifas";
 
-interface MinhasRifasDesktopViewProps {
+/**
+ * Propriedades para renderização da visão Desktop do painel de rifas do aderido.
+ */
+export interface MinhasRifasDesktopViewProps {
   visaoAtual: VisaoPainelAderido;
   primeiroNome: string;
   valorArrecadado: number;
@@ -54,7 +57,6 @@ export function MinhasRifasDesktopView({
   possuiSelecao,
   valorTotalSelecionado,
   onVenderClick,
-  onLimparSelecao,
 }: MinhasRifasDesktopViewProps) {
   return (
     <AderidosSwipeTransition visaoAtual={visaoAtual}>
@@ -91,9 +93,9 @@ export function MinhasRifasDesktopView({
             <CarrinhoFlutuante
               quantidade={selecionadas.length}
               valorTotal={valorTotalSelecionado}
+              onPagarClick={onVenderClick}
               onVenderClick={onVenderClick}
               numerosSelecionados={selecionadas}
-              onLimparClick={onLimparSelecao}
             />
           )}
         </Box>

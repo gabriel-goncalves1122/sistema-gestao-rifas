@@ -12,10 +12,17 @@ import { obterConfigStatusRifa } from "../utils/rifasStatus";
 import { EmptyRifasState } from "./EmptyRifasState";
 import { colors } from "@/shared/tokens/colors";
 
-interface GrelhaRifasProps {
+/**
+ * Propriedades para renderização da grelha de números de rifa.
+ */
+export interface GrelhaRifasProps {
+  /** Lista de rifas a exibir na grelha */
   rifas: RifaAderido[];
+  /** Array com os números das rifas atualmente selecionadas */
   selecionadas: string[];
+  /** Callback para alternar (adicionar ou remover) a seleção de uma rifa */
   onToggleSelecao: (numero: string, status: string) => void;
+  /** Callback para abrir o modal de detalhes de uma rifa paga */
   onAbrirDetalhes: (rifa: RifaAderido) => void;
 }
 
@@ -107,23 +114,27 @@ const RifaItem = React.memo(function RifaItem({
   animar,
 }: RifaItemProps) {
   const config = obterConfigStatusRifa(rifa.status);
-  const podeClicar = config.selecionavel || config.abreDetalhes;
+  const podeClicar = isSelecionada || config.selecionavel || config.abreDetalhes;
   const temCorrecaoPendente = rifa.correcao_pendente === true;
-  const tooltip = config.selecionavel
-    ? "Clique para vender"
-    : config.abreDetalhes
-      ? temCorrecaoPendente
-        ? "Clique para ver detalhes (correção pendente)"
-        : "Clique para ver detalhes"
-      : "";
-  const ariaLabel = config.selecionavel
-    ? `Rifa ${rifa.numero} disponível para vender`
-    : config.abreDetalhes
-      ? `Rifa ${rifa.numero} paga, clique para ver detalhes`
-      : `Rifa ${rifa.numero} - ${config.label}`;
+  const tooltip = isSelecionada
+    ? "Clique para desmarcar"
+    : config.selecionavel
+      ? "Clique para vender"
+      : config.abreDetalhes
+        ? temCorrecaoPendente
+          ? "Clique para ver detalhes (correção pendente)"
+          : "Clique para ver detalhes"
+        : "";
+  const ariaLabel = isSelecionada
+    ? `Rifa ${rifa.numero} selecionada, clique para desmarcar`
+    : config.selecionavel
+      ? `Rifa ${rifa.numero} disponível para vender`
+      : config.abreDetalhes
+        ? `Rifa ${rifa.numero} paga, clique para ver detalhes`
+        : `Rifa ${rifa.numero} - ${config.label}`;
 
   const handleClick = () => {
-    if (config.selecionavel) {
+    if (isSelecionada || config.selecionavel) {
       onToggleSelecao(rifa.numero, rifa.status);
       return;
     }
@@ -142,11 +153,13 @@ const RifaItem = React.memo(function RifaItem({
       sx={{
         ...painelAderidoStyles.rifaButton,
         position: "relative",
-        cursor: config.abreDetalhes
-          ? "help"
-          : config.selecionavel
-            ? "pointer"
-            : "default",
+        cursor: isSelecionada
+          ? "pointer"
+          : config.abreDetalhes
+            ? "help"
+            : config.selecionavel
+              ? "pointer"
+              : "default",
         ...montarEstiloRifa(rifa, isSelecionada, podeClicar),
         // Aceleração de hardware
         willChange: "transform, opacity",
@@ -208,6 +221,13 @@ const RifaItem = React.memo(function RifaItem({
   );
 });
 
+/**
+ * Grelha de rifas otimizada com renderização de cartões interativos.
+ * Permite selecionar rifas disponíveis e desmarcá-las com clique direto.
+ *
+ * @param {GrelhaRifasProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Visualização em grid das rifas.
+ */
 export function GrelhaRifas({
   rifas,
   selecionadas,

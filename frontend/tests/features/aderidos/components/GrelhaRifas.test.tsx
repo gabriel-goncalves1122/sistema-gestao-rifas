@@ -172,7 +172,7 @@ describe("Componente <GrelhaRifas />", () => {
       <GrelhaRifas
         rifas={rifas}
         selecionadas={[]}
-        onToggleSelecao={vi.fn()}
+        onToggleSelecao={mockDetalhes}
         onAbrirDetalhes={mockDetalhes}
       />,
     );
@@ -208,5 +208,28 @@ describe("Componente <GrelhaRifas />", () => {
 
     expect(screen.getByTestId("rifa-005-alerta-correcao")).toBeInTheDocument();
     expect(screen.getByTestId("rifa-005-detalhes-icon")).toBeInTheDocument();
+  });
+
+  it("Deve permitir desmarcar rifa selecionada diretamente ao clicar nela", () => {
+    const mockToggle = vi.fn();
+
+    render(
+      <GrelhaRifas
+        rifas={rifas}
+        selecionadas={["001"]}
+        onToggleSelecao={mockToggle}
+        onAbrirDetalhes={vi.fn()}
+      />,
+    );
+
+    const rifaSelecionada = screen.getByRole("button", {
+      name: /Rifa 001 selecionada, clique para desmarcar/i,
+    });
+    expect(rifaSelecionada).toBeInTheDocument();
+
+    fireEvent.click(rifaSelecionada);
+
+    expect(mockToggle).toHaveBeenCalledTimes(1);
+    expect(mockToggle).toHaveBeenCalledWith("001", "disponivel");
   });
 });

@@ -1,5 +1,5 @@
 // ============================================================================
-// ARQUIVO: frontend/src/views/components/__tests__/CarrinhoFlutuante.test.tsx
+// ARQUIVO: frontend/tests/features/aderidos/CarrinhoFlutuante.test.tsx
 // ============================================================================
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, it, expect, vi } from "vitest";
@@ -16,7 +16,7 @@ import { CarrinhoFlutuante } from "@/features/aderidos/CarrinhoFlutuante";
 import { painelAderidoStyles } from "@/features/aderidos/styles/painelAderidoStyles";
 
 describe("Componente <CarrinhoFlutuante />", () => {
-  const mockOnVenderClick = vi.fn();
+  const mockOnPagarClick = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -28,7 +28,7 @@ describe("Componente <CarrinhoFlutuante />", () => {
       <CarrinhoFlutuante
         quantidade={0}
         valorTotal={0}
-        onVenderClick={mockOnVenderClick}
+        onPagarClick={mockOnPagarClick}
       />,
     );
 
@@ -43,7 +43,7 @@ describe("Componente <CarrinhoFlutuante />", () => {
       <CarrinhoFlutuante
         quantidade={3}
         valorTotal={30}
-        onVenderClick={mockOnVenderClick}
+        onPagarClick={mockOnPagarClick}
       />,
     );
 
@@ -69,19 +69,52 @@ describe("Componente <CarrinhoFlutuante />", () => {
     });
   });
 
-  it("Deve disparar a função de Vender ao clicar no botão", () => {
+  it("Deve disparar a função de Pagar ao clicar no botão 'Pagar'", () => {
     render(
       <CarrinhoFlutuante
         quantidade={2}
         valorTotal={20}
-        onVenderClick={mockOnVenderClick}
+        onPagarClick={mockOnPagarClick}
       />,
     );
 
-    const btnVender = screen.getByRole("button", { name: /vender/i });
-    fireEvent.click(btnVender);
+    const btnPagar = screen.getByRole("button", { name: /pagar/i });
+    expect(btnPagar).toBeInTheDocument();
+    expect(screen.getByTestId("carrinho-pagar")).toBe(btnPagar);
 
-    expect(mockOnVenderClick).toHaveBeenCalledTimes(1);
+    fireEvent.click(btnPagar);
+
+    expect(mockOnPagarClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("Deve manter compatibilidade retroativa com onVenderClick caso fornecido", () => {
+    const mockOnVender = vi.fn();
+    render(
+      <CarrinhoFlutuante
+        quantidade={2}
+        valorTotal={20}
+        onVenderClick={mockOnVender}
+      />,
+    );
+
+    const btnPagar = screen.getByRole("button", { name: /pagar/i });
+    fireEvent.click(btnPagar);
+
+    expect(mockOnVender).toHaveBeenCalledTimes(1);
+  });
+
+  it("Não deve renderizar o botão de Limpar dentro do carrinho flutuante", () => {
+    render(
+      <CarrinhoFlutuante
+        quantidade={4}
+        valorTotal={40}
+        onPagarClick={mockOnPagarClick}
+        numerosSelecionados={["001", "002", "003", "004"]}
+      />,
+    );
+
+    expect(screen.queryByTestId("carrinho-limpar")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /limpar/i })).not.toBeInTheDocument();
   });
 
   it("Deve deslocar o carrinho quando houver teclado virtual", () => {
@@ -91,34 +124,27 @@ describe("Componente <CarrinhoFlutuante />", () => {
       <CarrinhoFlutuante
         quantidade={2}
         valorTotal={20}
-        onVenderClick={mockOnVenderClick}
+        onPagarClick={mockOnPagarClick}
       />,
     );
 
-    expect(screen.getByTestId("carrinho-vender").closest("[data-keyboard-height]"))
+    expect(screen.getByTestId("carrinho-pagar").closest("[data-keyboard-height]"))
       .toHaveAttribute("data-keyboard-height", "180");
   });
 
-  it("Deve exibir o resumo dos números selecionados e acionar onLimparClick", () => {
-    const mockOnLimpar = vi.fn();
-
+  it("Deve exibir o resumo dos números selecionados sem botão limpar", () => {
     render(
       <CarrinhoFlutuante
         quantidade={5}
         valorTotal={50}
-        onVenderClick={mockOnVenderClick}
+        onPagarClick={mockOnPagarClick}
         numerosSelecionados={["001", "002", "003", "004", "005"]}
-        onLimparClick={mockOnLimpar}
       />,
     );
 
     expect(screen.getByTestId("carrinho-resumo-numeros")).toHaveTextContent(
       "#001, #002, #003, #004 +1",
     );
-
-    const btnLimpar = screen.getByTestId("carrinho-limpar");
-    fireEvent.click(btnLimpar);
-
-    expect(mockOnLimpar).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("carrinho-limpar")).not.toBeInTheDocument();
   });
 });
