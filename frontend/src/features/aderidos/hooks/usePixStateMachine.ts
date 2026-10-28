@@ -44,6 +44,7 @@ interface UsePixStateMachineParams {
  *   - `cancelarCobranca`: Função para cancelar a cobrança atual (com opção de reter ou liberar bilhetes).
  *   - `copiarPix`: Handler de área de transferência (clipboard com fallback legacy).
  *   - `resetarFluxo`: Restaura o estado da máquina para 'idle'.
+ *   - `marcarComoExpiradoLocal`: Atualiza o estado visual local para 'expirado' sem cancelar a ordem no gateway.
  *   - `liberarReservaTotal`: Cancela cobrança e limpa a sessão de checkout por completo.
  *   - `abortarGeracaoPendente`: Sinaliza cancelamento caso uma chamada de rede esteja em voo.
  */
@@ -62,7 +63,7 @@ export function usePixStateMachine({
     if (saved.status === "cancelado") return "cancelado";
     return "aguardando_pagamento";
   });
-  
+
   const [erro, setErro] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
   const isMounted = useRef(true);
@@ -96,15 +97,28 @@ export function usePixStateMachine({
     }
   }, []);
 
+  /**
+   * Atualiza o estado visual local para `expirado` quando o cronômetro chega a zero no cliente,
+   * sem disparar cancelamento destrutivo no Mercado Pago (prevenindo falhas por relógio local adiantado).
+   */
+  const marcarComoExpiradoLocal = useCallback(() => {
+    setStatus((atual) => (atual === "aguardando_pagamento" ? "expirado" : atual));
+    setCobrancaPix((prev) =>
+      prev && prev.status === "aguardando_pagamento"
+        ? { ...prev, status: "expirado" }
+        : prev,
+    );
+  }, []);
+
   // POLLING REALTIME COM FIRESTORE
   useEffect(() => {
-    if (status !== "aguardando_pagamento" || !cobrancaPix) return;
+    if ((status !== "aguardando_pagamento" && status !== "expirado") || !cobrancaPix) return;
 
     // Conecta-se ao documento em pagamentos_pix em tempo real
     const cobrancaRef = doc(db, "pagamentos_pix", cobrancaPix.id);
     const unsubscribe = onSnapshot(cobrancaRef, (docSnap) => {
       if (!isMounted.current) return;
-      
+
       if (checkoutStorage.get().cobrancaPix?.id !== cobrancaPix.id) {
         return;
       }
@@ -112,7 +126,7 @@ export function usePixStateMachine({
       if (docSnap.exists()) {
         const dados = docSnap.data();
         const statusBanco = String(dados.status_pagamento_banco).toLowerCase();
-        
+
         let novoStatusLocal = "aguardando_pagamento";
         if (["approved", "authorized", "paid"].includes(statusBanco)) {
           novoStatusLocal = "pago";
@@ -207,9 +221,9 @@ export function usePixStateMachine({
       invalidarDadosPainel?.();
     } catch (error: any) {
       if (!isMounted.current) return;
-      
+
       const isJaAprovado = error?.message?.includes("PAGAMENTO_JA_APROVADO") || error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") || error?.message?.includes("approved");
-      
+
       if (isJaAprovado) {
         setStatus("sucesso");
         setCobrancaPix(prev => prev ? { ...prev, status: "pago" } : null);
@@ -227,10 +241,11 @@ export function usePixStateMachine({
   }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);
 
   /**
-   * Libera totalmente a reserva dos bilhetes e encerra a sessão de checkout Pix.
+   * Libera totalmente a reserva dos bilhetes e encerra a sessão de checkout Pix,
+   * protegendo cobranças que já foram pagas para jamais disparar cancelamento indevido.
    */
   const liberarReservaTotal = useCallback(async () => {
-    if (cobrancaPix && cobrancaPix.status !== "sucesso") {
+    if (cobrancaPix && cobrancaPix.status !== "pago" && status !== "sucesso") {
       const idParaCancelar = cobrancaPix.id;
       resetarFluxo(true);
       try {
@@ -242,7 +257,7 @@ export function usePixStateMachine({
       resetarFluxo(true);
     }
     invalidarDadosPainel?.();
-  }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);
+  }, [cobrancaPix, status, resetarFluxo, invalidarDadosPainel]);
 
   /**
    * Registra a solicitação de cancelamento da requisição assíncrona em voo caso o modal seja fechado.
@@ -257,12 +272,14 @@ export function usePixStateMachine({
    * Copia a chave Pix Copia e Cola para a área de transferência do sistema operacional.
    * Utiliza `navigator.clipboard` moderno com fallback para `document.execCommand('copy')`.
    *
-   * @returns {boolean} `true` se a cópia foi realizada com sucesso.
+   * @returns {boolean} `true` se a cópia foi iniciada/realizada com sucesso.
    */
   const copiarPix = useCallback((): boolean => {
     if (!cobrancaPix?.copiaECola) return false;
     const texto = cobrancaPix.copiaECola;
+    let copiouViaClipboardApi = false;
     if (navigator.clipboard?.writeText) {
+      copiouViaClipboardApi = true;
       navigator.clipboard.writeText(texto).catch(() => {});
     }
     const span = document.createElement("span");
@@ -289,7 +306,7 @@ export function usePixStateMachine({
       }
     }
     document.body.removeChild(span);
-    return copiou;
+    return copiou || copiouViaClipboardApi;
   }, [cobrancaPix]);
 
   return {
@@ -301,6 +318,7 @@ export function usePixStateMachine({
     cancelarCobranca,
     copiarPix,
     resetarFluxo,
+    marcarComoExpiradoLocal,
     liberarReservaTotal,
     abortarGeracaoPendente,
   };

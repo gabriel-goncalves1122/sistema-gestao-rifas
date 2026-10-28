@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CheckoutModal } from "@/features/aderidos/CheckoutModal";
 import { checkoutPixService } from "@/features/aderidos/services/checkoutPixService";
-import { checkoutStorage } from "@/features/aderidos/utils/checkoutStorage";
 import { painelAderidoStyles } from "@/features/aderidos/styles/painelAderidoStyles";
 
 // Mock do Firebase Firestore para o onSnapshot
@@ -159,6 +158,50 @@ describe("Componente <CheckoutModal />", () => {
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
+  it("Deve permitir fechar o modal durante aguardando_pagamento SEM cancelar o Pix no Mercado Pago", async () => {
+    vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
+      id: "pix_ativo_whatsapp",
+      status: "aguardando_pagamento",
+      qrCodeBase64: "base64-qr-code",
+      copiaECola: "000201PIXWHATSAPP",
+      expiraEm: "2030-01-01T12:00:00.000Z",
+    });
+
+    render(
+      <CheckoutModal
+        invalidarDadosPainel={vi.fn()}
+        open={true}
+        onClose={mockOnClose}
+        onSuccess={mockOnSuccess}
+        numerosRifas={["001"]}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId("checkout-nome"), {
+      target: { value: "Comprador Remoto" },
+    });
+    fireEvent.change(screen.getByTestId("checkout-telefone"), {
+      target: { value: "35999998888" },
+    });
+    fireEvent.change(screen.getByTestId("checkout-email"), {
+      target: { value: "comprador@email.com" },
+    });
+    fireEvent.change(screen.getByTestId("checkout-documento"), {
+      target: { value: "12345678909" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+
+    expect(await screen.findByText("000201PIXWHATSAPP")).toBeInTheDocument();
+
+    // Clica no X do header do modal para fechar e mandar no WhatsApp
+    const btnFecharModal = screen.getByRole("button", { name: /fechar modal de venda/i });
+    fireEvent.click(btnFecharModal);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    expect(checkoutPixService.cancelarCobrancaPix).not.toHaveBeenCalled();
+  });
+
   it("Deve mostrar indisponibilidade quando o endpoint futuro ainda nao responder", async () => {
     vi.mocked(checkoutPixService.criarCobrancaPix).mockRejectedValueOnce(
       new Error("Erro HTTP 404"),
@@ -205,8 +248,6 @@ describe("Componente <CheckoutModal />", () => {
       expiraEm: "2030-01-01T12:00:00.000Z",
     });
 
-    const mockStorageClear = vi.spyOn(checkoutStorage, "clear");
-
     render(
       <CheckoutModal
         invalidarDadosPainel={vi.fn()}
@@ -248,7 +289,7 @@ describe("Componente <CheckoutModal />", () => {
     fireEvent.click(btnFechar);
 
     expect(mockOnSuccess).toHaveBeenCalled();
-    
+
     vi.useRealTimers();
   });
 });

@@ -32,11 +32,99 @@ export interface MercadoPagoQrCodeNormalizado {
 }
 
 export const CHECKOUT_PIX_IDEMPOTENCIA_JANELA_MS = 5 * 60 * 1000;
+export const LOCK_CRIANDO_TIMEOUT_MS = 45 * 1000;
+
+/**
+ * Valida matematicamente os dígitos verificadores de um CPF (11 dígitos).
+ * Rejeita sequências de dígitos repetidos (ex: '11111111111') e aplica o módulo 11 oficial.
+ *
+ * @param {string | null} [cpf] - CPF com ou sem pontuação.
+ * @returns {boolean} `true` se o CPF for matematicamente válido.
+ */
+export function validarCpf(cpf?: string | null): boolean {
+  const numeros = somenteNumeros(cpf);
+  if (numeros.length !== 11 || /^(\d)\1{10}$/.test(numeros)) {
+    return false;
+  }
+
+  let soma = 0;
+  for (let i = 0; i < 9; i++) {
+    soma += Number(numeros[i]) * (10 - i);
+  }
+  let resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  if (resto !== Number(numeros[9])) return false;
+
+  soma = 0;
+  for (let i = 0; i < 10; i++) {
+    soma += Number(numeros[i]) * (11 - i);
+  }
+  resto = (soma * 10) % 11;
+  if (resto === 10) resto = 0;
+  return resto === Number(numeros[10]);
+}
+
+/**
+ * Valida matematicamente os dígitos verificadores de um CNPJ (14 dígitos).
+ * Rejeita sequências repetidas e aplica os pesos oficiais de módulo 11.
+ *
+ * @param {string | null} [cnpj] - CNPJ com ou sem pontuação.
+ * @returns {boolean} `true` se o CNPJ for matematicamente válido.
+ */
+export function validarCnpj(cnpj?: string | null): boolean {
+  const numeros = somenteNumeros(cnpj);
+  if (numeros.length !== 14 || /^(\d)\1{13}$/.test(numeros)) {
+    return false;
+  }
+
+  const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  let soma = 0;
+  for (let i = 0; i < 12; i++) {
+    soma += Number(numeros[i]) * pesos1[i];
+  }
+  let resto = soma % 11;
+  const digito1 = resto < 2 ? 0 : 11 - resto;
+  if (digito1 !== Number(numeros[12])) return false;
+
+  const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  soma = 0;
+  for (let i = 0; i < 13; i++) {
+    soma += Number(numeros[i]) * pesos2[i];
+  }
+  resto = soma % 11;
+  const digito2 = resto < 2 ? 0 : 11 - resto;
+  return digito2 === Number(numeros[13]);
+}
+
+/**
+ * Valida se o documento informado corresponde a um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.
+ *
+ * @param {string | null} [documento] - Documento com ou sem máscara.
+ * @returns {boolean} `true` se for um CPF ou CNPJ válido.
+ */
+export function validarDocumentoPix(documento?: string | null): boolean {
+  const numeros = somenteNumeros(documento);
+  if (numeros.length === 11) return validarCpf(numeros);
+  if (numeros.length === 14) return validarCnpj(numeros);
+  return false;
+}
+
+/**
+ * Valida se o e-mail possui formato compatível com o gateway de pagamentos (com TLD alfabético de ao menos 2 letras).
+ *
+ * @param {string | null} [email] - Endereço de e-mail a validar.
+ * @returns {boolean} `true` se o formato do e-mail for válido.
+ */
+export function validarEmailPix(email?: string | null): boolean {
+  const limpo = String(email || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(limpo);
+}
 
 /**
  * Avalia se um bilhete de rifa está elegível para reserva no fluxo de Checkout Pix.
- * Considera elegível se o status for 'disponivel', se a reserva anterior estiver expirada
- * ou se pertencer à mesma sessão de checkout ativa do comprador, desde que pertença ao vendedor esperado.
+ * Considera elegível se o status for 'disponivel', se a reserva anterior estiver expirada,
+ * se pertencer à mesma sessão de checkout ativa do comprador ou se for uma reserva órfã em 'CRIANDO',
+ * desde que pertença ao vendedor esperado.
  *
  * @param {Partial<Bilhete>} dados - Dados parciais ou completos do bilhete no Firestore.
  * @param {string} [sessaoCheckoutId] - ID da sessão de checkout atual no cliente para permitir re-reserva.
@@ -66,6 +154,19 @@ export function isRifaDisponivelParaPix(
     dados.sessao_checkout_id === sessaoCheckoutId
   ) {
     disponivel = true;
+  }
+
+  if (
+    !disponivel &&
+    dados.status === "reservado" &&
+    dados.status_pagamento_banco === "CRIANDO" &&
+    !dados.pix_order_id &&
+    dados.data_reserva
+  ) {
+    const reservadoEmMs = new Date(dados.data_reserva).getTime();
+    if (Number.isFinite(reservadoEmMs) && Date.now() - reservadoEmMs > LOCK_CRIANDO_TIMEOUT_MS) {
+      disponivel = true;
+    }
   }
 
   return disponivel;
@@ -103,7 +204,7 @@ export function normalizarDadosCheckoutPix(
 ): CheckoutPixDadosNormalizados {
   const nome = String(payload?.nome || "").trim();
   const telefone = somenteNumeros(payload?.telefone);
-  const email = String(payload?.email || "").trim();
+  const email = String(payload?.email || "").trim().toLowerCase();
   const documento = somenteNumeros(payload?.documento);
   const numerosRifas = normalizarNumerosRifas(payload?.numerosRifas);
 
@@ -150,7 +251,7 @@ export function calcularValorPixCentavos(numerosRifas: string[]): number {
 export function dataExpiracaoPix(dataBase = new Date()): string {
   const expiraEm = new Date(dataBase);
   expiraEm.setMinutes(expiraEm.getMinutes() + 30);
-  
+
   // Format to UTC with 'Z' as recommended by Mercado Pago to avoid offset parsing bugs
   return expiraEm.toISOString();
 }
@@ -167,17 +268,22 @@ export function montarReferenceIdPix(compradorId: string): string {
 
 /**
  * Gera uma chave de idempotência determinística em SHA-256 baseada no vendedor,
- * bilhetes ordenados e uma janela temporal de 5 minutos, evitando cobranças duplicadas em cliques repetidos.
+ * bilhetes ordenados, dados do comprador (opcional) e uma janela temporal de 5 minutos,
+ * evitando cobranças duplicadas em cliques repetidos sem bloquear correções cadastrais.
  *
  * @param {Object} params - Parâmetros da cobrança.
  * @param {string} params.vendedorId - UID do vendedor logado.
  * @param {string[]} params.numerosRifas - Lista de números de rifa envolvidos.
+ * @param {string} [params.documento] - CPF ou CNPJ do comprador para diferenciar retentativas após correção.
+ * @param {string} [params.email] - E-mail do comprador para diferenciar retentativas após correção.
  * @param {Date} [params.dataBase] - Timestamp base para cálculo da janela.
  * @returns {string} Hash SHA-256 hexadecimal de idempotência.
  */
 export function montarIdempotencyKeyPix(params: {
   vendedorId: string;
   numerosRifas: string[];
+  documento?: string;
+  email?: string;
   dataBase?: Date;
 }): string {
   const janela = Math.floor(
@@ -185,10 +291,14 @@ export function montarIdempotencyKeyPix(params: {
       CHECKOUT_PIX_IDEMPOTENCIA_JANELA_MS,
   );
   const rifasOrdenadas = [...params.numerosRifas].sort().join(",");
+  const sufixoComprador =
+    params.documento || params.email
+      ? `|${somenteNumeros(params.documento)}|${String(params.email || "").trim().toLowerCase()}`
+      : "";
 
   return crypto
     .createHash("sha256")
-    .update(`${params.vendedorId}|${rifasOrdenadas}|${janela}`)
+    .update(`${params.vendedorId}|${rifasOrdenadas}|${janela}${sufixoComprador}`)
     .digest("hex");
 }
 
@@ -327,19 +437,19 @@ export async function liberarBilhetesNaTransacao(
 
   bilhetesSnaps.forEach((snap: any) => {
     if (!snap.exists) return;
-    
+
     const bilhete = snap.data();
-    
+
     // GUARDA DE POSSE: Se tivermos uma referência para validar, só libera o bilhete
     // se ele ainda pertencer àquela transação/carrinho original.
     if (referenciaParaValidar && bilhete.pix_reference_id && bilhete.pix_reference_id !== referenciaParaValidar) {
       return; // Este bilhete pertence a outro checkout! Não mexa!
     }
-    
-    // GUARDA ADICIONAL: Nunca sobrescreva um bilhete que já foi "pago" no banco 
+
+    // GUARDA ADICIONAL: Nunca sobrescreva um bilhete que já foi "pago" no banco
     // ou validado pela tesouraria, a menos que o novo status do banco seja aprovado.
     if (bilhete.status === "pago" && statusBanco !== "approved" && statusBanco !== "authorized" && statusBanco !== "paid") {
-      return; 
+      return;
     }
 
     const atualizacao: any = {
@@ -479,4 +589,3 @@ export function montarBilheteReservadoPix(params: {
     sessao_checkout_id: params.dados.sessaoCheckoutId || null,
   };
 }
-

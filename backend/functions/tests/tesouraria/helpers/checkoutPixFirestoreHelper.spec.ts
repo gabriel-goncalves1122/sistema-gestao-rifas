@@ -5,7 +5,7 @@ import {
   verificarDisponibilidadeRifasPix,
   obterPagamentoAtivoPorLockPix,
   compensarErroCriacaoPix,
-  STATUS_PAGAMENTO_PIX_ATIVO,
+  isPagamentoPixAtivoValido,
 } from "../../../src/modules/tesouraria/helpers/checkoutPixFirestoreHelper";
 
 const mockGet = jest.fn<any>();
@@ -59,7 +59,7 @@ describe("Helper: CheckoutPixFirestoreHelper", () => {
     });
   });
 
-  describe("obterPagamentoAtivoPorLockPix", () => {
+  describe("obterPagamentoAtivoPorLockPix e isPagamentoPixAtivoValido", () => {
     const mockLockRef = { get: mockGet } as any;
 
     it("Deve retornar null se o lock não existir", async () => {
@@ -137,6 +137,33 @@ describe("Helper: CheckoutPixFirestoreHelper", () => {
       });
 
       expect(result).toEqual(pagamentoMock);
+    });
+
+    it("Deve ignorar lock órfão preso em CRIANDO sem pix_order_id há mais de 45s", async () => {
+      const pagamentoOrfao = {
+        status_pagamento_banco: "CRIANDO",
+        pix_order_id: null,
+        data_criacao: new Date(Date.now() - 60 * 1000).toISOString(),
+      } as any;
+
+      expect(isPagamentoPixAtivoValido(pagamentoOrfao)).toBe(false);
+
+      mockGet
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({ payment_id: "PAY_ORFAO" }),
+        })
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => pagamentoOrfao,
+        });
+
+      const result = await obterPagamentoAtivoPorLockPix({
+        db: mockDb,
+        lockRef: mockLockRef,
+      });
+
+      expect(result).toBeNull();
     });
   });
 

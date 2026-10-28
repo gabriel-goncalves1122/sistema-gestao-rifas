@@ -28,6 +28,18 @@ export async function criarCheckoutPix(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: "O CPF ou CNPJ informado é inválido." });
     }
 
+    if (error.message === "MERCADOPAGO_EMAIL_INVALIDO") {
+      return res.status(400).json({
+        error: "O e-mail do comprador foi recusado pelo banco. Verifique se foi digitado corretamente.",
+      });
+    }
+
+    if (error.message === "MERCADOPAGO_DADOS_PAGADOR_INVALIDOS") {
+      return res.status(400).json({
+        error: "Os dados do comprador foram recusados pelo banco (verifique CPF, e-mail e nome).",
+      });
+    }
+
     if (error.message === "USER_NOT_FOUND") {
       return res
         .status(404)

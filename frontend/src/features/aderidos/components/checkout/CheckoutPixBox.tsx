@@ -26,6 +26,7 @@ interface CheckoutPixBoxProps {
   cancelando?: boolean;
   onCopiarPix: () => void;
   onCancelarPix?: () => void;
+  onExpirarPix?: () => void;
   onResetPix?: () => void;
   onSuccess?: () => void;
 }
@@ -47,6 +48,7 @@ export function CheckoutPixBox({
   cancelando = false,
   onCopiarPix,
   onCancelarPix,
+  onExpirarPix,
   onResetPix,
   onSuccess,
 }: CheckoutPixBoxProps) {
@@ -64,7 +66,7 @@ export function CheckoutPixBox({
       <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.25 }}>
         <PixIcon sx={{ color: colors.verdeEscuro }} />
 
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             sx={{
               fontWeight: 900,
@@ -78,12 +80,13 @@ export function CheckoutPixBox({
         </Box>
 
         {!gerando && cobranca && pollingStatus !== "sucesso" && onCancelarPix && (
-          <IconButton 
-            onClick={onCancelarPix} 
+          <IconButton
+            onClick={onCancelarPix}
             disabled={cancelando}
             size="small"
             sx={{ color: colors.erroForte }}
             aria-label="Cancelar pagamento"
+            title="Cancelar cobrança Pix e liberar rifas"
           >
             {cancelando ? <CircularProgress size={18} color="inherit" /> : <CloseIcon />}
           </IconButton>
@@ -135,7 +138,8 @@ export function CheckoutPixBox({
                 cobranca={cobranca}
                 cancelando={cancelando}
                 onCopiarPix={onCopiarPix}
-                onCancelarPix={onCancelarPix || (() => {})}
+                onCancelarPix={onCancelarPix}
+                onExpirarPix={onExpirarPix}
               />
             </>
           )}
@@ -147,7 +151,7 @@ export function CheckoutPixBox({
               ) : (
                 <CheckoutPixCanceledNotice />
               )}
-              
+
               {onResetPix && (
                 <Button
                   onClick={onResetPix}

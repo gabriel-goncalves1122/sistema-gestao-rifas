@@ -1,6 +1,5 @@
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QrCode2Icon from "@mui/icons-material/QrCode2";
 import {
   Alert,
@@ -112,9 +111,7 @@ export function CheckoutPixConfirmed() {
 export function CheckoutPixPollingNotice() {
   return (
     <Stack
-      direction="row"
-      spacing={1}
-      alignItems="center"
+      spacing={0.5}
       sx={{
         p: 1.25,
         borderRadius: 2,
@@ -122,15 +119,26 @@ export function CheckoutPixPollingNotice() {
         border: "1px solid rgba(203, 166, 77, 0.4)",
       }}
     >
-      <CircularProgress size={16} sx={{ color: colors.dourado }} />
+      <Stack direction="row" spacing={1} alignItems="center">
+        <CircularProgress size={16} sx={{ color: colors.dourado }} />
+        <Typography
+          sx={{
+            fontWeight: 800,
+            color: colors.alertaTexto,
+            fontSize: "0.84rem",
+          }}
+        >
+          Aguardando confirmação do pagamento...
+        </Typography>
+      </Stack>
       <Typography
         sx={{
-          fontWeight: 800,
-          color: colors.alertaTexto,
-          fontSize: "0.84rem",
+          color: colors.cinzaTexto,
+          fontSize: "0.76rem",
+          lineHeight: 1.35,
         }}
       >
-        Aguardando confirmação do pagamento...
+        Você pode fechar esta janela para enviar o código ao comprador no WhatsApp; o Pix continuará válido até expirar.
       </Typography>
     </Stack>
   );
@@ -237,13 +245,13 @@ interface CheckoutPixActionsProps {
   cancelando?: boolean;
   onCopiarPix: () => void;
   onCancelarPix?: () => void;
+  onExpirarPix?: () => void;
 }
 
 export function CheckoutPixActions({
   cobranca,
-  cancelando,
   onCopiarPix,
-  onCancelarPix,
+  onExpirarPix,
 }: CheckoutPixActionsProps) {
   return (
     <Stack
@@ -252,7 +260,7 @@ export function CheckoutPixActions({
       alignItems={{ xs: "stretch", sm: "center" }}
       justifyContent="space-between"
     >
-      <CheckoutPixCountdown expiraEm={cobranca.expiraEm} onExpire={onCancelarPix} />
+      <CheckoutPixCountdown expiraEm={cobranca.expiraEm} onExpire={onExpirarPix} />
 
       <Button
         type="button"

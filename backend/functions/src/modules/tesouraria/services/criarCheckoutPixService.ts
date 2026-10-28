@@ -17,6 +17,7 @@ import {
 } from "../helpers/checkoutPixHelper";
 import {
   compensarErroCriacaoPix,
+  isPagamentoPixAtivoValido,
   montarRespostaPagamentoPix,
   obterPagamentoAtivoPorLockPix,
   STATUS_PAGAMENTO_PIX_ATIVO,
@@ -45,6 +46,8 @@ export class CriarCheckoutPixService {
     const idempotencyKey = montarIdempotencyKeyPix({
       vendedorId: contextoAderido.idAderido,
       numerosRifas: dados.numerosRifas,
+      documento: dados.documento,
+      email: dados.email,
     });
     const lockRef = db.collection("pagamentos_pix_idempotencia").doc(idempotencyKey);
     const expiraEm = dataExpiracaoPix();
@@ -80,7 +83,13 @@ export class CriarCheckoutPixService {
           const existenteSnap = await transaction.get(existenteRef);
           if (existenteSnap.exists) {
             const pagamentoExistente = existenteSnap.data() as PagamentoPix;
-            if (STATUS_PAGAMENTO_PIX_ATIVO.includes(String(pagamentoExistente.status_pagamento_banco))) {
+            const ativoValido =
+              typeof isPagamentoPixAtivoValido === "function"
+                ? isPagamentoPixAtivoValido(pagamentoExistente)
+                : STATUS_PAGAMENTO_PIX_ATIVO.includes(
+                    String(pagamentoExistente.status_pagamento_banco),
+                  );
+            if (ativoValido) {
               return pagamentoExistente;
             }
           }

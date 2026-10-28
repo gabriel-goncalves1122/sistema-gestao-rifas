@@ -61,7 +61,6 @@ function makeCollection(collectionName: CollectionName) {
               });
             }
           }
-          console.log(`[MOCK WHERE] collection=${collectionName}, field=${field}, value=${value}, storeSize=${store.size}, results=${results.length}`);
           return {
             empty: results.length === 0,
             docs: results,
@@ -196,7 +195,7 @@ describe("Service: CheckoutPixWebhookService", () => {
     expect(bilhetes.get("002").status_pagamento_banco).toBe("approved");
   });
 
-  it("Deve liberar rifas e criar notificação quando o banco cancelar", async () => {
+  it("Deve liberar rifas e criar notificação traduzida em português quando o banco cancelar (by_collector)", async () => {
     pagamentos.set("ORDE_002", {
       id: "ORDE_002",
       vendedor_id: "ADERIDO_TESTE",
@@ -208,7 +207,8 @@ describe("Service: CheckoutPixWebhookService", () => {
 
     mockConsultarPedido.mockResolvedValue({
       id: "ORDE_002",
-      status: "rejected",
+      status: "cancelled",
+      status_detail: "by_collector",
     });
 
     const resultado = await CheckoutPixWebhookService.processarWebhook({
@@ -219,13 +219,16 @@ describe("Service: CheckoutPixWebhookService", () => {
     expect(resultado).toEqual({
       sucesso: true,
       idempotente: false,
-      status: "rejected",
+      status: "cancelled",
     });
 
-    expect(pagamentos.get("ORDE_002").status_pagamento_banco).toBe("rejected");
+    expect(pagamentos.get("ORDE_002").status_pagamento_banco).toBe("cancelled");
     expect(bilhetes.get("010").status).toBe("disponivel");
     expect(bilhetes.get("010").comprador_id).toBe("__DELETE__");
     expect(notificacoes.size).toBe(1);
+    expect(notificacoes.get("notificacoes_AUTO").mensagem).toBe(
+      "Cobrança Pix cancelada antes da conclusão do pagamento.",
+    );
   });
 
   it("Deve tratar payload repetido como idempotente", async () => {

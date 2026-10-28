@@ -19,6 +19,19 @@ describe("Schema: checkoutSchema", () => {
     );
   });
 
+  it("Deve validar CNPJ matematicamente válido", async () => {
+    const dadosCnpjValido = {
+      nome: "Empresa Parceira",
+      telefone: "(35) 99999-8888",
+      email: "contato@empresa.com.br",
+      documento: "11.222.333/0001-81",
+    };
+
+    await expect(checkoutSchema.validate(dadosCnpjValido)).resolves.toEqual(
+      dadosCnpjValido,
+    );
+  });
+
   it("Deve exigir e-mail obrigatorio", async () => {
     const dadosSemEmail = {
       nome: "Ana Beatriz",
@@ -54,6 +67,30 @@ describe("Schema: checkoutSchema", () => {
 
     await expect(checkoutSchema.validate(dadosInvalidos)).rejects.toThrow(
       "Documento incompleto. Use 11 dígitos (CPF) ou 14 dígitos (CNPJ).",
+    );
+  });
+
+  it("Deve rejeitar CPF com dígito verificador inválido ou números repetidos", async () => {
+    const cpfDigitoErrado = {
+      nome: "Ana Beatriz",
+      telefone: "(35) 99999-8888",
+      email: "ana@email.com",
+      documento: "123.456.789-11",
+    };
+
+    await expect(checkoutSchema.validate(cpfDigitoErrado)).rejects.toThrow(
+      "CPF ou CNPJ inválido. Verifique os dígitos informados.",
+    );
+
+    const cpfRepetido = {
+      nome: "Ana Beatriz",
+      telefone: "(35) 99999-8888",
+      email: "ana@email.com",
+      documento: "111.111.111-11",
+    };
+
+    await expect(checkoutSchema.validate(cpfRepetido)).rejects.toThrow(
+      "CPF ou CNPJ inválido. Verifique os dígitos informados.",
     );
   });
 
@@ -109,7 +146,7 @@ describe("Schema: checkoutSchema", () => {
     );
   });
 
-  it("Deve rejeitar e-mail inválido", async () => {
+  it("Deve rejeitar e-mail inválido ou com TLD incompleto", async () => {
     const dadosInvalidos = {
       nome: "Ana Beatriz",
       telefone: "(35) 99999-8888",
@@ -118,6 +155,17 @@ describe("Schema: checkoutSchema", () => {
     };
 
     await expect(checkoutSchema.validate(dadosInvalidos)).rejects.toThrow(
+      "Formato de e-mail inválido.",
+    );
+
+    const emailTldCurto = {
+      nome: "Ana Beatriz",
+      telefone: "(35) 99999-8888",
+      email: "ana@gmail.c",
+      documento: "12345678909",
+    };
+
+    await expect(checkoutSchema.validate(emailTldCurto)).rejects.toThrow(
       "Formato de e-mail inválido.",
     );
   });

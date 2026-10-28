@@ -2,9 +2,41 @@ import * as admin from "firebase-admin";
 
 import { Bilhete, PagamentoPix } from "../../types/models";
 import { CheckoutPixResposta } from "../types/checkoutPixTypes";
-import { mapearStatusCheckoutPix, isRifaDisponivelParaPix } from "./checkoutPixHelper";
+import {
+  mapearStatusCheckoutPix,
+  isRifaDisponivelParaPix,
+  LOCK_CRIANDO_TIMEOUT_MS,
+} from "./checkoutPixHelper";
 
 export const STATUS_PAGAMENTO_PIX_ATIVO = ["CRIANDO", "WAITING", "IN_ANALYSIS"];
+
+/**
+ * Avalia se um documento de pagamento Pix vinculado a um lock de idempotência está ativo e válido.
+ * Descarta pagamentos que ficaram presos em status 'CRIANDO' sem `pix_order_id` além do tempo limite
+ * (ex: falha ou timeout antes da resposta do gateway), permitindo que o aderido tente novamente.
+ *
+ * @param {PagamentoPix} pagamento - Documento do pagamento armazenado no Firestore.
+ * @param {number} [agoraMs=Date.now()] - Timestamp atual em milissegundos para verificação de expiração do lock.
+ * @returns {boolean} `true` se o pagamento estiver ativo e não for um registro órfão travado.
+ */
+export function isPagamentoPixAtivoValido(
+  pagamento: PagamentoPix,
+  agoraMs = Date.now(),
+): boolean {
+  const status = String(pagamento.status_pagamento_banco || "");
+  if (!STATUS_PAGAMENTO_PIX_ATIVO.includes(status)) {
+    return false;
+  }
+
+  if (status === "CRIANDO" && !pagamento.pix_order_id && pagamento.data_criacao) {
+    const criadoEmMs = new Date(pagamento.data_criacao).getTime();
+    if (Number.isFinite(criadoEmMs) && agoraMs - criadoEmMs > LOCK_CRIANDO_TIMEOUT_MS) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 /**
  * Extrai com segurança a mensagem de texto de um erro desconhecido capturado em bloco catch.
@@ -103,11 +135,7 @@ export async function obterPagamentoAtivoPorLockPix(params: {
 
   const pagamento = pagamentoSnap.data() as PagamentoPix;
 
-  return STATUS_PAGAMENTO_PIX_ATIVO.includes(
-    String(pagamento.status_pagamento_banco),
-  )
-    ? pagamento
-    : null;
+  return isPagamentoPixAtivoValido(pagamento) ? pagamento : null;
 }
 
 /**

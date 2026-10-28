@@ -81,6 +81,72 @@ describe("MercadoPagoPixClient", () => {
         expect.any(Object)
       );
     });
+
+    it("deve mapear erros 400 de CPF, e-mail e pagador do Mercado Pago para códigos específicos", async () => {
+      const consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      mockedAxios.post.mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: { message: "Invalid user identification number" },
+        },
+      });
+      await expect(
+        MercadoPagoPixClient.criarPedidoPix({
+          referenceId: "ref-doc",
+          nome: "Joao",
+          telefone: "35999999999",
+          email: "joao@teste.com",
+          documento: "12345678911",
+          numerosRifas: ["001"],
+          valorCentavos: 1000,
+          expirationDate: "2026-12-31T23:59:59.000Z",
+        }),
+      ).rejects.toThrow("MERCADOPAGO_DOCUMENTO_INVALIDO");
+
+      mockedAxios.post.mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: {
+            message: "Invalid payer.email",
+            cause: [{ code: 4002, description: "payer.email must be a valid email" }],
+          },
+        },
+      });
+      await expect(
+        MercadoPagoPixClient.criarPedidoPix({
+          referenceId: "ref-email",
+          nome: "Joao",
+          telefone: "35999999999",
+          email: "joao@invalido",
+          documento: "12345678909",
+          numerosRifas: ["001"],
+          valorCentavos: 1000,
+          expirationDate: "2026-12-31T23:59:59.000Z",
+        }),
+      ).rejects.toThrow("MERCADOPAGO_EMAIL_INVALIDO");
+
+      mockedAxios.post.mockRejectedValueOnce({
+        response: {
+          status: 400,
+          data: { message: "The collector cannot be the same as the payer" },
+        },
+      });
+      await expect(
+        MercadoPagoPixClient.criarPedidoPix({
+          referenceId: "ref-payer",
+          nome: "Joao",
+          telefone: "35999999999",
+          email: "joao@teste.com",
+          documento: "12345678909",
+          numerosRifas: ["001"],
+          valorCentavos: 1000,
+          expirationDate: "2026-12-31T23:59:59.000Z",
+        }),
+      ).rejects.toThrow("MERCADOPAGO_DADOS_PAGADOR_INVALIDOS");
+
+      consoleWarnSpy.mockRestore();
+    });
   });
 
   describe("obterTokenApi", () => {
@@ -92,7 +158,8 @@ describe("MercadoPagoPixClient", () => {
           referenceId: "ref-1",
           nome: "Joao",
           telefone: "35999999999",
-        email: "empresa@teste.com",
+          email: "empresa@teste.com",
+          documento: "12345678909",
           numerosRifas: ["001"],
           valorCentavos: 1000,
           expirationDate: "2026-12-31",

@@ -55,6 +55,7 @@ function CheckoutModalContent({
     copiarPix,
     cancelarCobranca: cancelarPix,
     resetarFluxo: resetarFluxoPix,
+    marcarComoExpiradoLocal,
     liberarReservaTotal,
     abortarGeracaoPendente,
   } = usePixStateMachine({ numerosRifas, sessaoCheckoutId, invalidarDadosPainel });
@@ -118,12 +119,22 @@ function CheckoutModalContent({
     }
 
     if (pollingStatus === "aguardando_pagamento") {
-      const confirmar = window.confirm("Você tem um pagamento em andamento. Deseja cancelar o Pix e liberar as rifas?");
-      if (!confirmar) return;
+      // Fecha a janela mantendo o Pix ativo no Mercado Pago e no checkoutStorage
+      // para que o comprador possa pagar o código enviado pelo WhatsApp sem cancelamento acidental.
+      onClose();
+      return;
     }
 
     liberarReservaTotal().catch(console.error);
     onClose();
+  };
+
+  const handleCancelarPixExplicito = () => {
+    const confirmar = window.confirm(
+      "Se você já enviou o código Pix para o comprador, cancelar agora impedirá que ele pague. Deseja realmente cancelar o Pix e liberar as rifas?",
+    );
+    if (!confirmar) return;
+    cancelarPix(false);
   };
 
   const numerosRifasEfetivos = cobrancaPix?.numerosRifas?.length
@@ -143,15 +154,15 @@ function CheckoutModalContent({
 
   return (
     <>
-      <CheckoutModalHeader 
-        gerandoPix={pollingStatus === "gerando"} 
-        onClose={fecharModal} 
+      <CheckoutModalHeader
+        gerandoPix={pollingStatus === "gerando"}
+        onClose={fecharModal}
       />
 
       <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
         <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
           <Stack spacing={2.25}>
-            
+
             <CheckoutResumoVenda numerosRifas={numerosRifasEfetivos} />
 
             <CheckoutDadosCompradorForm
@@ -168,7 +179,8 @@ function CheckoutModalContent({
               erro={erroPix}
               pollingStatus={pollingStatus === "gerando" ? "idle" : pollingStatus}
               onCopiarPix={handleCopiarPix}
-              onCancelarPix={() => cancelarPix(false)}
+              onCancelarPix={handleCancelarPixExplicito}
+              onExpirarPix={marcarComoExpiradoLocal}
               onResetPix={resetarFluxoPix}
               onSuccess={onSuccess}
             />

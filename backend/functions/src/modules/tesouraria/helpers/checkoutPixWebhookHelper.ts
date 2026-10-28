@@ -9,8 +9,35 @@ import {
   liberarBilhetesNaTransacao,
 } from "./checkoutPixHelper";
 
-function obterMotivoFalhaBanco(payload: any) {
-  return payload?.status_detail || "Pagamento não confirmado pelo banco.";
+/**
+ * Traduz o código técnico `status_detail` retornado pelo Mercado Pago em uma
+ * mensagem amigável em português para exibição nas notificações e histórico do aderido.
+ *
+ * @param {any} payload - Payload do pagamento retornado pela API do Mercado Pago.
+ * @returns {string} Mensagem legível descrevendo o motivo do cancelamento ou rejeição.
+ */
+export function obterMotivoFalhaBanco(payload: any): string {
+  const detalhe = String(payload?.status_detail || "").trim().toLowerCase();
+
+  if (!detalhe) {
+    return "Pagamento não confirmado pelo banco.";
+  }
+
+  const mapaMotivos: Record<string, string> = {
+    by_collector: "Cobrança Pix cancelada antes da conclusão do pagamento.",
+    by_payer: "Pagamento cancelado pelo comprador no aplicativo do banco.",
+    expired: "O tempo limite para pagamento do código Pix expirou.",
+    accredited: "Pagamento confirmado pelo banco.",
+    pending_waiting_transfer: "Aguardando transferência bancária do Pix.",
+    cc_rejected_other_reason: "Pagamento recusado pelo banco do comprador.",
+    rejected_high_risk: "Pagamento recusado por segurança pelo banco.",
+    insufficient_amount: "Saldo insuficiente na conta do pagador.",
+  };
+
+  return (
+    mapaMotivos[detalhe] ||
+    "O pagamento não foi confirmado pelo banco e as rifas voltaram para venda."
+  );
 }
 
 export async function aprovarOuRejeitarPixNoFirestore(
@@ -73,14 +100,14 @@ export async function aprovarOuRejeitarPixNoFirestore(
       if (["approved", "authorized", "paid"].includes(statusBanco)) {
         const refs = pagamento.numeros_rifas.map(n => db.collection("bilhetes").doc(n));
         let bilhetesAtualizados = 0;
-        
+
         if (refs.length > 0) {
           const bilhetesSnaps = await transaction.getAll(...refs);
-          
+
           bilhetesSnaps.forEach((snap) => {
             if (!snap.exists) return;
             const bilhete = snap.data();
-            
+
             if (pagamento.reference_id && bilhete?.pix_reference_id !== pagamento.reference_id) {
               return; // Bilhete já foi liberado ou pertence a outra transação
             }

@@ -36,8 +36,6 @@ export interface MercadoPagoPaymentResponse {
   };
 }
 
-
-
 /**
  * Obtém o token de autenticação de produção/homologação do Mercado Pago configurado nas variáveis de ambiente.
  *
@@ -71,23 +69,27 @@ export class MercadoPagoPixClient {
    *
    * @param {CriarPedidoPixParams} params - Dados da cobrança Pix a ser gerada.
    * @returns {Promise<MercadoPagoPaymentResponse>} Resposta do gateway com ID do pedido e dados do QR Code.
-   * @throws {Error} Dispara "MERCADOPAGO_DOCUMENTO_INVALIDO" caso o CPF/CNPJ seja rejeitado pelo gateway.
+   * @throws {Error} Dispara "MERCADOPAGO_DOCUMENTO_INVALIDO", "MERCADOPAGO_EMAIL_INVALIDO" ou "MERCADOPAGO_DADOS_PAGADOR_INVALIDOS" caso os dados do pagador sejam rejeitados pelo gateway.
    * @sideEffects Chama a API externa do Mercado Pago (`https://api.mercadopago.com/v1/payments`).
    */
   static async criarPedidoPix(params: CriarPedidoPixParams): Promise<MercadoPagoPaymentResponse> {
     // Mercado Pago aceita valores em ponto flutuante (reais) em vez de centavos
     const transactionAmount = params.valorCentavos / 100;
 
-    const partesNome = (params.nome || "").trim().split(" ");
-    const firstName = partesNome[0] || "";
+    const partesNome = (params.nome || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .split(" ");
+    const firstName = partesNome[0] || "Comprador";
     const lastName = partesNome.length > 1 ? partesNome.slice(1).join(" ") : undefined;
+    const emailNormalizado = String(params.email || "").trim().toLowerCase();
 
     const payload: Record<string, any> = {
       transaction_amount: transactionAmount,
       description: `Rifas ${params.numerosRifas.join(", ")}`,
       payment_method_id: "pix",
       payer: {
-        email: params.email,
+        email: emailNormalizado,
         first_name: firstName,
         ...(lastName ? { last_name: lastName } : {}),
       },
@@ -123,11 +125,31 @@ export class MercadoPagoPixClient {
 
       return resposta.data;
     } catch (error: any) {
-      if (
-        error.response?.status === 400 &&
-        error.response?.data?.message === "Invalid user identification number"
-      ) {
-        throw new Error("MERCADOPAGO_DOCUMENTO_INVALIDO");
+      const status = error.response?.status;
+      if (status === 400 || status === 422) {
+        const data = error.response?.data;
+        const message = String(data?.message || "").toLowerCase();
+        const causes = Array.isArray(data?.cause)
+          ? data.cause
+              .map((c: any) => `${c?.code || ""} ${c?.description || ""}`)
+              .join(" ")
+              .toLowerCase()
+          : "";
+        const textoErro = `${message} ${causes}`.trim();
+
+        if (/identification|cpf|cnpj|document/i.test(textoErro)) {
+          throw new Error("MERCADOPAGO_DOCUMENTO_INVALIDO");
+        }
+
+        if (/email|e-mail|payer\.email/i.test(textoErro)) {
+          throw new Error("MERCADOPAGO_EMAIL_INVALIDO");
+        }
+
+        console.warn(
+          "[MercadoPagoPixClient] Dados do pagador rejeitados pelo Mercado Pago:",
+          data,
+        );
+        throw new Error("MERCADOPAGO_DADOS_PAGADOR_INVALIDOS");
       }
       throw error;
     }
