@@ -16,7 +16,10 @@
     "test:rules": "firebase emulators:exec --config ../../firebase.json --project rifasaderidos2026 --only firestore \"jest tests/security --runInBand\"",
     "test": "node scripts/run-tests.mjs",
     "backfill:claims": "npx tsx src/scripts/backfillCustomClaims.ts",
-    "copiar:producao": "npx tsx src/scripts/copiarProducao.ts"
+    "copiar:producao": "npx tsx src/scripts/copiarProducao.ts",
+    "regularizar:fabiana:local": "npx tsx src/scripts/regularizarRifasFabiana.ts --local",
+    "regularizar:fabiana:producao": "npx tsx src/scripts/regularizarRifasFabiana.ts --producao",
+    "sincronizar:faixas": "npx tsx src/scripts/sincronizarFaixasRifasAderidos.ts"
   },
   "engines": {
     "node": "20"

@@ -19,12 +19,18 @@
     "setup:linux": "bash scripts/dev/configurar-inotify-linux.sh",
     "ngrok": "npx ngrok http 5001",
     "copiar:producao": "npm --prefix backend/functions run copiar:producao",
+    "regularizar:fabiana:local": "npm --prefix backend/functions run regularizar:fabiana:local",
+    "regularizar:fabiana:producao": "npm --prefix backend/functions run regularizar:fabiana:producao",
     "install:frontend": "npm --prefix frontend install",
     "install:backend": "npm --prefix backend/functions install",
     "install:all": "npm run install:frontend && npm run install:backend",
     "postinstall": "npm run install:all",
     "ci:frontend": "npm --prefix frontend ci",
     "ci:backend": "npm --prefix backend/functions ci",
-    "ci:all": "npm run ci:frontend && npm run ci:backend"
+    "ci:all": "npm run ci:frontend && npm run ci:backend",
+    "deploy": "npx --prefix backend/functions firebase deploy --config firebase.json --project rifasaderidos2026",
+    "deploy:functions": "npx --prefix backend/functions firebase deploy --config firebase.json --project rifasaderidos2026 --only functions",
+    "deploy:hosting": "npx --prefix backend/functions firebase deploy --config firebase.json --project rifasaderidos2026 --only hosting",
+    "deploy:rules": "npx --prefix backend/functions firebase deploy --config firebase.json --project rifasaderidos2026 --only firestore:rules,storage"
   }
 }
