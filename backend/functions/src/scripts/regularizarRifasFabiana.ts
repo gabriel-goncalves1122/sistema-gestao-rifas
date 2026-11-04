@@ -1,12 +1,13 @@
 /**
  * Script de regularização manual de rifas para a aderida Fabiana Palmiro Menegatti (ADERIDO_108).
- * Transforma 16 bilhetes que falharam no checkout automatizado em vendas manuais legadas aprovadas por comprovante.
+ * Regulariza 16 bilhetes pagos manualmente via Pix CNPJ da comissão em vendas aprovadas.
  *
  * Suporta dois modos:
  *   --local     (padrão): Aplica no emulador local do Firestore (127.0.0.1:8080)
  *   --producao          : Aplica diretamente no Firestore de PRODUÇÃO via chave-privada.json
  *
  * @transactional Cada grupo de compra é processado atomicamente em uma transação isolada.
+ * @sideEffects Atualização dos 16 bilhetes, 4 compradores e sincronização das métricas em usuarios/ADERIDO_108.
  */
 
 import * as admin from "firebase-admin";
@@ -35,6 +36,7 @@ interface GrupoRegularizacao {
     email: string | null;
   };
   rifas: string[];
+  dataPagamento: string;
 }
 
 const GRUPOS_REGULARIZACAO: GrupoRegularizacao[] = [
@@ -46,6 +48,7 @@ const GRUPOS_REGULARIZACAO: GrupoRegularizacao[] = [
       email: "fabiana.menegatti@gmail.com",
     },
     rifas: ["12931"],
+    dataPagamento: "2026-10-14T23:05:00.000Z",
   },
   {
     comprador: {
@@ -55,6 +58,7 @@ const GRUPOS_REGULARIZACAO: GrupoRegularizacao[] = [
       email: null,
     },
     rifas: ["12899", "12900", "12901"],
+    dataPagamento: "2026-10-15T01:40:00.000Z",
   },
   {
     comprador: {
@@ -75,6 +79,7 @@ const GRUPOS_REGULARIZACAO: GrupoRegularizacao[] = [
       "12910",
       "12911",
     ],
+    dataPagamento: "2026-10-15T12:12:00.000Z",
   },
   {
     comprador: {
@@ -84,6 +89,7 @@ const GRUPOS_REGULARIZACAO: GrupoRegularizacao[] = [
       email: "pedroohenriquealvess@gmail.com",
     },
     rifas: ["12912", "12913"],
+    dataPagamento: "2026-10-15T21:32:00.000Z",
   },
 ];
 
@@ -198,8 +204,8 @@ async function executarRegularizacao(): Promise<void> {
         telefone: grupo.comprador.telefone,
         email: grupo.comprador.email,
         criado_em: compradorSnap.exists
-          ? compradorSnap.data()?.criado_em || agoraIso
-          : agoraIso,
+          ? compradorSnap.data()?.criado_em || grupo.dataPagamento
+          : grupo.dataPagamento,
       };
 
       transaction.set(compradorRef, dadosCompradorAtualizados, { merge: true });
@@ -214,10 +220,14 @@ async function executarRegularizacao(): Promise<void> {
           status_validacao: "aceita",
           validado_em: agoraIso,
           validado_por: "admin_regularizacao_manual",
-          data_pagamento: agoraIso,
-          data_reserva: agoraIso,
+          data_pagamento: grupo.dataPagamento,
+          data_reserva: grupo.dataPagamento,
+          valor_bruto: 10,
+          valor_pago: 10,
           comprovante_url: null,
-          correcao_pendente: false,
+          correcao_pendente: null,
+          motivo_recusa: null,
+          log_automacao: null,
 
           // Normalização do Vendedor
           vendedor_id: DADOS_VENDEDORA.id,
@@ -231,7 +241,7 @@ async function executarRegularizacao(): Promise<void> {
           comprador_telefone: grupo.comprador.telefone,
           comprador_email: grupo.comprador.email,
 
-          // Limpeza de campos residuais do Pix antigo
+          // Limpeza de campos residuais de tentativas anteriores do Pix
           pix_order_id: null,
           pix_qr_code_id: null,
           pix_reference_id: null,
@@ -248,10 +258,34 @@ async function executarRegularizacao(): Promise<void> {
     );
   }
 
+  // 3. ATUALIZAÇÃO SINCRONIZADA DAS MÉTRICAS EM usuarios/ADERIDO_108
+  console.log("\n📊 Sincronizando métricas em usuarios/ADERIDO_108...");
+  const bilhetesVendedoraSnap = await db
+    .collection("bilhetes")
+    .where("vendedor_id", "==", DADOS_VENDEDORA.id)
+    .get();
+
+  const totalPagas = bilhetesVendedoraSnap.docs.filter(
+    (d) => d.data().status === "pago",
+  ).length;
+  const totalArrecadado = totalPagas * 10;
+
+  await db.collection("usuarios").doc(DADOS_VENDEDORA.id).set(
+    {
+      rifas_vendidas: totalPagas,
+      total_arrecadado: totalArrecadado,
+      atualizado_em: agoraIso,
+    },
+    { merge: true },
+  );
+
+  console.log(`   ✅ Metricas atualizadas: ${totalPagas} rifas pagas, R$ ${totalArrecadado.toFixed(2)} arrecadados.`);
+
   console.log("\n==================================================================");
   console.log("🎉 TODAS AS TRANSAÇÕES CONCLUÍDAS COM SUCESSO!");
   console.log(`Total de bilhetes regularizados como PAGO: ${totalProcessado}`);
-  console.log(`Total arrecadado registrado: R$ ${(totalProcessado * 10).toFixed(2)}`);
+  console.log(`Total geral de rifas pagas da Fabiana : ${totalPagas}`);
+  console.log(`Total geral arrecadado pela Fabiana   : R$ ${totalArrecadado.toFixed(2)}`);
   console.log("==================================================================");
 }
 
