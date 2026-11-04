@@ -1,14 +1,17 @@
-import { Paper, Box, Typography, IconButton, Chip } from "@mui/material";
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
-import EditIcon from "@mui/icons-material/Edit";
+// ============================================================================
+// ARQUIVO: frontend/src/features/premios/components/shared/HeroBanner.tsx
+// ============================================================================
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import EditIcon from "@mui/icons-material/Edit";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
+import { Box, Chip, IconButton, Paper, Typography } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
+import { reduceMotionSx } from "@/shared/tokens/motion";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
-import { reduceMotionSx } from "@/shared/tokens/motion";
-import { formatarDataExtenso, calcularDiasRestantes } from "../../utils/dateUtils";
 import type { InfoSorteio } from "../../types/sorteio";
+import { calcularDiasRestantes, formatarDataExtenso } from "../../utils/dateUtils";
 
 interface HeroBannerProps {
   infoSorteio: InfoSorteio;
@@ -16,6 +19,12 @@ interface HeroBannerProps {
   onEditClick: () => void;
 }
 
+/**
+ * Banner de destaque oficial do sorteio com contagem regressiva e data formatada.
+ *
+ * @param {HeroBannerProps} props - Propriedades do banner.
+ * @returns {JSX.Element} Superfície visual com acabamento esmeralda nobre.
+ */
 export const HeroBanner = ({ infoSorteio, isAdmin, onEditClick }: HeroBannerProps) => {
   const diasRestantes = calcularDiasRestantes(infoSorteio.data);
 
@@ -40,24 +49,28 @@ export const HeroBanner = ({ infoSorteio, isAdmin, onEditClick }: HeroBannerProp
       sx={{
         ...surfaces.premioBanner,
         p: { xs: 3, md: 5 },
-        mb: 5,
-        bgcolor: colors.branco,
+        mb: { xs: 3.5, md: 5 },
+        background: "linear-gradient(180deg, #FFFFFF 0%, #F5FBF8 100%)",
+        border: "1.5px solid rgba(6, 61, 49, 0.14)",
+        borderRadius: { xs: 2.25, md: 3 },
         color: colors.pretoEsverdeado,
         position: "relative",
-        boxShadow: "0 16px 36px rgba(2, 27, 22, 0.05)",
+        boxShadow: "0 18px 40px rgba(2, 27, 22, 0.06), 0 2px 6px rgba(6, 61, 49, 0.04)",
+        overflow: "hidden",
       }}
     >
+      {/* Marca d'água decorativa com gradiente sutil */}
       <Box
         sx={{
           position: "absolute",
-          top: -40,
-          right: -40,
-          opacity: 0.03,
+          top: -45,
+          right: -45,
+          opacity: 0.045,
           color: colors.verdeForte,
           pointerEvents: "none",
         }}
       >
-        <WorkspacePremiumIcon sx={{ fontSize: 220 }} />
+        <WorkspacePremiumIcon sx={{ fontSize: 240 }} />
       </Box>
 
       {isAdmin && (
@@ -66,16 +79,24 @@ export const HeroBanner = ({ infoSorteio, isAdmin, onEditClick }: HeroBannerProp
           aria-label="Editar Cabeçalho"
           sx={{
             position: "absolute",
-            top: 12,
+            top: 14,
             right: 16,
             zIndex: 2,
-            bgcolor: "rgba(2,27,22,0.06)",
-            color: colors.verdeForte,
-            "&:hover": { bgcolor: "rgba(2,27,22,0.12)" },
+            bgcolor: "rgba(6, 61, 49, 0.06)",
+            border: "1px solid rgba(6, 61, 49, 0.12)",
+            color: colors.verdeEscuro,
+            borderRadius: 2,
+            p: 1,
+            transition: "all 0.2s ease",
+            "&:hover": {
+              bgcolor: "rgba(6, 61, 49, 0.12)",
+              borderColor: "rgba(6, 61, 49, 0.25)",
+              transform: "scale(1.05)",
+            },
             ...reduceMotionSx,
           }}
         >
-          <EditIcon />
+          <EditIcon fontSize="small" />
         </IconButton>
       )}
 
@@ -90,19 +111,56 @@ export const HeroBanner = ({ infoSorteio, isAdmin, onEditClick }: HeroBannerProp
           gap: 1.5,
         }}
       >
-        <WorkspacePremiumIcon
+        {/* Ícone com halo comemorativo */}
+        <Box
           sx={{
-            fontSize: 56,
-            color: colors.verdeForte,
+            width: 72,
+            height: 72,
+            borderRadius: "50%",
+            bgcolor: "rgba(6, 61, 49, 0.06)",
+            border: "2px solid rgba(6, 61, 49, 0.14)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 20px rgba(6, 61, 49, 0.08)",
+            mb: 0.5,
           }}
-        />
-        <Typography sx={typography.bannerTitulo}>
+        >
+          <WorkspacePremiumIcon
+            sx={{
+              fontSize: 42,
+              color: colors.verdeEscuro,
+            }}
+          />
+        </Box>
+
+        <Typography
+          sx={{
+            ...typography.bannerTitulo,
+            fontWeight: 900,
+            letterSpacing: "-0.02em",
+            color: colors.pretoEsverdeado,
+            fontSize: { xs: "1.5rem", sm: "1.9rem", md: "2.1rem" },
+          }}
+        >
           {infoSorteio.titulo}
         </Typography>
-        <Typography sx={typography.bannerData}>
-          <CalendarMonthIcon sx={{ fontSize: 20 }} />
+
+        <Typography
+          sx={{
+            ...typography.bannerData,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.75,
+            fontWeight: 700,
+            color: "#3B5349",
+            fontSize: { xs: "0.92rem", sm: "1rem" },
+          }}
+        >
+          <CalendarMonthIcon sx={{ fontSize: 20, color: colors.verdeForte }} />
           Sorteio oficial: {formatarDataExtenso(infoSorteio.data)}
         </Typography>
+
         {countdownLabel() && (
           <Chip
             label={countdownLabel()}
@@ -113,14 +171,25 @@ export const HeroBanner = ({ infoSorteio, isAdmin, onEditClick }: HeroBannerProp
               fontWeight: 800,
               textTransform: "uppercase",
               letterSpacing: "0.04em",
-              fontSize: "0.72rem",
-              height: 28,
-              borderRadius: 1,
+              fontSize: "0.74rem",
+              height: 30,
+              px: 1,
+              borderRadius: 2,
+              boxShadow: "0 4px 12px rgba(2, 27, 22, 0.08)",
             }}
           />
         )}
+
         {infoSorteio.descricao && (
-          <Typography sx={typography.bannerDescricao}>
+          <Typography
+            sx={{
+              ...typography.bannerDescricao,
+              maxWidth: 620,
+              color: "#52675E",
+              lineHeight: 1.6,
+              fontSize: { xs: "0.9rem", sm: "0.96rem" },
+            }}
+          >
             {infoSorteio.descricao}
           </Typography>
         )}

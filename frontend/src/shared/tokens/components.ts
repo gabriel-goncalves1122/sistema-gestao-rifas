@@ -60,6 +60,34 @@ export const components = {
     px: 2,
     fontWeight: 750,
   },
+  botaoNovoPremio: {
+    borderRadius: 2,
+    fontWeight: 850,
+    textTransform: "none" as const,
+    bgcolor: colors.verdeEscuro,
+    color: colors.branco,
+    boxShadow: "0 4px 14px rgba(6, 61, 49, 0.18)",
+    "&:hover": {
+      bgcolor: colors.pretoEsverdeado,
+    },
+  },
+  iconeEditar: {
+    position: "absolute" as const,
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    bgcolor: "rgba(255, 255, 255, 0.95)",
+    color: colors.verdeEscuro,
+    border: "1px solid rgba(6, 61, 49, 0.16)",
+    boxShadow: "0 4px 12px rgba(2, 27, 22, 0.12)",
+    transition: "all 0.2s ease",
+    "&:hover": {
+      bgcolor: colors.verdeClaro,
+      borderColor: "rgba(6, 61, 49, 0.32)",
+      color: colors.verdeForte,
+      transform: "scale(1.08)",
+    },
+  },
   focusRing: {
     "&:focus-visible": {
       outline: "3px solid",
