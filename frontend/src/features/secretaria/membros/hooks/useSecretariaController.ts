@@ -98,7 +98,7 @@ export function useSecretariaController() {
         await secretariaService.adicionarAderidoIndividual(dados);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["secretaria", "membros"] }),
-        queryClient.invalidateQueries({ queryKey: ["tesouraria"] }),
+        queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
       ]);
       await refetch();
       const faixaMsg =
@@ -123,7 +123,7 @@ export function useSecretariaController() {
       await secretariaService.atualizarAderidoSecretaria(id, dados);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["secretaria", "membros"] }),
-        queryClient.invalidateQueries({ queryKey: ["tesouraria"] }),
+        queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
       ]);
       const { data: listaAtualizada } = await refetch();
       if (Array.isArray(listaAtualizada)) {
