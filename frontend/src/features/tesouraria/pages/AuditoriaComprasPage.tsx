@@ -14,6 +14,12 @@ import { AuditoriaCompraRecusaDialog } from "../components/auditoriaCompras/shar
 import { useAuditoriaComprasController } from "../hooks/useAuditoriaComprasController";
 import { useTesourariaLayout } from "../hooks/useTesourariaLayout";
 
+/**
+ * Página principal da aba Histórico (Auditoria de Compras) da Tesouraria.
+ * Orquestra filtros com contadores em tempo real, resumo quantitativo enxuto e listagem paginada.
+ *
+ * @returns {JSX.Element} Interface completa de auditoria de compras.
+ */
 export function AuditoriaComprasPage() {
   const { isMobile } = useTesourariaLayout();
   const {
@@ -21,6 +27,7 @@ export function AuditoriaComprasPage() {
     filtros,
     comprasFiltradas,
     resumo,
+    contagens,
     compraSelecionada,
     compraEdicao,
     comprovanteUrl,
@@ -63,15 +70,16 @@ export function AuditoriaComprasPage() {
   return (
     <Box sx={{ pb: 4, px: { xs: 0, sm: 1.25, md: 0.5 } }}>
       <AuditoriaComprasHeader />
-      <AuditoriaComprasResumo resumo={resumo} />
       <AuditoriaComprasFiltros
         filtros={filtros}
         filtrosAtivos={filtrosAtivos}
         possuiResultados={possuiResultados}
+        contagens={contagens}
         onChangeFiltros={setFiltros}
         onLimparFiltros={limparFiltros}
         onExportarCsv={baixarCSV}
       />
+      <AuditoriaComprasResumo resumo={resumo} />
 
       {comprasFiltradas.length === 0 ? (
         <AuditoriaComprasEmptyState />

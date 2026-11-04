@@ -20,8 +20,8 @@ export interface UseDesempenhoControllerRetorno {
 
 /**
  * Hook controlador da tela de Desempenho Financeiro da Tesouraria.
- * Orquestra o carregamento simultâneo do relatório consolidado e histórico,
- * computando métricas, séries temporais, metas e rankings de aderidos.
+ * Reutiliza os dados já em cache de relatório consolidado (["tesouraria", "relatorio"])
+ * e histórico (["tesouraria", "auditoria-historico"]), evitando requisições duplicadas.
  *
  * @returns {UseDesempenhoControllerRetorno} Dados processados e controladores de filtro.
  */
@@ -29,46 +29,53 @@ export function useDesempenhoController(): UseDesempenhoControllerRetorno {
   const queryClient = useQueryClient();
   const [buscaRanking, setBuscaRanking] = useState("");
 
-  const { data, isLoading: carregando, error } = useQuery({
-    queryKey: ["tesouraria", "desempenho"],
+  const {
+    data: relatorioData,
+    isLoading: carregandoRelatorio,
+    error: errorRelatorio,
+  } = useQuery({
+    queryKey: ["tesouraria", "relatorio"],
     queryFn: async () => {
-      const [resultadoRelatorio, resultadoHistorico] = await Promise.allSettled([
-        desempenhoService.buscarRelatorio(),
-        desempenhoService.buscarHistoricoDetalhado(),
-      ]);
-
-      const resumoGeral =
-        resultadoRelatorio.status === "fulfilled"
-          ? resultadoRelatorio.value.resumoGeral
-          : RESUMO_GERAL_DESEMPENHO_VAZIO;
-      const aderidos =
-        resultadoRelatorio.status === "fulfilled"
-          ? resultadoRelatorio.value.aderidos
-          : [];
-      const historicoTransacoes =
-        resultadoHistorico.status === "fulfilled"
-          ? resultadoHistorico.value
-          : [];
-
-      if (
-        resultadoRelatorio.status === "rejected" &&
-        resultadoHistorico.status === "rejected"
-      ) {
-        throw new Error("Erro ao carregar dados de desempenho.");
-      }
-
-      return { resumoGeral, aderidos, historicoTransacoes };
+      return await desempenhoService.buscarRelatorio();
     },
     staleTime: 180_000,
+    refetchOnMount: false,
   });
 
-  const resumoGeral = data?.resumoGeral || RESUMO_GERAL_DESEMPENHO_VAZIO;
-  const aderidos = data?.aderidos || [];
-  const historicoTransacoes = data?.historicoTransacoes || [];
-  const erro = error instanceof Error ? error.message : null;
+  const {
+    data: historicoTransacoes = [],
+    isLoading: carregandoHistorico,
+    error: errorHistorico,
+  } = useQuery({
+    queryKey: ["tesouraria", "auditoria-historico"],
+    queryFn: async () => {
+      return await desempenhoService.buscarHistoricoDetalhado();
+    },
+    staleTime: 180_000,
+    refetchOnMount: false,
+  });
+
+  const carregando = carregandoRelatorio || carregandoHistorico;
+
+  const erro = useMemo(() => {
+    if (errorRelatorio && errorHistorico) {
+      return "Erro ao carregar dados de desempenho.";
+    }
+    if (errorRelatorio instanceof Error) return errorRelatorio.message;
+    if (errorHistorico instanceof Error) return errorHistorico.message;
+    return null;
+  }, [errorHistorico, errorRelatorio]);
+
+  const resumoGeral = relatorioData?.resumoGeral || RESUMO_GERAL_DESEMPENHO_VAZIO;
+  const aderidos = relatorioData?.aderidos || [];
 
   const carregarDados = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["tesouraria", "desempenho"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["tesouraria", "auditoria-historico"],
+      }),
+    ]);
   }, [queryClient]);
 
   const dados = useMemo(
@@ -76,7 +83,9 @@ export function useDesempenhoController(): UseDesempenhoControllerRetorno {
       montarDadosDesempenho({
         resumoGeral,
         aderidos,
-        historicoTransacoes,
+        historicoTransacoes: Array.isArray(historicoTransacoes)
+          ? historicoTransacoes
+          : [],
       }),
     [aderidos, historicoTransacoes, resumoGeral],
   );
@@ -86,12 +95,7 @@ export function useDesempenhoController(): UseDesempenhoControllerRetorno {
     if (!termo) return dados.rankingAderidos;
 
     return dados.rankingAderidos.filter((item) => {
-      const campos = [
-        item.nome,
-        item.cpf,
-        item.curso,
-        item.cargo,
-      ];
+      const campos = [item.nome, item.cpf, item.curso, item.cargo];
       return campos.some((campo) =>
         String(campo || "").toLowerCase().includes(termo),
       );

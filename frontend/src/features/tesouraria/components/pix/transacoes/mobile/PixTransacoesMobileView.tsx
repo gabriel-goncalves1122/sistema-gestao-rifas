@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { Box, Stack, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
 
+import { colors } from "@/shared/tokens/colors";
 import {
   PixTransacoesFiltros as PixTransacoesFiltrosState,
   PixTransacao,
@@ -10,10 +11,11 @@ import {
   podeValidarPixTransacao,
 } from "../../../../utils/pixTransacoesUtils";
 import { PixEmptyState } from "../shared/PixEmptyState";
-import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
 import { PixTransacoesFiltros } from "../shared/PixTransacoesFiltros";
 import { PixTransacaoCard } from "./PixTransacaoCard";
+
+const ITENS_POR_LOTE_MOBILE = 20;
 
 interface PixTransacoesMobileViewProps {
   filtros: PixTransacoesFiltrosState;
@@ -24,6 +26,9 @@ interface PixTransacoesMobileViewProps {
   onNegar: (id: string, motivo: string) => Promise<void>;
 }
 
+/**
+ * Visão mobile de transações Pix com renderização progressiva em lotes de 20 cartões.
+ */
 export function PixTransacoesMobileView({
   filtros,
   transacoes,
@@ -34,6 +39,32 @@ export function PixTransacoesMobileView({
 }: PixTransacoesMobileViewProps) {
   const [transacaoSelecionada, setTransacaoSelecionada] =
     useState<PixTransacao | null>(null);
+  const [limiteVisivel, setLimiteVisivel] = useState(ITENS_POR_LOTE_MOBILE);
+  const sentinelaRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setLimiteVisivel(ITENS_POR_LOTE_MOBILE);
+  }, [transacoes]);
+
+  useEffect(() => {
+    const elemento = sentinelaRef.current;
+    if (!elemento || typeof IntersectionObserver === "undefined") return;
+    if (limiteVisivel >= transacoes.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setLimiteVisivel((atual) =>
+            Math.min(atual + ITENS_POR_LOTE_MOBILE, transacoes.length),
+          );
+        }
+      },
+      { rootMargin: "240px" },
+    );
+
+    observer.observe(elemento);
+    return () => observer.disconnect();
+  }, [transacoes.length, limiteVisivel]);
 
   const fonte = todasTransacoes || transacoes;
 
@@ -48,6 +79,9 @@ export function PixTransacoesMobileView({
       todas: fonte.length,
     };
   }, [fonte]);
+
+  const transacoesVisiveis = transacoes.slice(0, limiteVisivel);
+  const restantes = transacoes.length - transacoesVisiveis.length;
 
   return (
     <Stack spacing={2}>
@@ -79,7 +113,7 @@ export function PixTransacoesMobileView({
         <PixEmptyState />
       ) : (
         <Stack spacing={1.5} sx={{ pl: 1, pr: 0.25 }}>
-          {transacoes.map((transacao) => (
+          {transacoesVisiveis.map((transacao) => (
             <Box
               key={transacao.id}
               onClick={() => setTransacaoSelecionada(transacao)}
@@ -91,6 +125,30 @@ export function PixTransacoesMobileView({
               />
             </Box>
           ))}
+
+          {restantes > 0 && (
+            <Box ref={sentinelaRef} sx={{ pt: 0.5, textAlign: "center" }}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() =>
+                  setLimiteVisivel((atual) =>
+                    Math.min(atual + ITENS_POR_LOTE_MOBILE, transacoes.length),
+                  )
+                }
+                sx={{
+                  borderRadius: 2,
+                  fontWeight: 850,
+                  textTransform: "none",
+                  color: colors.verdeEscuro,
+                  borderColor: "rgba(6, 61, 49, 0.24)",
+                  py: 1,
+                }}
+              >
+                Mostrar mais ({restantes} restante{restantes > 1 ? "s" : ""})
+              </Button>
+            </Box>
+          )}
         </Stack>
       )}
 

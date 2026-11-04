@@ -37,6 +37,7 @@ export function useRelatorioTesouraria(): UseRelatorioTesourariaRetorno {
       return relatorioTesourariaService.obterRelatorioTesouraria();
     },
     staleTime: 180_000,
+    refetchOnMount: false,
   });
 
   const resumoGeral = data?.resumoGeral || RESUMO_GERAL_DESEMPENHO_VAZIO;

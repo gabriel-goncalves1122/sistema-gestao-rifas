@@ -47,6 +47,7 @@ export function usePixTransacoes() {
       return { transacoes, resumo };
     },
     staleTime: 180_000,
+    refetchOnMount: false,
   });
 
   const transacoes = data?.transacoes || [];
@@ -56,7 +57,10 @@ export function usePixTransacoes() {
     : calcularResumoPixTransacoes(transacoes);
 
   const carregarDados = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
+      queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+    ]);
   }, [queryClient]);
 
   const sincronizarBanco = async () => {
@@ -102,7 +106,10 @@ export function usePixTransacoes() {
 
       try {
         await pixTransacoesService.aceitarTransacao(transacaoId);
-        queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+        ]);
       } catch (error) {
         queryClient.setQueryData(["tesouraria", "pix"], previousData);
         console.error("Erro ao aceitar transação:", error);
@@ -123,7 +130,10 @@ export function usePixTransacoes() {
 
       try {
         await pixTransacoesService.negarTransacao(transacaoId, motivo);
-        queryClient.invalidateQueries({ queryKey: ["tesouraria"] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+        ]);
       } catch (error) {
         queryClient.setQueryData(["tesouraria", "pix"], previousData);
         console.error("Erro ao negar transação:", error);

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Box,
   Chip,
@@ -7,6 +8,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   Typography,
 } from "@mui/material";
@@ -52,11 +54,11 @@ export interface AuditoriaComprasTableProps {
 
 /**
  * Tabela detalhada de auditoria de compras para exibição em desktop,
- * com suporte visual a status, canal de origem (Pix/Comprovante), pendência de correção
- * e discriminação de valores líquidos e brutos.
+ * com paginação nativa (25/50/100 por página), comprador + contato unificados,
+ * valor nominal bruto e suporte visual a status, canal de origem e pendência de correção.
  *
  * @param {AuditoriaComprasTableProps} props - Propriedades do componente.
- * @returns {JSX.Element} Tabela estilizada.
+ * @returns {JSX.Element} Tabela estilizada e paginada.
  */
 export function AuditoriaComprasTable({
   compras,
@@ -69,6 +71,18 @@ export function AuditoriaComprasTable({
   onNegar,
   processandoAcaoId,
 }: AuditoriaComprasTableProps) {
+  const [pagina, setPagina] = useState(0);
+  const [itensPorPagina, setItensPorPagina] = useState(25);
+
+  useEffect(() => {
+    setPagina(0);
+  }, [compras]);
+
+  const comprasPaginadas = compras.slice(
+    pagina * itensPorPagina,
+    pagina * itensPorPagina + itensPorPagina,
+  );
+
   return (
     <Paper
       elevation={0}
@@ -82,162 +96,163 @@ export function AuditoriaComprasTable({
         <TableHead>
           <TableRow sx={components.tabelaCabecalho}>
             <TableCell>Data</TableCell>
-            <TableCell>Comprador</TableCell>
-            <TableCell>Contato</TableCell>
+            <TableCell>Comprador & Contato</TableCell>
             <TableCell>Vendedor</TableCell>
             <TableCell>Rifas</TableCell>
-            <TableCell>Status & Origem</TableCell>
-            <TableCell align="right">Valor (Líquido)</TableCell>
+            <TableCell>Status & Canal</TableCell>
+            <TableCell align="right">Valor</TableCell>
             <TableCell align="right">Ações</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {compras.map((compra) => {
-            const valorLiquido = compra.valorLiquido ?? compra.valorTotal;
-            const possuiTaxa =
-              compra.valorLiquido !== undefined &&
-              compra.valorLiquido !== compra.valorTotal;
-
-            return (
-              <TableRow
-                key={compra.id}
-                hover
-                data-testid={`auditoria-compra-${compra.id}`}
-                sx={components.linhaTabela}
-              >
-                <TableCell sx={{ minWidth: 128 }}>
-                  <Typography sx={typography.bodyDestaque}>
-                    {formatarDataAuditoria(compra.dataReserva)}
-                  </Typography>
-                  <Typography sx={typography.bodyPequeno}>Reserva</Typography>
-                </TableCell>
-                <TableCell sx={{ minWidth: 180 }}>
-                  <Typography
-                    sx={{
-                      ...typography.bodyDestaque,
-                      fontWeight: 950,
-                    }}
-                  >
-                    {compra.compradorNome}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ minWidth: 190 }}>
-                  <Typography
-                    sx={{
-                      color: colors.pretoEsverdeado,
-                      fontSize: "0.86rem",
-                      fontWeight: 750,
-                      overflowWrap: "anywhere",
-                    }}
-                  >
-                    {compra.compradorEmail || "Sem e-mail"}
-                  </Typography>
-                  <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.8rem" }}>
-                    {compra.compradorTelefone
-                      ? formatarTelefone(compra.compradorTelefone)
-                      : "Sem telefone"}
-                  </Typography>
-                </TableCell>
-                <TableCell sx={{ minWidth: 170 }}>
-                  <Typography sx={typography.bodyDestaque}>
-                    {compra.vendedorNome}
-                  </Typography>
-                  <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.8rem" }}>
-                    {compra.vendedorCpf}
-                  </Typography>
-                </TableCell>
-                <TableCell>
+          {comprasPaginadas.map((compra) => (
+            <TableRow
+              key={compra.id}
+              hover
+              onClick={() => onVerDetalhes(compra)}
+              data-testid={`auditoria-compra-${compra.id}`}
+              sx={{
+                ...components.linhaTabela,
+                cursor: "pointer",
+              }}
+            >
+              <TableCell sx={{ minWidth: 115 }}>
+                <Typography sx={typography.bodyDestaque}>
+                  {formatarDataAuditoria(compra.dataReserva)}
+                </Typography>
+                <Typography sx={typography.bodyPequeno}>Reserva</Typography>
+              </TableCell>
+              <TableCell sx={{ minWidth: 210 }}>
+                <Typography
+                  sx={{
+                    ...typography.bodyDestaque,
+                    fontWeight: 950,
+                  }}
+                >
+                  {compra.compradorNome}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: colors.cinzaTexto,
+                    fontSize: "0.78rem",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {compra.compradorEmail || "Sem e-mail"}
+                  {compra.compradorTelefone
+                    ? ` • ${formatarTelefone(compra.compradorTelefone)}`
+                    : ""}
+                </Typography>
+              </TableCell>
+              <TableCell sx={{ minWidth: 165 }}>
+                <Typography sx={typography.bodyDestaque}>
+                  {compra.vendedorNome}
+                </Typography>
+                <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem" }}>
+                  {compra.vendedorCpf}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  flexWrap="wrap"
+                  useFlexGap
+                  sx={{ maxWidth: 185 }}
+                >
+                  {compra.bilhetes.slice(0, 5).map((bilhete) => (
+                    <Chip
+                      key={bilhete}
+                      label={bilhete}
+                      size="small"
+                      sx={{
+                        ...components.chipBilhete,
+                        height: 24,
+                        borderRadius: 1.5,
+                        border: "1px solid rgba(6, 61, 49, 0.18)",
+                      }}
+                    />
+                  ))}
+                  {compra.bilhetes.length > 5 && (
+                    <Chip
+                      label={`+ ${compra.bilhetes.length - 5}`}
+                      size="small"
+                      sx={{
+                        ...components.chipBilhete,
+                        height: 24,
+                        borderRadius: 1.5,
+                        bgcolor: colors.fundoSuave,
+                        color: colors.cinzaTexto,
+                        border: "1px solid rgba(6, 61, 49, 0.12)",
+                      }}
+                    />
+                  )}
+                </Stack>
+              </TableCell>
+              <TableCell sx={{ minWidth: 155 }}>
+                <Stack spacing={0.65}>
                   <Stack
                     direction="row"
                     spacing={0.5}
+                    alignItems="center"
                     flexWrap="wrap"
                     useFlexGap
-                    sx={{ maxWidth: 180 }}
                   >
-                    {compra.bilhetes.slice(0, 5).map((bilhete) => (
-                      <Chip
-                        key={bilhete}
-                        label={bilhete}
-                        size="small"
-                        sx={{
-                          ...components.chipBilhete,
-                          height: 24,
-                          borderRadius: 1.5,
-                          border: "1px solid rgba(6, 61, 49, 0.18)",
-                        }}
-                      />
-                    ))}
-                    {compra.bilhetes.length > 5 && (
-                      <Chip
-                        label={`+ ${compra.bilhetes.length - 5}`}
-                        size="small"
-                        sx={{
-                          ...components.chipBilhete,
-                          height: 24,
-                          borderRadius: 1.5,
-                          bgcolor: colors.fundoSuave,
-                          color: colors.cinzaTexto,
-                          border: "1px solid rgba(6, 61, 49, 0.12)",
-                        }}
-                      />
-                    )}
+                    <AuditoriaStatusChip status={compra.status} />
+                    <AuditoriaOrigemChip origem={compra.origem} />
                   </Stack>
-                </TableCell>
-                <TableCell sx={{ minWidth: 160 }}>
-                  <Stack spacing={0.65}>
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      alignItems="center"
-                      flexWrap="wrap"
-                      useFlexGap
-                    >
-                      <AuditoriaStatusChip status={compra.status} />
-                      <AuditoriaOrigemChip origem={compra.origem} />
-                    </Stack>
-                    {compra.correcaoPendente && (
-                      <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
-                    )}
-                  </Stack>
-                </TableCell>
-                <TableCell align="right" sx={{ minWidth: 120 }}>
-                  <Box sx={components.labelVerde}>
-                    {formatarMoedaAuditoria(valorLiquido)}
-                  </Box>
-                  {possuiTaxa && (
-                    <Typography
-                      sx={{
-                        color: colors.cinzaTexto,
-                        fontSize: "0.74rem",
-                        fontStyle: "italic",
-                        mt: 0.3,
-                      }}
-                    >
-                      Bruto: {formatarMoedaAuditoria(compra.valorTotal)}
-                    </Typography>
+                  {compra.correcaoPendente && (
+                    <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
                   )}
-                </TableCell>
-                <TableCell align="right">
-                  <AuditoriaCompraActions
-                    compra={compra}
-                    onVerComprovante={onVerComprovante}
-                    onEditar={onEditar}
-                    onVerDetalhes={onVerDetalhes}
-                    onReenviarEmailComprovante={onReenviarEmailComprovante}
-                    reenviandoEmailComprovante={
-                      Boolean(compra.compradorId) &&
-                      compra.compradorId === reenviandoEmailComprovanteId
-                    }
-                    onAceitar={onAceitar}
-                    onNegar={onNegar}
-                    processandoAcaoId={processandoAcaoId}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
+                </Stack>
+              </TableCell>
+              <TableCell align="right" sx={{ minWidth: 110 }}>
+                <Box sx={components.labelVerde}>
+                  {formatarMoedaAuditoria(compra.valorTotal)}
+                </Box>
+              </TableCell>
+              <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                <AuditoriaCompraActions
+                  compra={compra}
+                  onVerComprovante={onVerComprovante}
+                  onEditar={onEditar}
+                  onVerDetalhes={onVerDetalhes}
+                  onReenviarEmailComprovante={onReenviarEmailComprovante}
+                  reenviandoEmailComprovante={
+                    Boolean(compra.compradorId) &&
+                    compra.compradorId === reenviandoEmailComprovanteId
+                  }
+                  onAceitar={onAceitar}
+                  onNegar={onNegar}
+                  processandoAcaoId={processandoAcaoId}
+                />
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
+
+      {compras.length > 25 && (
+        <TablePagination
+          component="div"
+          count={compras.length}
+          page={pagina}
+          onPageChange={(_, novaPagina) => setPagina(novaPagina)}
+          rowsPerPage={itensPorPagina}
+          onRowsPerPageChange={(event) => {
+            setItensPorPagina(Number.parseInt(event.target.value, 10));
+            setPagina(0);
+          }}
+          rowsPerPageOptions={[25, 50, 100]}
+          labelRowsPerPage="Compras por página:"
+          labelDisplayedRows={({ from, to, count }) =>
+            `${from}–${to} de ${count}`
+          }
+          sx={{
+            borderTop: "1px solid rgba(2, 27, 22, 0.08)",
+          }}
+        />
+      )}
     </Paper>
   );
 }

@@ -1,11 +1,10 @@
+import { memo } from "react";
 import { Box, Paper, Stack, Typography } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
-import {
-  PixTransacao,
-} from "../../../../types/pixTransacoes";
+import { PixTransacao } from "../../../../types/pixTransacoes";
 import {
   formatarDataPix,
   formatarMoedaPix,
@@ -13,13 +12,25 @@ import {
 } from "../../../../utils/pixTransacoesUtils";
 import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 
-interface PixTransacaoCardProps {
+/**
+ * Propriedades do cartão mobile de transação Pix.
+ */
+export interface PixTransacaoCardProps {
+  /** Objeto de transação Pix */
   transacao: PixTransacao;
+  /** Callback para aceitar transação */
   onAceitar: (id: string) => Promise<void>;
+  /** Callback para recusar transação */
   onNegar: (id: string, motivo: string) => Promise<void>;
 }
 
-export function PixTransacaoCard({
+/**
+ * Cartão mobile memoizado para exibição de transação Pix na Tesouraria.
+ *
+ * @param {PixTransacaoCardProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Cartão renderizado.
+ */
+export const PixTransacaoCard = memo(function PixTransacaoCard({
   transacao,
   onAceitar,
   onNegar,
@@ -80,7 +91,9 @@ export function PixTransacaoCard({
             <Typography
               sx={{
                 color:
-                  transacao.statusPagamento === "PAID" ? colors.verdeEscuro : colors.alertaTexto,
+                  transacao.statusPagamento === "PAID"
+                    ? colors.verdeEscuro
+                    : colors.alertaTexto,
                 fontWeight: 950,
                 fontSize: "1.28rem",
                 lineHeight: 1,
@@ -100,9 +113,7 @@ export function PixTransacaoCard({
             border: "1px solid rgba(6, 61, 49, 0.12)",
           }}
         >
-          <Typography
-            sx={{ ...typography.label, fontWeight: 850 }}
-          >
+          <Typography sx={{ ...typography.label, fontWeight: 850 }}>
             Aderido responsável
           </Typography>
 
@@ -119,15 +130,26 @@ export function PixTransacaoCard({
           </Typography>
         </Box>
 
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.84rem" }}>
             {transacao.rifas?.length
               ? `Rifas ${formatarRifasPix(transacao)}`
               : "Sem rifas vinculadas"}
           </Typography>
-          <PixTransacaoAcoes transacao={transacao} compact onAceitar={onAceitar} onNegar={onNegar} />
+          <PixTransacaoAcoes
+            transacao={transacao}
+            compact
+            onAceitar={onAceitar}
+            onNegar={onNegar}
+          />
         </Box>
       </Stack>
     </Paper>
   );
-}
+});

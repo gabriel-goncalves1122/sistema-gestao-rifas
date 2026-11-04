@@ -121,27 +121,34 @@ describe("Página <AuditoriaComprasPage />", () => {
     });
   });
 
-  it("Deve renderizar auditoria, resumo e compras agrupadas", async () => {
+  it("Deve renderizar auditoria, resumo enxuto sem valores monetários e compras agrupadas", async () => {
     renderPage();
 
     expect(await screen.findByText("Auditoria de compras")).toBeInTheDocument();
-    expect(screen.getByText(/sem alterar vínculos da venda/i)).toBeInTheDocument();
-    expect(screen.getByText("Compras")).toBeInTheDocument();
+    expect(
+      screen.getByText(/sem alterar vínculos da venda/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Compras Auditadas")).toBeInTheDocument();
+    expect(
+      screen.getByText(/2 compra\(s\) encontrada\(s\) • 3 rifa\(s\)/i),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("(35) 99999-0000").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/\(35\) 99999-0000/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/ID: comprador_maria/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("002").length).toBeGreaterThan(0);
 
     // Apenas a compra pendente (João Lima) deve exibir o botão 'Recusar compra', protegendo a compra já paga (Maria Souza)
-    expect(screen.getAllByRole("button", { name: /recusar compra/i })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: /recusar compra/i }),
+    ).toHaveLength(1);
   });
 
-  it("Deve filtrar por busca textual e status", async () => {
+  it("Deve filtrar por busca de bilhete ou comprador e por status", async () => {
     renderPage();
 
     const busca = await screen.findByPlaceholderText(
-      /buscar comprador, cpf, e-mail, telefone ou rifa/i,
+      /buscar por nome do comprador ou nº da rifa/i,
     );
 
     fireEvent.change(busca, { target: { value: "003" } });
@@ -156,41 +163,35 @@ describe("Página <AuditoriaComprasPage />", () => {
     expect(screen.queryByText("Maria Souza")).not.toBeInTheDocument();
   });
 
-  it("Deve mostrar estado vazio e manter ações futuras desabilitadas", async () => {
+  it("Deve mostrar estado vazio e desabilitar exportação CSV quando não houver resultados", async () => {
     renderPage();
 
     const busca = await screen.findByPlaceholderText(
-      /buscar comprador, cpf, e-mail, telefone ou rifa/i,
+      /buscar por nome do comprador ou nº da rifa/i,
     );
 
     fireEvent.change(busca, { target: { value: "compra inexistente" } });
 
     expect(screen.getByText("Nenhuma compra encontrada")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /exportar csv/i })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: /exportar comprovantes/i }),
-    ).toBeDisabled();
   });
 
-  it("Deve renderizar filtros mobile recolhíveis e cards de compra", async () => {
+  it("Deve renderizar filtros mobile enxutos e cards de compra", async () => {
     simularViewport(true);
 
     renderPage();
 
-    expect(await screen.findByPlaceholderText(/buscar compra, rifa ou contato/i))
-      .toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /abrir filtros de auditoria/i }),
+      await screen.findByPlaceholderText(
+        /buscar por nome do comprador ou nº da rifa/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /exportar csv/i }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("João Lima").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sem comprovante")).not.toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /abrir filtros de auditoria/i }),
-    );
-
-    expect(screen.getByLabelText("Início")).toBeInTheDocument();
-    expect(screen.getByLabelText("Fim")).toBeInTheDocument();
   });
 
   it("Deve abrir detalhes, editar comprador e visualizar comprovante", async () => {
@@ -208,7 +209,9 @@ describe("Página <AuditoriaComprasPage />", () => {
 
     await screen.findByText("Auditoria de compras");
 
-    fireEvent.click(screen.getAllByRole("button", { name: /editar comprador/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /editar comprador/i })[0],
+    );
 
     expect(screen.getByText("Editar dados do comprador")).toBeInTheDocument();
     expect(
@@ -217,15 +220,24 @@ describe("Página <AuditoriaComprasPage />", () => {
     expect(screen.queryByText("Dados editáveis")).not.toBeInTheDocument();
     expect(screen.queryByText("Campos bloqueados")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByRole("textbox", { name: /nome do comprador/i }), {
-      target: { value: "Maria Atualizada" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /e-mail do comprador/i }), {
-      target: { value: "maria.atualizada@teste.com" },
-    });
-    fireEvent.change(screen.getByRole("textbox", { name: /telefone do comprador/i }), {
-      target: { value: "35977776666" },
-    });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /nome do comprador/i }),
+      {
+        target: { value: "Maria Atualizada" },
+      },
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /e-mail do comprador/i }),
+      {
+        target: { value: "maria.atualizada@teste.com" },
+      },
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /telefone do comprador/i }),
+      {
+        target: { value: "35977776666" },
+      },
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /salvar alterações/i }));
 

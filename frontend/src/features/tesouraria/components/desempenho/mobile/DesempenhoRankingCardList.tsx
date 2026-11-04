@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import {
   Box,
+  Button,
   ButtonBase,
   Chip,
   LinearProgress,
@@ -16,6 +18,8 @@ import { AderidoRankingDesempenho } from "../../../types/desempenho";
 import { META_RIFAS_ADERIDO } from "../../../utils/constants";
 import { formatarMoedaDesempenho } from "../../../utils/desempenhoFormatters";
 
+const ITENS_POR_LOTE_MOBILE = 20;
+
 /**
  * Propriedades para renderização da lista de cards de ranking mobile.
  */
@@ -29,7 +33,8 @@ export interface DesempenhoRankingCardListProps<
 }
 
 /**
- * Lista compacta e tocável de cards de aderidos classificados para uso em dispositivos móveis.
+ * Lista compacta e tocável de cards de aderidos classificados para uso em dispositivos móveis,
+ * com carregamento incremental em lotes de 20 itens.
  *
  * @param {DesempenhoRankingCardListProps} props - Propriedades do componente.
  * @returns {JSX.Element} Lista de cards verticais interativos.
@@ -37,6 +42,33 @@ export interface DesempenhoRankingCardListProps<
 export function DesempenhoRankingCardList<
   T extends AderidoRankingDesempenho = AderidoRankingDesempenho,
 >({ ranking, onSelecionarAderido }: DesempenhoRankingCardListProps<T>) {
+  const [limiteVisivel, setLimiteVisivel] = useState(ITENS_POR_LOTE_MOBILE);
+  const sentinelaRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setLimiteVisivel(ITENS_POR_LOTE_MOBILE);
+  }, [ranking]);
+
+  useEffect(() => {
+    const elemento = sentinelaRef.current;
+    if (!elemento || typeof IntersectionObserver === "undefined") return;
+    if (limiteVisivel >= ranking.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setLimiteVisivel((atual) =>
+            Math.min(atual + ITENS_POR_LOTE_MOBILE, ranking.length),
+          );
+        }
+      },
+      { rootMargin: "240px" },
+    );
+
+    observer.observe(elemento);
+    return () => observer.disconnect();
+  }, [ranking.length, limiteVisivel]);
+
   if (ranking.length === 0) {
     return (
       <Paper
@@ -50,9 +82,12 @@ export function DesempenhoRankingCardList<
     );
   }
 
+  const rankingVisivel = ranking.slice(0, limiteVisivel);
+  const restantes = ranking.length - rankingVisivel.length;
+
   return (
     <Stack spacing={1.5}>
-      {ranking.map((item) => {
+      {rankingVisivel.map((item) => {
         const ehTop3 = item.posicao <= 3;
         const corPosicao =
           item.posicao === 1
@@ -156,7 +191,11 @@ export function DesempenhoRankingCardList<
                 </Typography>
                 {onSelecionarAderido && (
                   <ArrowForwardIosRoundedIcon
-                    sx={{ fontSize: 13, color: colors.verdeEscuro, opacity: 0.7 }}
+                    sx={{
+                      fontSize: 13,
+                      color: colors.verdeEscuro,
+                      opacity: 0.7,
+                    }}
                   />
                 )}
               </Stack>
@@ -326,6 +365,30 @@ export function DesempenhoRankingCardList<
           </Paper>
         );
       })}
+
+      {restantes > 0 && (
+        <Box ref={sentinelaRef} sx={{ pt: 0.5, textAlign: "center" }}>
+          <Button
+            variant="outlined"
+            fullWidth
+            onClick={() =>
+              setLimiteVisivel((atual) =>
+                Math.min(atual + ITENS_POR_LOTE_MOBILE, ranking.length),
+              )
+            }
+            sx={{
+              borderRadius: 2,
+              fontWeight: 850,
+              textTransform: "none",
+              color: colors.verdeEscuro,
+              borderColor: "rgba(6, 61, 49, 0.24)",
+              py: 1,
+            }}
+          >
+            Mostrar mais ({restantes} restante{restantes > 1 ? "s" : ""})
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 }

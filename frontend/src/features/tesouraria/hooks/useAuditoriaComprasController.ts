@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
+  calcularContagensAuditoria,
   calcularResumoAuditoria,
   criarCsvAuditoriaCompras,
 } from "../utils/auditoriaComprasUtils";
@@ -37,18 +38,27 @@ export function useAuditoriaComprasController() {
       }
     },
     staleTime: 180_000,
+    refetchOnMount: false,
   });
 
   // Modals state
-  const [compraSelecionada, setCompraSelecionada] = useState<TransacaoTesouraria | null>(null);
-  const [compraEdicao, setCompraEdicao] = useState<TransacaoTesouraria | null>(null);
-  const [compraRecusa, setCompraRecusa] = useState<TransacaoTesouraria | null>(null);
+  const [compraSelecionada, setCompraSelecionada] =
+    useState<TransacaoTesouraria | null>(null);
+  const [compraEdicao, setCompraEdicao] =
+    useState<TransacaoTesouraria | null>(null);
+  const [compraRecusa, setCompraRecusa] =
+    useState<TransacaoTesouraria | null>(null);
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
 
   const carregarHistorico = useCallback(async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ["tesouraria"],
-    });
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["tesouraria", "auditoria-historico"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["tesouraria", "relatorio"],
+      }),
+    ]);
   }, [queryClient]);
 
   // Hook composition
@@ -79,7 +89,12 @@ export function useAuditoriaComprasController() {
 
   const resumo = useMemo(
     () => calcularResumoAuditoria(comprasFiltradas),
-    [comprasFiltradas]
+    [comprasFiltradas],
+  );
+
+  const contagens = useMemo(
+    () => calcularContagensAuditoria(historicoTransacoes),
+    [historicoTransacoes],
   );
 
   const baixarCSV = useCallback(() => {
@@ -89,7 +104,7 @@ export function useAuditoriaComprasController() {
       ["\uFEFF" + criarCsvAuditoriaCompras(comprasFiltradas)],
       {
         type: "text/csv;charset=utf-8;",
-      }
+      },
     );
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -107,10 +122,13 @@ export function useAuditoriaComprasController() {
     }
   }, []);
 
-  const abrirEdicao = useCallback((compra: TransacaoTesouraria) => {
-    setCompraEdicao(compra);
-    setErroEdicao(null);
-  }, [setErroEdicao]);
+  const abrirEdicao = useCallback(
+    (compra: TransacaoTesouraria) => {
+      setCompraEdicao(compra);
+      setErroEdicao(null);
+    },
+    [setErroEdicao],
+  );
 
   const fecharEdicao = useCallback(() => {
     if (salvandoEdicao) return;
@@ -126,7 +144,7 @@ export function useAuditoriaComprasController() {
       }
       return sucesso;
     },
-    [compraEdicao, salvarEdicaoComprador]
+    [compraEdicao, salvarEdicaoComprador],
   );
 
   const wrapperNegarCompra = useCallback(
@@ -137,7 +155,7 @@ export function useAuditoriaComprasController() {
       }
       return sucesso;
     },
-    [negarCompraManual]
+    [negarCompraManual],
   );
 
   return {
@@ -145,6 +163,7 @@ export function useAuditoriaComprasController() {
     filtros,
     comprasFiltradas,
     resumo,
+    contagens,
     compraSelecionada,
     compraEdicao,
     comprovanteUrl,

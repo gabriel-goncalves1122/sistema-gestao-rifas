@@ -7,6 +7,7 @@ import {
   TransacaoTesouraria,
   AuditoriaComprasFiltros,
   ResumoAuditoriaCompras,
+  ContagensAuditoriaCompras,
   StatusAuditoriaCompras,
   FiltroOrigemAuditoria,
 } from "../types/auditoriaCompras";
@@ -233,11 +234,36 @@ function compraPassaCorrecaoPendente(
 }
 
 /**
- * Avalia se os dados da compra atendem ao termo de busca textual nos campos cadastrais e bilhetes.
+ * Verifica se a compra possui algum bilhete cujo número coincide exatamente com o termo numérico buscado.
+ *
+ * @param {TransacaoTesouraria} compra - Transação de compra avaliada.
+ * @param {string} termoNumerico - Dígitos extraídos da busca.
+ * @returns {boolean} `true` se houver correspondência exata do número da rifa (ex: '42' === '042').
+ */
+function compraPossuiBilheteExato(
+  compra: TransacaoTesouraria,
+  termoNumerico: string,
+): boolean {
+  if (!termoNumerico) return false;
+  const numeroBuscado = Number(termoNumerico);
+
+  return compra.bilhetes.some((bilhete) => {
+    const digitosBilhete = somenteNumeros(bilhete);
+    if (!digitosBilhete) return false;
+    return (
+      digitosBilhete === termoNumerico ||
+      (!Number.isNaN(numeroBuscado) && Number(digitosBilhete) === numeroBuscado)
+    );
+  });
+}
+
+/**
+ * Avalia se os dados da compra atendem ao termo de busca restrito exclusivamente
+ * ao nome do comprador (`compradorNome`) ou número da rifa (`bilhetes`).
  *
  * @param {TransacaoTesouraria} compra - Transação de compra.
  * @param {string} busca - Termo digitado na caixa de busca.
- * @returns {boolean} `true` se corresponder a algum campo.
+ * @returns {boolean} `true` se corresponder ao nome do comprador ou a um bilhete da compra.
  */
 function compraPassaBusca(compra: TransacaoTesouraria, busca: string): boolean {
   const termo = normalizarTexto(busca);
@@ -245,33 +271,30 @@ function compraPassaBusca(compra: TransacaoTesouraria, busca: string): boolean {
 
   if (!termo && !termoNumerico) return true;
 
-  const campos = [
-    compra.compradorNome,
-    compra.compradorEmail,
-    compra.compradorTelefone,
-    compra.compradorId || "",
-    compra.vendedorNome,
-    compra.vendedorCpf,
-    compra.vendedorId || "",
-    compra.status,
-    compra.pixOrderId || "",
-    formatarDataAuditoria(compra.dataReserva),
-    compra.bilhetes.join(" "),
-  ];
+  const nomeCompradorNormalizado = normalizarTexto(compra.compradorNome);
+  const passaNomeComprador =
+    termo.length > 0 && nomeCompradorNormalizado.includes(termo);
 
-  return campos.some((campo) => {
-    const texto = normalizarTexto(campo);
-    const numerico = somenteNumeros(campo);
+  if (passaNomeComprador) return true;
 
-    return (
-      texto.includes(termo) ||
-      (termoNumerico.length > 0 && numerico.includes(termoNumerico))
-    );
-  });
+  if (termoNumerico.length > 0) {
+    const numeroBuscado = Number(termoNumerico);
+    return compra.bilhetes.some((bilhete) => {
+      const digitosBilhete = somenteNumeros(bilhete);
+      if (!digitosBilhete) return false;
+      return (
+        digitosBilhete.includes(termoNumerico) ||
+        (!Number.isNaN(numeroBuscado) && Number(digitosBilhete) === numeroBuscado)
+      );
+    });
+  }
+
+  return false;
 }
 
 /**
  * Aplica simultaneamente os filtros de status, origem, pendência de correção, datas e busca textual.
+ * Quando há busca numérica por rifa, prioriza no topo a compra com correspondência exata do bilhete.
  *
  * @param {TransacaoTesouraria[]} compras - Lista de transações da tesouraria.
  * @param {AuditoriaComprasFiltros} filtros - Conjunto de filtros ativos.
@@ -281,7 +304,7 @@ export function filtrarComprasAuditaveis(
   compras: TransacaoTesouraria[],
   filtros: AuditoriaComprasFiltros,
 ): TransacaoTesouraria[] {
-  return compras.filter((compra) => {
+  const filtradas = compras.filter((compra) => {
     const statusValido =
       filtros.status === "todas" ||
       normalizarTexto(compra.status) === filtros.status;
@@ -294,6 +317,61 @@ export function filtrarComprasAuditaveis(
       compraPassaBusca(compra, filtros.busca)
     );
   });
+
+  const termoNumerico = somenteNumeros(filtros.busca);
+  if (termoNumerico.length > 0 && filtradas.length > 1) {
+    return [...filtradas].sort((a, b) => {
+      const aExato = compraPossuiBilheteExato(a, termoNumerico) ? 1 : 0;
+      const bExato = compraPossuiBilheteExato(b, termoNumerico) ? 1 : 0;
+      return bExato - aExato;
+    });
+  }
+
+  return filtradas;
+}
+
+/**
+ * Computa as contagens absolutas por status, canal e pendência de correção para exibição nos chips de filtro.
+ *
+ * @param {TransacaoTesouraria[]} compras - Lista total de compras na base.
+ * @returns {ContagensAuditoriaCompras} Objeto com os contadores por categoria.
+ */
+export function calcularContagensAuditoria(
+  compras: TransacaoTesouraria[],
+): ContagensAuditoriaCompras {
+  let pago = 0;
+  let pendente = 0;
+  let recusado = 0;
+  let pix = 0;
+  let comprovante = 0;
+  let correcaoPendente = 0;
+
+  for (const compra of compras) {
+    const status = normalizarTexto(compra.status);
+    if (status === "pago") pago += 1;
+    else if (status === "pendente") pendente += 1;
+    else if (status === "recusado") recusado += 1;
+
+    if ((compra.origem || "").toUpperCase() === "PIX") {
+      pix += 1;
+    } else {
+      comprovante += 1;
+    }
+
+    if (compra.correcaoPendente) {
+      correcaoPendente += 1;
+    }
+  }
+
+  return {
+    todas: compras.length,
+    pago,
+    pendente,
+    recusado,
+    pix,
+    comprovante,
+    correcaoPendente,
+  };
 }
 
 /**

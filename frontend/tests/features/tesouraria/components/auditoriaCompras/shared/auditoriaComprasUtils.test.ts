@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  calcularContagensAuditoria,
   calcularResumoAuditoria,
   criarCsvAuditoriaCompras,
   FILTROS_AUDITORIA_COMPRAS_VAZIOS,
@@ -48,16 +49,16 @@ const compras: TransacaoTesouraria[] = [
     status: "pendente",
     origem: "COMPROVANTE",
     comprovanteUrl: "https://storage.mock/comprovante-joao.png",
-    bilhetes: ["003"],
-    valorTotal: 10,
-    valorLiquido: 10,
+    bilhetes: ["003", "103"],
+    valorTotal: 20,
+    valorLiquido: 20,
     correcaoPendente: true,
   },
 ];
 
 describe("Utils: histórico de auditoria", () => {
-  it("Deve filtrar por busca, status, período, canal e correção", () => {
-    // Busca por bilhete
+  it("Deve filtrar estritamente por nome do comprador ou número da rifa, além de status, período, canal e correção", () => {
+    // Busca por bilhete exato ou sem zero à esquerda
     expect(
       filtrarComprasAuditaveis(compras, {
         ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
@@ -65,13 +66,42 @@ describe("Utils: histórico de auditoria", () => {
       }),
     ).toHaveLength(1);
 
-    // Busca por pixOrderId
+    expect(
+      filtrarComprasAuditaveis(compras, {
+        ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
+        busca: "3",
+      }),
+    ).toHaveLength(1);
+
+    // Busca por nome do comprador (sem acento)
+    expect(
+      filtrarComprasAuditaveis(compras, {
+        ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
+        busca: "joao lima",
+      }),
+    ).toHaveLength(1);
+
+    // NÃO deve vazar busca por pixOrderId, CPF do vendedor, telefone ou data
     expect(
       filtrarComprasAuditaveis(compras, {
         ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
         busca: "order_pix_999",
       }),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
+
+    expect(
+      filtrarComprasAuditaveis(compras, {
+        ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
+        busca: "11122233344",
+      }),
+    ).toHaveLength(0);
+
+    expect(
+      filtrarComprasAuditaveis(compras, {
+        ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
+        busca: "35999990000",
+      }),
+    ).toHaveLength(0);
 
     // Filtro por status
     expect(
@@ -120,17 +150,44 @@ describe("Utils: histórico de auditoria", () => {
     ).toBe("João Lima");
   });
 
-  it("Deve calcular resumo com discriminação de líquidos, brutos e canais", () => {
+  it("Deve priorizar compra com bilhete exato no topo ao buscar por número", () => {
+    const listaComParcialPrimeiro: TransacaoTesouraria[] = [
+      { ...compras[0], id: "parcial", bilhetes: ["142"] },
+      { ...compras[1], id: "exato", bilhetes: ["042"] },
+    ];
+
+    const resultado = filtrarComprasAuditaveis(listaComParcialPrimeiro, {
+      ...FILTROS_AUDITORIA_COMPRAS_VAZIOS,
+      busca: "42",
+    });
+
+    expect(resultado).toHaveLength(2);
+    expect(resultado[0].id).toBe("exato");
+    expect(resultado[1].id).toBe("parcial");
+  });
+
+  it("Deve calcular resumo e contagens com discriminação de canais e pendências", () => {
     const resumo = calcularResumoAuditoria(compras);
 
     expect(resumo.totalCompras).toBe(2);
-    expect(resumo.totalRifas).toBe(3);
-    expect(resumo.valorTotal).toBe(30);
-    expect(resumo.valorLiquido).toBeCloseTo(29.4, 2);
+    expect(resumo.totalRifas).toBe(4);
+    expect(resumo.valorTotal).toBe(40);
+    expect(resumo.valorLiquido).toBeCloseTo(39.4, 2);
     expect(resumo.comprasPix).toBe(1);
     expect(resumo.comprasComprovante).toBe(1);
     expect(resumo.pagas).toBe(1);
     expect(resumo.pendentes).toBe(1);
+
+    const contagens = calcularContagensAuditoria(compras);
+    expect(contagens).toEqual({
+      todas: 2,
+      pago: 1,
+      pendente: 1,
+      recusado: 0,
+      pix: 1,
+      comprovante: 1,
+      correcaoPendente: 1,
+    });
   });
 
   it("Deve gerar CSV auditável com canal de origem, valor líquido e correção", () => {

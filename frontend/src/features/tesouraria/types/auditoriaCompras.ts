@@ -27,7 +27,7 @@ export type FiltroOrigemAuditoria = "TODAS" | "PIX" | "COMPROVANTE";
  * Conjunto de parâmetros de filtragem da tela de auditoria de compras.
  */
 export interface AuditoriaComprasFiltros {
-  /** Termo de busca livre pesquisado em compradores, vendedores, bilhetes ou IDs */
+  /** Termo de busca livre pesquisado exclusivamente em nome do comprador ou número da rifa */
   busca: string;
   /** Status da transação no sistema */
   status: StatusAuditoriaCompras;
@@ -35,10 +35,30 @@ export interface AuditoriaComprasFiltros {
   origem?: FiltroOrigemAuditoria;
   /** Se `true`, exibe apenas compras marcadas com correção cadastral pendente */
   somenteCorrecaoPendente?: boolean;
-  /** Data inicial de reserva no formato YYYY-MM-DD */
+  /** Data inicial de reserva no formato YYYY-MM-DD (mantido por compatibilidade de contrato) */
   dataInicio: string;
-  /** Data final de reserva no formato YYYY-MM-DD */
+  /** Data final de reserva no formato YYYY-MM-DD (mantido por compatibilidade de contrato) */
   dataFim: string;
+}
+
+/**
+ * Contagens consolidadas por status, canal e pendência para exibição nos chips de filtro.
+ */
+export interface ContagensAuditoriaCompras {
+  /** Total geral de compras na base */
+  todas: number;
+  /** Compras com status pago */
+  pago: number;
+  /** Compras com status pendente */
+  pendente: number;
+  /** Compras com status recusado */
+  recusado: number;
+  /** Compras originadas via Pix */
+  pix: number;
+  /** Compras originadas via Comprovante manual */
+  comprovante: number;
+  /** Compras com flag de correção cadastral pendente */
+  correcaoPendente: number;
 }
 
 /**

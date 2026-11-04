@@ -1,3 +1,4 @@
+import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
   Button,
@@ -7,8 +8,8 @@ import {
   DialogContent,
   DialogTitle,
   Drawer,
+  IconButton,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 
@@ -16,9 +17,11 @@ import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 import {
   formatarDataAuditoria,
   formatarMoedaAuditoria,
-  statusLabelAuditoria,
-  origemLabelAuditoria,
 } from "../../../utils/auditoriaComprasUtils";
+import { AuditoriaStatusChip } from "./AuditoriaStatusChip";
+import { AuditoriaOrigemChip } from "./AuditoriaOrigemChip";
+import { AuditoriaCorrecaoChip } from "./AuditoriaCorrecaoChip";
+import { formatarTelefone } from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -27,7 +30,7 @@ import { layout } from "../../../styles/layout";
 import { useTesourariaLayout } from "../../../hooks/useTesourariaLayout";
 
 /**
- * Propriedades para renderização do diálogo/drawer com os detalhes completos da compra auditada.
+ * Propriedades para renderização do diálogo/drawer com os detalhes da compra auditada.
  */
 export interface AuditoriaCompraDetalhesDialogProps {
   /** Transação inspecionada ou `null` se fechado */
@@ -36,9 +39,33 @@ export interface AuditoriaCompraDetalhesDialogProps {
   onClose: () => void;
 }
 
+function CampoDetalhe({
+  label,
+  valor,
+}: {
+  label: string;
+  valor?: string | number | null;
+}) {
+  return (
+    <Box sx={surfaces.cartaoInfo}>
+      <Typography sx={typography.label}>{label}</Typography>
+      <Typography
+        sx={{
+          ...typography.bodyDestaque,
+          fontSize: "0.92rem",
+          mt: 0.35,
+          overflowWrap: "anywhere",
+        }}
+      >
+        {valor || "Não informado"}
+      </Typography>
+    </Box>
+  );
+}
+
 /**
- * Modal adaptativo (Dialog no desktop e BottomDrawer no mobile) com todos os detalhes
- * e conciliações financeiras da transação de compra selecionada.
+ * Modal adaptativo (Dialog no desktop e BottomDrawer no mobile) com layout limpo em cards
+ * apresentando os dados essenciais do comprador, vendedor, datas e bilhetes vinculados.
  *
  * @param {AuditoriaCompraDetalhesDialogProps} props - Propriedades do componente.
  * @returns {JSX.Element} Modal/Drawer com dados detalhados.
@@ -50,90 +77,120 @@ export function AuditoriaCompraDetalhesDialog({
   const { isMobile } = useTesourariaLayout();
 
   const conteudoDetalhes = compra && (
-    <Stack spacing={2.25}>
-      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-        {compra.bilhetes.map((bilhete) => (
-          <Chip
-            key={bilhete}
-            label={`Rifa ${bilhete}`}
-            sx={components.chipBilhete}
-          />
-        ))}
-      </Stack>
+    <Stack spacing={2}>
+      {/* Banner Resumo da Compra */}
+      <Box
+        sx={{
+          ...surfaces.fundoVerdeClaro,
+          p: 1.75,
+          borderRadius: 2.25,
+          border: "1px solid rgba(6, 61, 49, 0.14)",
+        }}
+      >
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
+          spacing={1.5}
+        >
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              sx={{
+                color: colors.pretoEsverdeado,
+                fontWeight: 950,
+                fontSize: "1.08rem",
+                lineHeight: 1.2,
+                wordBreak: "break-word",
+              }}
+            >
+              {compra.compradorNome}
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={0.6}
+              alignItems="center"
+              flexWrap="wrap"
+              useFlexGap
+              sx={{ mt: 1 }}
+            >
+              <AuditoriaStatusChip status={compra.status} />
+              <AuditoriaOrigemChip origem={compra.origem} />
+              <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
+            </Stack>
+          </Box>
 
+          <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+            <Typography
+              sx={{
+                color: colors.verdeEscuro,
+                fontWeight: 950,
+                fontSize: "1.32rem",
+                lineHeight: 1.1,
+              }}
+            >
+              {formatarMoedaAuditoria(compra.valorTotal)}
+            </Typography>
+            <Typography
+              sx={{
+                color: colors.cinzaTexto,
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                mt: 0.35,
+              }}
+            >
+              {compra.bilhetes.length} rifa(s)
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {/* Grid de Informações Essenciais */}
       <Box sx={layout.gridDois}>
-        <TextField
-          label="Comprador ID"
-          value={compra.compradorId || "Sem compradorId"}
-          size="small"
-          disabled
+        <CampoDetalhe
+          label="E-mail do comprador"
+          valor={compra.compradorEmail || "Não informado"}
         />
-        <TextField
-          label="Status"
-          value={statusLabelAuditoria(compra.status)}
-          size="small"
-          disabled
+        <CampoDetalhe
+          label="Telefone do comprador"
+          valor={
+            compra.compradorTelefone
+              ? formatarTelefone(compra.compradorTelefone)
+              : "Não informado"
+          }
         />
-        <TextField
-          label="Canal / Origem"
-          value={origemLabelAuditoria(compra.origem)}
-          size="small"
-          disabled
+        <CampoDetalhe
+          label="Vendedor responsável"
+          valor={compra.vendedorNome}
         />
-        <TextField
-          label="Correção pendente"
-          value={compra.correcaoPendente ? "Sim" : "Não"}
-          size="small"
-          disabled
-        />
-        <TextField
-          label="Valor nominal bruto"
-          value={formatarMoedaAuditoria(compra.valorTotal)}
-          size="small"
-          disabled
-        />
-        <TextField
-          label="Valor líquido arrecadado"
-          value={formatarMoedaAuditoria(compra.valorLiquido ?? compra.valorTotal)}
-          size="small"
-          disabled
-        />
-        <TextField
-          label="ID Pedido Pix (Gateway)"
-          value={compra.pixOrderId || "Não aplicável"}
-          size="small"
-          disabled
-        />
-        <TextField
-          label="Status bancário"
-          value={compra.statusPagamentoBanco || "Não aplicável"}
-          size="small"
-          disabled
-        />
-        <TextField
-          label="Vendedor"
-          value={compra.vendedorNome}
-          size="small"
-          disabled
-        />
-        <TextField
+        <CampoDetalhe
           label="CPF do vendedor"
-          value={compra.vendedorCpf}
-          size="small"
-          disabled
+          valor={compra.vendedorCpf || "Não informado"}
         />
-        <TextField
+        <CampoDetalhe
           label="Data da reserva"
-          value={formatarDataAuditoria(compra.dataReserva)}
-          size="small"
-          disabled
+          valor={formatarDataAuditoria(compra.dataReserva)}
         />
-        <TextField
+        <CampoDetalhe
           label="Data do pagamento"
-          value={formatarDataAuditoria(compra.dataPagamento)}
-          size="small"
-          disabled
+          valor={formatarDataAuditoria(compra.dataPagamento)}
         />
+      </Box>
+
+      {/* Rifas Vinculadas */}
+      <Box sx={surfaces.cartaoInfo}>
+        <Typography sx={{ ...typography.label, mb: 1 }}>
+          Rifas vinculadas ({compra.bilhetes.length})
+        </Typography>
+        <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap>
+          {compra.bilhetes.map((bilhete) => (
+            <Chip
+              key={bilhete}
+              label={`Rifa ${bilhete}`}
+              size="small"
+              sx={components.chipBilhete}
+            />
+          ))}
+        </Stack>
       </Box>
     </Stack>
   );
@@ -151,17 +208,26 @@ export function AuditoriaCompraDetalhesDialog({
         {compra && (
           <Stack spacing={2} sx={{ pb: 2 }}>
             <Box sx={layout.drawerPullHandle} />
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box>
-                <Typography sx={{ ...typography.titulo, fontSize: "1.2rem" }}>
-                  Detalhes da compra
-                </Typography>
-                <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.85rem", mt: 0.2 }}>
-                  Conferência de vínculos, bilhetes e dados protegidos.
-                </Typography>
-              </Box>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Typography sx={{ ...typography.titulo, fontSize: "1.18rem" }}>
+                Detalhes da compra
+              </Typography>
+              <IconButton
+                aria-label="Fechar detalhes da compra"
+                onClick={onClose}
+                size="small"
+                sx={{ color: colors.cinzaTexto }}
+              >
+                <CloseIcon />
+              </IconButton>
             </Box>
-            <Box sx={{ flex: 1, overflowY: "auto", px: 0.5, pb: 1 }}>
+            <Box sx={{ flex: 1, overflowY: "auto", px: 0.25, pb: 1 }}>
               {conteudoDetalhes}
             </Box>
             <Box sx={{ pt: 1, borderTop: `1px solid ${colors.borda}` }}>
@@ -189,22 +255,26 @@ export function AuditoriaCompraDetalhesDialog({
         sx: surfaces.dialog,
       }}
     >
-      <DialogTitle sx={surfaces.dialogTitle}>
+      <DialogTitle sx={{ ...surfaces.dialogTitle, pr: 6 }}>
         Detalhes da compra
-        <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.88rem", mt: 0.45 }}>
-          Conferência de vínculos, bilhetes e dados protegidos.
-        </Typography>
+        <IconButton
+          aria-label="Fechar detalhes da compra"
+          onClick={onClose}
+          sx={{
+            position: "absolute",
+            right: 12,
+            top: 12,
+            color: colors.cinzaTexto,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       {compra && (
-        <DialogContent sx={{ pt: 2.75 }}>
-          {conteudoDetalhes}
-        </DialogContent>
+        <DialogContent sx={{ pt: 2.25 }}>{conteudoDetalhes}</DialogContent>
       )}
       <DialogActions sx={surfaces.dialogActions}>
-        <Button
-          onClick={onClose}
-          sx={components.botaoSecundario}
-        >
+        <Button onClick={onClose} sx={components.botaoSecundario}>
           Fechar
         </Button>
       </DialogActions>

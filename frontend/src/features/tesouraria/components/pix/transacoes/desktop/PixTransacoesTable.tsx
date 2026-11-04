@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
-  Box,
   IconButton,
   Paper,
   Stack,
@@ -9,6 +8,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   Typography,
 } from "@mui/material";
@@ -16,10 +16,7 @@ import {
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
 import { surfaces } from "@/shared/tokens/surfaces";
-import { typographyScale as typography } from "@/shared/tokens/typography";
-import {
-  PixTransacao,
-} from "../../../../types/pixTransacoes";
+import { PixTransacao } from "../../../../types/pixTransacoes";
 import {
   formatarDataPix,
   formatarMoedaPix,
@@ -33,6 +30,9 @@ interface PixTransacoesTableProps {
   onNegar: (id: string, motivo: string) => Promise<void>;
 }
 
+/**
+ * Tabela desktop de transações Pix com paginação nativa para evitar gargalos de DOM.
+ */
 export function PixTransacoesTable({
   transacoes,
   onAceitar,
@@ -40,28 +40,44 @@ export function PixTransacoesTable({
 }: PixTransacoesTableProps) {
   const [transacaoDetalhada, setTransacaoDetalhada] =
     useState<PixTransacao | null>(null);
+  const [pagina, setPagina] = useState(0);
+  const [itensPorPagina, setItensPorPagina] = useState(25);
+
+  useEffect(() => {
+    setPagina(0);
+  }, [transacoes]);
+
+  const transacoesPaginadas = transacoes.slice(
+    pagina * itensPorPagina,
+    pagina * itensPorPagina + itensPorPagina,
+  );
 
   return (
     <>
-      <Paper
-        elevation={0}
-        sx={{ ...surfaces.paper, overflow: "hidden" }}
-      >
+      <Paper elevation={0} sx={{ ...surfaces.paper, overflow: "hidden" }}>
         <Table>
           <TableHead>
             <TableRow
-              sx={{ ...components.tabelaCabecalho, "& th": { ...components.tabelaCabecalho["& th"], fontSize: "0.75rem" } }}
+              sx={{
+                ...components.tabelaCabecalho,
+                "& th": {
+                  ...components.tabelaCabecalho["& th"],
+                  fontSize: "0.75rem",
+                },
+              }}
             >
               <TableCell sx={{ width: 54 }} />
               <TableCell>Data</TableCell>
               <TableCell>Pagador</TableCell>
               <TableCell align="right">Valor / Status</TableCell>
-              <TableCell align="center" sx={{ width: 100 }}>Ações</TableCell>
+              <TableCell align="center" sx={{ width: 100 }}>
+                Ações
+              </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {transacoes.map((transacao) => {
+            {transacoesPaginadas.map((transacao) => {
               const valor =
                 transacao.statusPagamento === "PAID"
                   ? transacao.valorPago
@@ -126,10 +142,14 @@ export function PixTransacoesTable({
                   </TableCell>
 
                   <TableCell>
-                    <Typography sx={{ color: colors.pretoEsverdeado, fontWeight: 850 }}>
+                    <Typography
+                      sx={{ color: colors.pretoEsverdeado, fontWeight: 850 }}
+                    >
                       {transacao.compradorNome || "Pagador não informado"}
                     </Typography>
-                    <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.82rem" }}>
+                    <Typography
+                      sx={{ color: colors.cinzaTexto, fontSize: "0.82rem" }}
+                    >
                       {transacao.compradorEmail ||
                         transacao.aderido?.nome ||
                         "Sem e-mail informado"}
@@ -151,12 +171,15 @@ export function PixTransacoesTable({
                       </Typography>
                     </Stack>
                   </TableCell>
-                  <TableCell align="center" onClick={(e) => e.stopPropagation()}>
-                    <PixTransacaoAcoes 
-                      transacao={transacao} 
-                      compact 
-                      onAceitar={onAceitar} 
-                      onNegar={onNegar} 
+                  <TableCell
+                    align="center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <PixTransacaoAcoes
+                      transacao={transacao}
+                      compact
+                      onAceitar={onAceitar}
+                      onNegar={onNegar}
                     />
                   </TableCell>
                 </TableRow>
@@ -164,6 +187,28 @@ export function PixTransacoesTable({
             })}
           </TableBody>
         </Table>
+
+        {transacoes.length > 25 && (
+          <TablePagination
+            component="div"
+            count={transacoes.length}
+            page={pagina}
+            onPageChange={(_, novaPagina) => setPagina(novaPagina)}
+            rowsPerPage={itensPorPagina}
+            onRowsPerPageChange={(event) => {
+              setItensPorPagina(Number.parseInt(event.target.value, 10));
+              setPagina(0);
+            }}
+            rowsPerPageOptions={[25, 50, 100]}
+            labelRowsPerPage="Transações por página:"
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}–${to} de ${count}`
+            }
+            sx={{
+              borderTop: "1px solid rgba(2, 27, 22, 0.08)",
+            }}
+          />
+        )}
       </Paper>
 
       <PixTransacaoDetalhesDialog
