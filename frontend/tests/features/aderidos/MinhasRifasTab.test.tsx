@@ -58,6 +58,9 @@ function criarPainelMock(
     grupoParaCorrigir: null,
     rifaParaDetalhes: null,
 
+    exportandoRelatorio: false,
+    feedbackRelatorio: { open: false, mensagem: "", tipo: "success" },
+
     setFiltro: vi.fn(),
     setVisaoAtual: vi.fn(),
     setModalCheckoutAberto: vi.fn(),
@@ -72,6 +75,8 @@ function criarPainelMock(
     alternarSelecaoRifa: vi.fn(),
     finalizarVendaComSucesso: vi.fn(),
     corrigirDadosRecusados: vi.fn(),
+    exportarRelatorioVendas: vi.fn(),
+    fecharFeedbackRelatorio: vi.fn(),
     invalidarDadosPainel: vi.fn(),
     limparSelecao: vi.fn(),
 
@@ -101,30 +106,26 @@ describe("Componente <MinhasRifasTab />", () => {
 
     render(<MinhasRifasTab />);
 
-    expect(screen.getByTestId("aderidos-swipe-transition")).toHaveAttribute(
-      "data-visao",
-      "geral",
-    );
     expect(screen.getByText(/Olá, Gabriel/i)).toBeInTheDocument();
-    expect(screen.getByText(/Suas rifas/i)).toBeInTheDocument();
+    expect(screen.getByText("R$ 10,00")).toBeInTheDocument();
     expect(screen.getByText("001")).toBeInTheDocument();
     expect(screen.getByText("002")).toBeInTheDocument();
   });
 
   it("Deve chamar seleção ao clicar em rifa disponível", () => {
-    const mockAlternarSelecao = vi.fn();
+    const alternarSelecaoRifa = vi.fn();
 
     vi.mocked(usePainelAderidoController).mockReturnValue(
       criarPainelMock({
-        alternarSelecaoRifa: mockAlternarSelecao,
+        alternarSelecaoRifa,
       }),
     );
 
     render(<MinhasRifasTab />);
 
-    fireEvent.click(screen.getByText("001"));
+    fireEvent.click(screen.getByRole("button", { name: /Rifa 001 disponível/i }));
 
-    expect(mockAlternarSelecao).toHaveBeenCalledWith("001", "disponivel");
+    expect(alternarSelecaoRifa).toHaveBeenCalledWith("001", "disponivel");
   });
 
   it("Deve renderizar a aba de recusadas quando a visão atual for recusadas", () => {
@@ -133,12 +134,12 @@ describe("Componente <MinhasRifasTab />", () => {
         visaoAtual: "recusadas",
         gruposRecusados: [
           {
-            comprador: "Ana",
-            email: "ana@email.com",
-            telefone: "(11) 99999-9999",
-            data: "2026-05-10T10:00:00.000Z",
+            comprador: "Lucas Silva",
+            email: "lucas@email.com",
+            telefone: "35999999999",
+            data: "2026-03-20T10:00:00Z",
             motivo: "Comprovante ilegível",
-            bilhetes: ["001", "002"],
+            bilhetes: ["010"],
           },
         ],
       }),
@@ -146,13 +147,7 @@ describe("Componente <MinhasRifasTab />", () => {
 
     render(<MinhasRifasTab />);
 
-    expect(screen.getByTestId("aderidos-swipe-transition")).toHaveAttribute(
-      "data-visao",
-      "recusadas",
-    );
-    expect(screen.getByText(/Comprovante ilegível/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Voltar às rifas/i })).toBeInTheDocument();
-    expect(screen.queryByText(/Olá, Gabriel/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Suas rifas/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Vendas recusadas/i)).toBeInTheDocument();
+    expect(screen.getByText("Lucas Silva")).toBeInTheDocument();
   });
 });

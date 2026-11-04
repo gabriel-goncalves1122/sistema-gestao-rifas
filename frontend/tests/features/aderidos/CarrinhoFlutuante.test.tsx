@@ -59,7 +59,8 @@ describe("Componente <CarrinhoFlutuante />", () => {
       pointerEvents: "none",
     });
     expect(painelAderidoStyles.carrinhoFixoCard).toMatchObject({
-      bgcolor: "#FFFFFF",
+      bgcolor: "rgba(255, 255, 255, 0.90)",
+      backdropFilter: "blur(14px)",
       border: "2px solid rgba(6,61,49,0.16)",
       pointerEvents: "auto",
     });

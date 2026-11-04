@@ -218,6 +218,8 @@ function CheckoutModalContent({
 }
 
 export function CheckoutModal(props: CheckoutModalProps) {
+  if (!props.open) return null;
+
   return (
     <Dialog
       open={props.open}

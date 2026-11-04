@@ -48,10 +48,12 @@ export const painelAderidoCarrinhoSurfaceStyles: Record<
       xs: 2,
       sm: 2.25,
     },
-    bgcolor: colors.branco,
+    bgcolor: "rgba(255, 255, 255, 0.90)",
+    backdropFilter: "blur(14px)",
+    WebkitBackdropFilter: "blur(14px)",
     border: "2px solid rgba(6,61,49,0.16)",
     boxShadow:
-      "0 18px 40px rgba(2, 27, 22, 0.14), 0 2px 8px rgba(6, 61, 49, 0.08)",
+      "0 20px 48px rgba(2, 27, 22, 0.16), 0 4px 12px rgba(6, 61, 49, 0.08)",
     pointerEvents: "auto",
   },
 

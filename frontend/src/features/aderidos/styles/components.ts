@@ -152,6 +152,10 @@ export const painelAderidoComponentStyles: Record<string, SxProps<Theme>> = {
     ...focusVisibleSx,
     ...reduceMotionSx,
 
+    "&:active": {
+      transform: "scale(0.92)",
+    },
+
     "&.Mui-disabled": {
       opacity: 1,
     },

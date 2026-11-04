@@ -16,4 +16,19 @@ minhasRifasRoutes.get(
   rifasController.getMinhasRifas,
 );
 
+// GET /rifas/meu-relatorio
+// Retorna o relatório consolidado de vendas do aderido autenticado.
+minhasRifasRoutes.get(
+  "/meu-relatorio",
+  validateToken,
+  rifasController.obterMeuRelatorioVendas,
+);
+
+// GET /rifas/minhas-rifas/relatorio (alias de conveniência)
+minhasRifasRoutes.get(
+  "/minhas-rifas/relatorio",
+  validateToken,
+  rifasController.obterMeuRelatorioVendas,
+);
+
 export default minhasRifasRoutes;

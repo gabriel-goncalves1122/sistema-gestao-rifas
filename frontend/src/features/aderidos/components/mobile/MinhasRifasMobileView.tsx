@@ -21,6 +21,8 @@ export interface MinhasRifasMobileViewProps {
   totalPendencias: number;
   onAbrirNotificacoes: () => void;
   onAbrirRecusadas: () => void;
+  onExportarRelatorio?: () => void;
+  exportandoRelatorio?: boolean;
   filtro: FiltroRifasAderido;
   onChangeFiltro: (filtro: FiltroRifasAderido) => void;
   rifasFiltradas: RifaAderido[];
@@ -45,6 +47,8 @@ export function MinhasRifasMobileView({
   totalPendencias,
   onAbrirNotificacoes,
   onAbrirRecusadas,
+  onExportarRelatorio,
+  exportandoRelatorio,
   filtro,
   onChangeFiltro,
   rifasFiltradas,
@@ -73,10 +77,14 @@ export function MinhasRifasMobileView({
           <EstatisticasAderido
             primeiroNome={primeiroNome}
             valorArrecadado={valorArrecadado}
+            totalRifas={contadoresRifas.todas}
+            rifasPagas={contadoresRifas.pago}
             notificacoesNaoLidas={notificacoesNaoLidas}
             totalPendencias={totalPendencias}
             onAbrirNotificacoes={onAbrirNotificacoes}
             onAbrirRecusadas={onAbrirRecusadas}
+            onExportarRelatorio={onExportarRelatorio}
+            exportandoRelatorio={exportandoRelatorio}
           />
 
           <PainelRifasPrincipal

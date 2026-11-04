@@ -82,9 +82,9 @@ export function CarrinhoFlutuante({
                   <Box
                     component={motion.div}
                     key={quantidade} // Aciona a animação quando a quantidade muda
-                    initial={{ scale: 0.5 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    initial={{ scale: 0.6, rotate: -6 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 480, damping: 16 }}
                     sx={painelAderidoStyles.carrinhoQuantidadeChip}
                   >
                     {quantidade}

@@ -3,9 +3,15 @@
 // ============================================================================
 import * as admin from "firebase-admin";
 
-import { Bilhete } from "../../types/models";
+import { Bilhete, Comprador } from "../../types/models";
 import { ordenarRifasPorNumero } from "../helpers/ordenarRifasHelper";
 import { buscarUsuarioPorEmail } from "../helpers/usuarioRifasHelper";
+import {
+  ItemVendaRelatorioAderidoDTO,
+  RelatorioVendasAderidoDTO,
+} from "../types/rifasTypes";
+
+const VALOR_PADRAO_RIFA = 10;
 
 export class AderidoRifasService {
   /**
@@ -29,5 +35,152 @@ export class AderidoRifasService {
     const bilhetes = bilhetesSnapshot.docs.map((doc) => doc.data() as Bilhete);
 
     return ordenarRifasPorNumero(bilhetes);
+  }
+
+  /**
+   * Gera o relatório consolidado de vendas de rifas para o aderido logado.
+   * Totaliza métricas do lote e lista detalhadamente todos os bilhetes vendidos (pagos e em análise).
+   * Consulta a coleção 'compradores' como fonte da verdade cadastral para os dados dos compradores.
+   *
+   * @param {string} emailLogado - Email do aderido autenticado na requisição.
+   * @returns {Promise<RelatorioVendasAderidoDTO>} Objeto contendo resumo estatístico e lista detalhada de itens vendidos.
+   * @throws {Error} Lança "USER_NOT_FOUND" se o aderido não for localizado no banco de dados.
+   */
+  static async obterRelatorioVendas(
+    emailLogado: string,
+  ): Promise<RelatorioVendasAderidoDTO> {
+    const db = admin.firestore();
+
+    const usuario = await buscarUsuarioPorEmail(emailLogado);
+    const idAderido = usuario.data.id_aderido || usuario.id;
+    const nomeAderido = usuario.data.nome || "Aderido";
+
+    const bilhetesSnapshot = await db
+      .collection("bilhetes")
+      .where("vendedor_id", "==", idAderido)
+      .get();
+
+    const bilhetes = bilhetesSnapshot.docs.map((doc) => doc.data() as Bilhete);
+
+    let rifasPagas = 0;
+    let valorPagoConfirmado = 0;
+    let rifasEmAnalise = 0;
+    let valorEmAnalise = 0;
+    let rifasDisponiveis = 0;
+
+    const bilhetesVendidos: Bilhete[] = [];
+
+    for (const bilhete of bilhetes) {
+      if (bilhete.status === "disponivel") {
+        rifasDisponiveis += 1;
+      } else if (bilhete.status === "pago") {
+        const valor =
+          bilhete.valor_pago || bilhete.valor_bruto || VALOR_PADRAO_RIFA;
+        rifasPagas += 1;
+        valorPagoConfirmado += valor;
+        bilhetesVendidos.push(bilhete);
+      } else if (bilhete.status === "pendente") {
+        const valor =
+          bilhete.valor_pago || bilhete.valor_bruto || VALOR_PADRAO_RIFA;
+        rifasEmAnalise += 1;
+        valorEmAnalise += valor;
+        bilhetesVendidos.push(bilhete);
+      }
+    }
+
+    const totalRifasLote = bilhetes.length;
+    const totalVendidas = rifasPagas + rifasEmAnalise;
+    const valorTotalNegociado = valorPagoConfirmado + valorEmAnalise;
+
+    // Buscar compradores como fonte da verdade cadastral
+    const compradoresIds = Array.from(
+      new Set(
+        bilhetesVendidos
+          .map((b) => b.comprador_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    const compradoresMap = new Map<string, Comprador>();
+    if (compradoresIds.length > 0) {
+      const compradoresSnaps = await Promise.all(
+        compradoresIds.map((id) => db.collection("compradores").doc(id).get()),
+      );
+      for (const snap of compradoresSnaps) {
+        if (snap.exists) {
+          compradoresMap.set(snap.id, snap.data() as Comprador);
+        }
+      }
+    }
+
+    // Ordenar os bilhetes vendidos numericamente
+    bilhetesVendidos.sort((a, b) => {
+      const numA = parseInt(a.numero, 10) || 0;
+      const numB = parseInt(b.numero, 10) || 0;
+      return numA - numB;
+    });
+
+    const itens: ItemVendaRelatorioAderidoDTO[] = bilhetesVendidos.map(
+      (bilhete) => {
+        const compradorDoc = bilhete.comprador_id
+          ? compradoresMap.get(bilhete.comprador_id)
+          : undefined;
+
+        const compradorNome =
+          compradorDoc?.nome || bilhete.comprador_nome || "Nome não informado";
+        const compradorTelefone =
+          compradorDoc?.telefone || bilhete.comprador_telefone || "";
+        const compradorEmail =
+          compradorDoc?.email || bilhete.comprador_email || "";
+
+        const canal: "pix" | "comprovante" | "outro" = bilhete.pix_order_id
+          ? "pix"
+          : bilhete.comprovante_url
+            ? "comprovante"
+            : "outro";
+
+        const status: "pago" | "pendente" =
+          bilhete.status === "pago" ? "pago" : "pendente";
+        const statusFormatado: "Pago" | "Em análise" =
+          status === "pago" ? "Pago" : "Em análise";
+
+        const valor =
+          bilhete.valor_pago || bilhete.valor_bruto || VALOR_PADRAO_RIFA;
+        const numeroRifa = parseInt(bilhete.numero, 10) || 0;
+        const data = bilhete.data_pagamento || bilhete.data_reserva || null;
+
+        return {
+          numeroRifa,
+          compradorNome,
+          compradorTelefone,
+          compradorEmail,
+          status,
+          statusFormatado,
+          valor,
+          canal,
+          data,
+          orderId: bilhete.pix_order_id || null,
+        };
+      },
+    );
+
+    return {
+      aderido: {
+        nome: nomeAderido,
+        email: emailLogado,
+      },
+      geradoEm: new Date().toISOString(),
+      resumo: {
+        totalRifasLote,
+        totalVendidas,
+        rifasPagas,
+        valorPagoConfirmado,
+        rifasEmAnalise,
+        valorEmAnalise,
+        rifasDisponiveis,
+        valorTotalNegociado,
+      },
+      itens,
+    };
   }
 }

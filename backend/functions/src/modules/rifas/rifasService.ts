@@ -3,14 +3,18 @@
 // ============================================================================
 import { Bilhete } from "../types/models";
 
-import { DadosCorrecaoRifas, DadosVenda } from "./types/rifasTypes";
-import { DadosCorrecaoDadosRifas } from "./types/rifasTypes";
+import {
+  DadosCorrecaoDadosRifas,
+  DadosCorrecaoRifas,
+  DadosVenda,
+  RelatorioVendasAderidoDTO,
+} from "./types/rifasTypes";
 
 import { AderidoRifasService } from "./services/aderidoRifasService";
-import { VendaRifasService } from "./services/vendaRifasService";
+import { CorrecaoDadosRifasService } from "./services/correcaoDadosRifasService";
 import { CorrecaoRifasService } from "./services/correcaoRifasService";
 import { RelatorioRifasService } from "./services/relatorioRifasService";
-import { CorrecaoDadosRifasService } from "./services/correcaoDadosRifasService";
+import { VendaRifasService } from "./services/vendaRifasService";
 
 export class RifasService {
   /**
@@ -21,6 +25,18 @@ export class RifasService {
    */
   static async buscarPorAderido(emailLogado: string): Promise<Bilhete[]> {
     return AderidoRifasService.buscarPorAderido(emailLogado);
+  }
+
+  /**
+   * Obtém o relatório consolidado de vendas de rifas para o aderido autenticado.
+   *
+   * @param {string} emailLogado - Email do aderido autenticado.
+   * @returns {Promise<RelatorioVendasAderidoDTO>} Relatório estruturado de vendas e métricas.
+   */
+  static async obterRelatorioVendas(
+    emailLogado: string,
+  ): Promise<RelatorioVendasAderidoDTO> {
+    return AderidoRifasService.obterRelatorioVendas(emailLogado);
   }
 
   /**

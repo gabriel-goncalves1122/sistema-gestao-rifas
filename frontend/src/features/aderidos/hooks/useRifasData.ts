@@ -64,6 +64,7 @@ export function useRifasData() {
     staleTime: QUERY_STALE_TIME,
     gcTime: QUERY_GC_TIME,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const notificacoesQuery = useQuery({
@@ -82,6 +83,7 @@ export function useRifasData() {
     },
     enabled: consultasAtivas,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
     staleTime: QUERY_STALE_TIME,
     gcTime: QUERY_GC_TIME,
   });
@@ -103,14 +105,19 @@ export function useRifasData() {
     return cache ? JSON.parse(cache) : [];
   }, [notificacoesQuery.data, usuarioId]);
 
-  const invalidarDadosPainel = useCallback(async () => {
+  const invalidarRifas = useCallback(async () => {
     if (!usuarioId) return;
+    await queryClient.invalidateQueries({ queryKey: rifasQueryKey });
+  }, [queryClient, rifasQueryKey, usuarioId]);
 
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: rifasQueryKey }),
-      queryClient.invalidateQueries({ queryKey: notificacoesQueryKey }),
-    ]);
-  }, [notificacoesQueryKey, queryClient, rifasQueryKey, usuarioId]);
+  const invalidarNotificacoes = useCallback(async () => {
+    if (!usuarioId) return;
+    await queryClient.invalidateQueries({ queryKey: notificacoesQueryKey });
+  }, [notificacoesQueryKey, queryClient, usuarioId]);
+
+  const invalidarDadosPainel = useCallback(async () => {
+    await Promise.all([invalidarRifas(), invalidarNotificacoes()]);
+  }, [invalidarNotificacoes, invalidarRifas]);
 
   // ------------------------------------------------------------------
   // Marca notificacoes como lidas (otimista)
@@ -199,6 +206,8 @@ export function useRifasData() {
     authCarregando,
     minhasRifas,
     notificacoes,
+    invalidarRifas,
+    invalidarNotificacoes,
     invalidarDadosPainel,
     marcarNotificacoesLidasOtimista,
     corrigirDadosRecusados,

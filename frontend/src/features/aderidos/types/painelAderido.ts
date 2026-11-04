@@ -53,3 +53,46 @@ export interface DadosCorrecaoRecusa {
   email: string;
   telefone: string;
 }
+
+/**
+ * Item individual de bilhete vendido no relatório de vendas do aderido.
+ */
+export interface ItemVendaRelatorioAderido {
+  numeroRifa: number;
+  compradorNome: string;
+  compradorTelefone: string;
+  compradorEmail: string;
+  status: "pago" | "pendente";
+  statusFormatado: "Pago" | "Em análise";
+  valor: number;
+  canal: "pix" | "comprovante" | "outro";
+  data: string | null;
+  orderId: string | null;
+}
+
+/**
+ * Resumo estatístico do lote de rifas e vendas do aderido.
+ */
+export interface ResumoRelatorioAderido {
+  totalRifasLote: number;
+  totalVendidas: number;
+  rifasPagas: number;
+  valorPagoConfirmado: number;
+  rifasEmAnalise: number;
+  valorEmAnalise: number;
+  rifasDisponiveis: number;
+  valorTotalNegociado: number;
+}
+
+/**
+ * Relatório completo retornado pelo backend com vendas e estatísticas do aderido.
+ */
+export interface RelatorioVendasAderido {
+  aderido: {
+    nome: string;
+    email: string;
+  };
+  geradoEm: string;
+  resumo: ResumoRelatorioAderido;
+  itens: ItemVendaRelatorioAderido[];
+}

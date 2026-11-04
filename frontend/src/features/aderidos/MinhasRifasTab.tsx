@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Alert, Box, Snackbar } from "@mui/material";
 
 import { NotificacoesSidebar } from "@/shared/components/NotificacoesSidebar";
 import { usePremiosLayout } from "../premios/hooks/usePremiosLayout";
@@ -17,8 +17,6 @@ import { painelAderidoStyles } from "./styles/painelAderidoStyles";
 export function MinhasRifasTab() {
   const painel = usePainelAderidoController();
   const { isMobile } = usePremiosLayout();
-
-
 
   const ViewComponent = isMobile ? MinhasRifasMobileView : MinhasRifasDesktopView;
 
@@ -42,6 +40,8 @@ export function MinhasRifasTab() {
             totalPendencias={painel.gruposRecusados.length}
             onAbrirNotificacoes={painel.abrirSidebarNotificacoes}
             onAbrirRecusadas={painel.abrirRecusadas}
+            onExportarRelatorio={painel.exportarRelatorioVendas}
+            exportandoRelatorio={painel.exportandoRelatorio}
             filtro={painel.filtro}
             onChangeFiltro={painel.setFiltro}
             rifasFiltradas={painel.rifasFiltradas}
@@ -68,7 +68,7 @@ export function MinhasRifasTab() {
           }}
           onSuccess={painel.finalizarVendaComSucesso}
           numerosRifas={painel.selecionadas}
-          invalidarDadosPainel={painel.invalidarDadosPainel}
+          invalidarDadosPainel={painel.invalidarRifas}
         />
 
         <NotificacoesSidebar
@@ -101,6 +101,22 @@ export function MinhasRifasTab() {
             }
           }}
         />
+
+        <Snackbar
+          open={Boolean(painel.feedbackRelatorio?.open)}
+          autoHideDuration={4000}
+          onClose={painel.fecharFeedbackRelatorio}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert
+            onClose={painel.fecharFeedbackRelatorio}
+            severity={painel.feedbackRelatorio?.tipo || "success"}
+            variant="filled"
+            sx={{ width: "100%", borderRadius: 2 }}
+          >
+            {painel.feedbackRelatorio?.mensagem || ""}
+          </Alert>
+        </Snackbar>
       </Box>
     </Box>
   );

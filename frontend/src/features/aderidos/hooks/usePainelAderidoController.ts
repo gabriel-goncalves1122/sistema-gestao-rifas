@@ -7,10 +7,11 @@
 // 2. Selecao de rifas para venda via useRifasSelection
 // 3. Controle de modais e drawers via useModalStack
 // 4. Fluxo pos-checkout via useCheckoutFlow
+// 5. Exportação de relatório de vendas individual em PDF
 //
 // Componentes de UI consomem este hook e nao acessam dados diretamente.
 // ============================================================================
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   DadosCorrecaoRecusa,
@@ -18,14 +19,16 @@ import {
   VisaoPainelAderido,
 } from "../types/painelAderido";
 
+import { aderidoRifaService } from "../services/aderidoRifaService";
 import { agruparRifasRecusadas } from "../utils/agruparRifasRecusadas";
 import {
   calcularValorArrecadado,
   contarNotificacoesNaoLidas,
   filtrarRifasPorStatus,
 } from "../utils/calcularResumoRifas";
-import { obterPrimeiroNomeAderido } from "../utils/obterPrimeiroNomeAderido";
 import { calcularContadoresRifas } from "../utils/filtrosRifas";
+import { gerarPdfRelatorioAderido } from "../utils/gerarPdfRelatorioAderido";
+import { obterPrimeiroNomeAderido } from "../utils/obterPrimeiroNomeAderido";
 import { useCheckoutFlow } from "./useCheckoutFlow";
 import { useModalStack } from "./useModalStack";
 import { useRifasData } from "./useRifasData";
@@ -50,9 +53,24 @@ function rolarParaInicioDoPainel() {
   executarScroll();
 }
 
+/**
+ * Hook controlador principal da visão de Aderidos.
+ * Gerencia ciclo de vida, filtros, seleção, dados remotos e exportação de PDF.
+ */
 export function usePainelAderidoController() {
   const [visaoAtual, setVisaoAtual] = useState<VisaoPainelAderido>("geral");
   const [filtro, setFiltro] = useState<FiltroRifasAderido>("todas");
+  const [exportandoRelatorio, setExportandoRelatorio] = useState(false);
+  const [feedbackRelatorio, setFeedbackRelatorio] = useState<{
+    open: boolean;
+    mensagem: string;
+    tipo: "success" | "error";
+  }>({
+    open: false,
+    mensagem: "",
+    tipo: "success",
+  });
+
   const dadosPainel = useRifasData();
   const selecao = useRifasSelection(dadosPainel.minhasRifas);
   const modais = useModalStack();
@@ -65,8 +83,6 @@ export function usePainelAderidoController() {
     limparSelecao: selecao.limparSelecao,
     invalidarDadosPainel: dadosPainel.invalidarDadosPainel,
   });
-
-
 
   // ------------------------------------------------------------------
   // Computacoes derivadas dos dados brutos
@@ -170,6 +186,39 @@ export function usePainelAderidoController() {
     ],
   );
 
+  const exportarRelatorioVendas = useCallback(async () => {
+    if (exportandoRelatorio) return;
+
+    setExportandoRelatorio(true);
+    try {
+      const relatorio = await aderidoRifaService.obterMeuRelatorioVendas();
+      gerarPdfRelatorioAderido(relatorio);
+      setFeedbackRelatorio({
+        open: true,
+        mensagem: "Relatório de vendas exportado com sucesso!",
+        tipo: "success",
+      });
+    } catch (error: any) {
+      console.error(
+        "[usePainelAderidoController] Erro ao exportar relatório:",
+        error,
+      );
+      setFeedbackRelatorio({
+        open: true,
+        mensagem:
+          error?.message ||
+          "Não foi possível exportar o relatório de vendas. Tente novamente.",
+        tipo: "error",
+      });
+    } finally {
+      setExportandoRelatorio(false);
+    }
+  }, [exportandoRelatorio]);
+
+  const fecharFeedbackRelatorio = useCallback(() => {
+    setFeedbackRelatorio((prev) => ({ ...prev, open: false }));
+  }, []);
+
   return {
     carregando: dadosPainel.carregando,
     visaoAtual,
@@ -194,6 +243,9 @@ export function usePainelAderidoController() {
     grupoParaCorrigir: modais.grupoParaCorrigir,
     rifaParaDetalhes: modais.rifaParaDetalhes,
 
+    exportandoRelatorio,
+    feedbackRelatorio,
+
     setFiltro,
     setVisaoAtual,
     setModalCheckoutAberto: modais.setModalCheckoutAberto,
@@ -208,7 +260,11 @@ export function usePainelAderidoController() {
     alternarSelecaoRifa: selecao.alternarSelecaoRifa,
     finalizarVendaComSucesso,
     corrigirDadosRecusados,
+    exportarRelatorioVendas,
+    fecharFeedbackRelatorio,
     invalidarDadosPainel: dadosPainel.invalidarDadosPainel,
+    invalidarRifas: dadosPainel.invalidarRifas,
+    invalidarNotificacoes: dadosPainel.invalidarNotificacoes,
     limparSelecao: selecao.limparSelecao,
   };
 }

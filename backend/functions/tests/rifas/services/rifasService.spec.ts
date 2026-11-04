@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mocks = {
   buscarPorAderido: jest.fn<any>(),
+  obterRelatorioVendas: jest.fn<any>(),
   processarVenda: jest.fn<any>(),
   corrigirRifasRecusadas: jest.fn<any>(),
   corrigirDadosRifasRecusadas: jest.fn<any>(),
@@ -18,6 +19,7 @@ const mocks = {
 jest.mock("../../../src/modules/rifas/services/aderidoRifasService", () => ({
   AderidoRifasService: {
     buscarPorAderido: mocks.buscarPorAderido,
+    obterRelatorioVendas: mocks.obterRelatorioVendas,
   },
 }));
 
@@ -63,6 +65,21 @@ describe("Fachada: RifasService", () => {
 
     expect(mocks.buscarPorAderido).toHaveBeenCalledWith("aderido@email.com");
     expect(resultado).toEqual([{ numero: "001" }]);
+  });
+
+  it("Deve delegar obterRelatorioVendas para AderidoRifasService", async () => {
+    const relatorioMock = {
+      aderido: { nome: "Aderido", email: "aderido@email.com" },
+      geradoEm: "2026-11-04T10:00:00Z",
+      resumo: { totalVendidas: 5 },
+      itens: [],
+    };
+    mocks.obterRelatorioVendas.mockResolvedValueOnce(relatorioMock);
+
+    const resultado = await RifasService.obterRelatorioVendas("aderido@email.com");
+
+    expect(mocks.obterRelatorioVendas).toHaveBeenCalledWith("aderido@email.com");
+    expect(resultado).toEqual(relatorioMock);
   });
 
   it("Deve delegar processarVenda para VendaRifasService", async () => {

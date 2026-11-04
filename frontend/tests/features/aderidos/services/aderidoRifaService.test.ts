@@ -49,4 +49,29 @@ describe("Service: aderidoRifaService", () => {
       numerosRifas: ["015"],
     });
   });
+
+  it("Deve obter o relatório consolidado de vendas do aderido autenticado", async () => {
+    const relatorioMock = {
+      aderido: { nome: "Gabriel", email: "gabriel@unifei.br" },
+      geradoEm: "2026-11-04T10:00:00Z",
+      resumo: {
+        totalRifasLote: 25,
+        totalVendidas: 10,
+        rifasPagas: 8,
+        valorPagoConfirmado: 80,
+        rifasEmAnalise: 2,
+        valorEmAnalise: 20,
+        rifasDisponiveis: 15,
+        valorTotalNegociado: 100,
+      },
+      itens: [],
+    };
+
+    vi.mocked(fetchAPI).mockResolvedValueOnce(relatorioMock);
+
+    const resultado = await aderidoRifaService.obterMeuRelatorioVendas();
+
+    expect(fetchAPI).toHaveBeenCalledWith("/rifas/meu-relatorio");
+    expect(resultado).toEqual(relatorioMock);
+  });
 });
