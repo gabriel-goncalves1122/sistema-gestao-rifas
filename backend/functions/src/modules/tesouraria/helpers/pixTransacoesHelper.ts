@@ -132,11 +132,11 @@ export function resolverStatusValidacaoBilhete(
     return base.status_validacao;
   }
 
-  if (base.status === "pago" && base.pix_order_id) {
+  if (base.status === "pago") {
     return "aceita";
   }
 
-  if (base.status === "recusado" && base.pix_order_id) {
+  if (base.status === "recusado") {
     return "negada";
   }
 
@@ -182,6 +182,12 @@ export function montarPixTransacao(
         ? base.vendedor_cpf
         : undefined;
 
+  const ehPix = bilhetesOrdenados.some((bilhete) => Boolean(bilhete.pix_order_id));
+  const comprovanteUrl =
+    bilhetesOrdenados.find((bilhete) => Boolean(bilhete.comprovante_url))
+      ?.comprovante_url || null;
+  const chaveBruta = chaveCompra(base);
+
   return {
     id: idNormalizado || `rifas-${numerosRifas.join("-")}`,
     pixOrderId: base.pix_order_id || undefined,
@@ -224,6 +230,9 @@ export function montarPixTransacao(
       pagamento === "DECLINED"
         ? base.motivo_recusa || "Comprovante recusado pela tesouraria."
         : undefined,
+    origem: ehPix ? "PIX" : "COMPROVANTE",
+    comprovanteUrl,
+    chaveAcao: chaveBruta,
   };
 }
 
@@ -236,15 +245,22 @@ export function montarPixTransacao(
  * @returns {boolean} `true` se o pagamento estiver confirmado e validado.
  */
 export function transacaoPixEstaValidada(transacao: PixTransacao): boolean {
-  if (!["PAID", "AUTHORIZED"].includes(transacao.statusPagamento)) {
-    return false;
-  }
-
   if (transacao.statusValidacao === "aceita") {
     return true;
   }
 
   if (transacao.statusValidacao === "negada") {
+    return false;
+  }
+
+  if (transacao.origem === "COMPROVANTE") {
+    if (transacao.rifas && transacao.rifas.length > 0) {
+      return transacao.rifas.every((rifa) => rifa.status === "pago");
+    }
+    return transacao.statusPagamento === "PAID";
+  }
+
+  if (!["PAID", "AUTHORIZED"].includes(transacao.statusPagamento)) {
     return false;
   }
 
@@ -256,17 +272,26 @@ export function transacaoPixEstaValidada(transacao: PixTransacao): boolean {
 }
 
 /**
- * Avalia se uma transação Pix já teve o pagamento aprovado no gateway bancário,
+ * Avalia se uma transação Pix já teve o pagamento aprovado no gateway bancário ou comprovante enviado,
  * mas ainda aguarda conferência/aceite manual da Tesouraria (`status === "pendente"`).
  *
  * @param {PixTransacao} transacao - Transação Pix avaliada.
  * @returns {boolean} `true` se aguarda validação da tesouraria.
  */
 export function transacaoPixAguardandoValidacao(transacao: PixTransacao): boolean {
+  if (transacao.statusValidacao === "negada" || transacaoPixEstaValidada(transacao)) {
+    return false;
+  }
+
+  if (transacao.origem === "COMPROVANTE") {
+    return Boolean(
+      transacao.rifas?.some((r) => r.status === "pendente" || r.status === "reservado"),
+    );
+  }
+
   return (
-    ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento) &&
-    transacao.statusValidacao !== "negada" &&
-    !transacaoPixEstaValidada(transacao)
+    ["PAID", "AUTHORIZED", "IN_ANALYSIS"].includes(transacao.statusPagamento) ||
+    Boolean(transacao.comprovanteUrl)
   );
 }
 
@@ -326,21 +351,24 @@ export function calcularResumoPixTransacoes(
   transacoes: PixTransacao[],
   resumoComprovantes?: ResumoComprovantesTesouraria,
 ): PixTransacoesResumo {
-  const pagas = transacoes.filter(transacaoPixEstaValidada);
-  const aguardandoBanco = transacoes.filter(
+  const transacoesPix = transacoes.filter((t) => t.origem !== "COMPROVANTE");
+  const transacoesComprovante = transacoes.filter((t) => t.origem === "COMPROVANTE");
+
+  const pagas = transacoesPix.filter(transacaoPixEstaValidada);
+  const aguardandoBanco = transacoesPix.filter(
     (transacao) =>
       transacao.statusPagamento === "WAITING" ||
       transacao.statusPagamento === "IN_ANALYSIS",
   );
-  const aguardandoValidacao = transacoes.filter(transacaoPixAguardandoValidacao);
+  const aguardandoValidacao = transacoesPix.filter(transacaoPixAguardandoValidacao);
   const aguardando = [...aguardandoBanco, ...aguardandoValidacao];
 
-  const canceladas = transacoes.filter(
+  const canceladas = transacoesPix.filter(
     (transacao) =>
       ["CANCELED", "DECLINED"].includes(transacao.statusPagamento) ||
       transacao.statusValidacao === "negada",
   );
-  const erros = transacoes.filter(
+  const erros = transacoesPix.filter(
     (transacao) => transacao.statusPagamento === "ERROR",
   );
 
@@ -380,12 +408,20 @@ export function calcularResumoPixTransacoes(
   const pixRifasAguardando = aguardando.reduce((acc, t) => acc + contarRifasTransacao(t), 0);
 
   const comprovantes: ResumoComprovantesTesouraria = resumoComprovantes || {
-    comprovantesTransacoesPagas: 0,
-    comprovantesRifasPagas: 0,
-    comprovantesValorRecebido: 0,
-    comprovantesTransacoesPendentes: 0,
-    comprovantesRifasPendentes: 0,
-    comprovantesValorPendente: 0,
+    comprovantesTransacoesPagas: transacoesComprovante.filter(transacaoPixEstaValidada).length,
+    comprovantesRifasPagas: transacoesComprovante
+      .filter(transacaoPixEstaValidada)
+      .reduce((acc, t) => acc + contarRifasTransacao(t), 0),
+    comprovantesValorRecebido: transacoesComprovante
+      .filter(transacaoPixEstaValidada)
+      .reduce((acc, t) => acc + (t.valorPago || t.valorBruto), 0),
+    comprovantesTransacoesPendentes: transacoesComprovante.filter(transacaoPixAguardandoValidacao).length,
+    comprovantesRifasPendentes: transacoesComprovante
+      .filter(transacaoPixAguardandoValidacao)
+      .reduce((acc, t) => acc + contarRifasTransacao(t), 0),
+    comprovantesValorPendente: transacoesComprovante
+      .filter(transacaoPixAguardandoValidacao)
+      .reduce((acc, t) => acc + t.valorBruto, 0),
   };
 
   const totalGeralTransacoesPagas = pagas.length + comprovantes.comprovantesTransacoesPagas;

@@ -33,6 +33,10 @@ jest.mock("../../../src/modules/tesouraria/tesourariaController", () => ({
       res.status(200).json({ acao: "aceitar_compra_manual" }),
     negarCompraManual: (_req: any, res: any) =>
       res.status(200).json({ acao: "negar_compra_manual" }),
+    aceitarLotePixTransacoes: (_req: any, res: any) =>
+      res.status(200).json({ acao: "aceitar_lote_pix_transacoes" }),
+    negarLotePixTransacoes: (_req: any, res: any) =>
+      res.status(200).json({ acao: "negar_lote_pix_transacoes" }),
   },
 }));
 
@@ -143,8 +147,32 @@ describe("Rotas: /tesouraria", () => {
       .post("/tesouraria/transacoes-bancarias/tx_001/negar")
       .send({ motivo: "Dados incorretos" });
 
-    
     expect(response.status).toBe(200);
     expect(response.body.acao).toBe("negar_pix_transacao");
+  });
+
+  it("POST /tesouraria/transacoes-bancarias/aceitar-lote -> deve aceitar transações em lote", async () => {
+    const app = criarAppTesourariaTeste(tesourariaRoutes);
+
+    const response = await request(app)
+      .post("/tesouraria/transacoes-bancarias/aceitar-lote")
+      .send({ transacoes: [{ id: "tx_001" }, { id: "tx_002", chaveAcao: "comprovante-url" }] });
+
+    expect(response.status).toBe(200);
+    expect(response.body.acao).toBe("aceitar_lote_pix_transacoes");
+  });
+
+  it("POST /tesouraria/transacoes-bancarias/negar-lote -> deve negar transações em lote", async () => {
+    const app = criarAppTesourariaTeste(tesourariaRoutes);
+
+    const response = await request(app)
+      .post("/tesouraria/transacoes-bancarias/negar-lote")
+      .send({
+        transacoes: [{ id: "tx_001" }],
+        motivo: "Comprovante ilegível ou inválido",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.acao).toBe("negar_lote_pix_transacoes");
   });
 });

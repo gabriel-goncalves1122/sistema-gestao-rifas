@@ -10,7 +10,9 @@ import {
 import { tesourariaController } from "../tesourariaController";
 import { validate } from "../../../shared/middlewares/validate";
 import {
+  aceitarLotePixSchema,
   aceitarPixSchema,
+  negarLotePixSchema,
   negarPixSchema,
 } from "../schemas/pixTransacoesSchema";
 
@@ -35,6 +37,22 @@ pixTransacoesRoutes.post(
   validateToken,
   requireTesourariaOrAdmin,
   tesourariaController.sincronizarPixTransacoes,
+);
+
+pixTransacoesRoutes.post(
+  "/transacoes-bancarias/aceitar-lote",
+  validateToken,
+  requireTesourariaOrAdmin,
+  validate(aceitarLotePixSchema),
+  tesourariaController.aceitarLotePixTransacoes,
+);
+
+pixTransacoesRoutes.post(
+  "/transacoes-bancarias/negar-lote",
+  validateToken,
+  requireTesourariaOrAdmin,
+  validate(negarLotePixSchema),
+  tesourariaController.negarLotePixTransacoes,
 );
 
 pixTransacoesRoutes.post(

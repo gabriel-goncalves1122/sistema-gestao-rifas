@@ -65,6 +65,21 @@ export interface PixTransacao {
 
   statusValidacao?: StatusValidacaoPix;
   observacao?: string;
+  origem?: OrigemTransacaoTesouraria;
+  comprovanteUrl?: string | null;
+  chaveAcao?: string;
+}
+
+export interface ItemLoteValidacaoTransacao {
+  id: string;
+  chaveAcao?: string;
+}
+
+export interface ResultadoLoteValidacaoTransacoes {
+  sucesso: boolean;
+  processadas: number;
+  ignoradas: number;
+  erros: Array<{ id: string; erro: string }>;
 }
 
 export interface ResumoComprovantesTesouraria {

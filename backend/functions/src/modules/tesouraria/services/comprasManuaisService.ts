@@ -6,13 +6,30 @@ import * as admin from "firebase-admin";
 import { enviarEmailRecibo } from "../../rifas/emailService";
 import { PixValidacaoService } from "./pixValidacaoService";
 
+export interface ResultadoAceiteCompraManual {
+  sucesso: boolean;
+  statusValidacao: "aceita";
+  rifas: string[];
+  atualizados?: number;
+  emailEnviado?: boolean;
+  transacaoId?: string;
+}
+
+export interface ResultadoNegacaoCompraManual {
+  sucesso: boolean;
+  statusValidacao: "negada";
+  rifas: string[];
+  atualizados?: number;
+  motivo?: string;
+  transacaoId?: string;
+}
 
 export class ComprasManuaisService {
   static async aceitarCompra(params: {
     chave: string;
     uidTesouraria: string;
     emailTesouraria?: string;
-  }) {
+  }): Promise<ResultadoAceiteCompraManual> {
     // Se a chave for de uma transação Pix, redireciona para o serviço do Pix
     if (params.chave.startsWith("pix-")) {
       const transacaoId = params.chave;
@@ -110,7 +127,7 @@ export class ComprasManuaisService {
     uidTesouraria: string;
     emailTesouraria?: string;
     motivo: string;
-  }) {
+  }): Promise<ResultadoNegacaoCompraManual> {
     if (!params.motivo) {
       throw new Error("MOTIVO_REQUIRED");
     }

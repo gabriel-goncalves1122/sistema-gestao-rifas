@@ -94,6 +94,7 @@ export class TesourariaService {
    *
    * @param {Object} params - Identificadores e credenciais do tesoureiro autenticado.
    * @param {string} params.transacaoId - ID da transação a aprovar.
+   * @param {string} [params.chaveAcao] - Chave canônica bruta preservada.
    * @param {string} params.uidTesouraria - UID do usuário que executou a aprovação.
    * @param {string} [params.emailTesouraria] - Email do tesoureiro para registro de auditoria.
    * @returns {Promise<{ sucesso: boolean; mensagem: string }>}
@@ -101,6 +102,7 @@ export class TesourariaService {
    */
   static async aceitarPixTransacao(params: {
     transacaoId: string;
+    chaveAcao?: string;
     uidTesouraria: string;
     emailTesouraria?: string;
   }) {
@@ -112,6 +114,7 @@ export class TesourariaService {
    *
    * @param {Object} params - Parâmetros da recusa.
    * @param {string} params.transacaoId - ID da transação a negar.
+   * @param {string} [params.chaveAcao] - Chave canônica bruta preservada.
    * @param {string} params.uidTesouraria - UID do usuário tesoureiro.
    * @param {string} [params.emailTesouraria] - Email do tesoureiro.
    * @param {string} [params.motivo] - Justificativa opcional da recusa.
@@ -120,10 +123,43 @@ export class TesourariaService {
    */
   static async negarPixTransacao(params: {
     transacaoId: string;
+    chaveAcao?: string;
     uidTesouraria: string;
     emailTesouraria?: string;
     motivo?: string;
   }) {
     return PixValidacaoService.negarTransacao(params);
+  }
+
+  /**
+   * Aceita em lote múltiplas transações Pix e Comprovantes selecionadas.
+   */
+  static async aceitarLotePixTransacoes(params: {
+    transacoes: Array<{ id: string; chaveAcao?: string }>;
+    uidTesouraria: string;
+    emailTesouraria?: string;
+  }) {
+    return PixValidacaoService.aceitarTransacoesEmLote({
+      itens: params.transacoes,
+      uidTesouraria: params.uidTesouraria,
+      emailTesouraria: params.emailTesouraria,
+    });
+  }
+
+  /**
+   * Nega em lote múltiplas transações Pix e Comprovantes selecionadas.
+   */
+  static async negarLotePixTransacoes(params: {
+    transacoes: Array<{ id: string; chaveAcao?: string }>;
+    uidTesouraria: string;
+    emailTesouraria?: string;
+    motivo: string;
+  }) {
+    return PixValidacaoService.negarTransacoesEmLote({
+      itens: params.transacoes,
+      uidTesouraria: params.uidTesouraria,
+      emailTesouraria: params.emailTesouraria,
+      motivo: params.motivo,
+    });
   }
 }

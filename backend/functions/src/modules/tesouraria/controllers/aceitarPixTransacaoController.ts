@@ -9,13 +9,15 @@ import { TesourariaService } from "../tesourariaService";
 export async function aceitarPixTransacao(req: AuthRequest, res: Response) {
   try {
     const transacaoId = String(req.params.transacaoId || "").trim();
+    const chaveAcao = req.body?.chaveAcao ? String(req.body.chaveAcao).trim() : undefined;
 
-    if (!transacaoId) {
+    if (!transacaoId && !chaveAcao) {
       return res.status(400).json({ error: "ID da transação inválido." });
     }
 
     const resultado = await TesourariaService.aceitarPixTransacao({
       transacaoId,
+      chaveAcao,
       uidTesouraria: req.user?.uid || "",
       emailTesouraria: req.user?.email,
     });

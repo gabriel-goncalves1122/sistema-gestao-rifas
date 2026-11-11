@@ -40,10 +40,10 @@ export class PixTransacoesService {
     const bilhetesSnap = await db
       .collection("bilhetes")
       .where("status", "in", ["pago", "pendente", "recusado", "reservado"])
-      .limit(5000)
+      .limit(20000)
       .get();
 
-    const gruposPix = new Map<string, BilheteComNumero[]>();
+    const gruposTransacoes = new Map<string, BilheteComNumero[]>();
     const bilhetesManuais: BilheteComNumero[] = [];
     let precisaEnriquecerVendedor = false;
 
@@ -56,7 +56,6 @@ export class PixTransacoesService {
 
       if (!data.pix_order_id) {
         bilhetesManuais.push(bilhete);
-        return;
       }
 
       if (data.vendedor_id && !cpfEhValido(data.vendedor_cpf)) {
@@ -64,10 +63,10 @@ export class PixTransacoesService {
       }
 
       const chave = chaveCompra(bilhete);
-      const grupoAtual = gruposPix.get(chave) || [];
+      const grupoAtual = gruposTransacoes.get(chave) || [];
 
       grupoAtual.push(bilhete);
-      gruposPix.set(chave, grupoAtual);
+      gruposTransacoes.set(chave, grupoAtual);
     });
 
     let mapaVendedores: MapaVendedores | null = null;
@@ -79,7 +78,7 @@ export class PixTransacoesService {
       }
     }
 
-    const transacoes = Array.from(gruposPix.values())
+    const transacoes = Array.from(gruposTransacoes.values())
       .map((grupo) => montarPixTransacao(grupo, mapaVendedores))
       .sort(
         (a, b) =>

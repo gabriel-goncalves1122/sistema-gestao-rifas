@@ -10,13 +10,15 @@ export async function negarPixTransacao(req: AuthRequest, res: Response) {
   try {
     const transacaoId = String(req.params.transacaoId || "").trim();
     const motivo = String(req.body?.motivo || "").trim();
+    const chaveAcao = req.body?.chaveAcao ? String(req.body.chaveAcao).trim() : undefined;
 
-    if (!transacaoId) {
+    if (!transacaoId && !chaveAcao) {
       return res.status(400).json({ error: "ID da transação inválido." });
     }
 
     const resultado = await TesourariaService.negarPixTransacao({
       transacaoId,
+      chaveAcao,
       uidTesouraria: req.user?.uid || "",
       emailTesouraria: req.user?.email,
       motivo,

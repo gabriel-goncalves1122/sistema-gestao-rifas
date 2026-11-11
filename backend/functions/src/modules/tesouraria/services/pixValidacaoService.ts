@@ -4,19 +4,67 @@
 import * as admin from "firebase-admin";
 
 import { enviarEmailRecibo } from "../../rifas/emailService";
+import { ComprasManuaisService } from "./comprasManuaisService";
+import {
+  ItemLoteValidacaoTransacao,
+  ResultadoLoteValidacaoTransacoes,
+} from "../types/tesourariaTypes";
 
 interface ValidarPixParams {
   transacaoId: string;
+  chaveAcao?: string;
   uidTesouraria: string;
   emailTesouraria?: string;
   motivo?: string;
 }
 
+export interface ResultadoAceitePix {
+  sucesso: boolean;
+  statusValidacao: "aceita";
+  transacaoId: string;
+  rifas: string[];
+  emailEnviado?: boolean;
+}
+
+export interface ResultadoNegacaoPix {
+  sucesso: boolean;
+  statusValidacao: "negada";
+  transacaoId: string;
+  rifas: string[];
+  motivo?: string;
+}
+
+function ehChaveManual(chave: string): boolean {
+  return (
+    chave.startsWith("comprovante-") ||
+    chave.startsWith("comprador-") ||
+    chave.startsWith("pixref-") ||
+    chave.startsWith("manual|")
+  );
+}
+
 export class PixValidacaoService {
-  static async aceitarTransacao(params: ValidarPixParams) {
+  static async aceitarTransacao(params: ValidarPixParams): Promise<ResultadoAceitePix> {
+    const chaveEfetiva = String(params.chaveAcao || params.transacaoId || "").trim();
+
+    if (ehChaveManual(chaveEfetiva)) {
+      const resultadoManual = await ComprasManuaisService.aceitarCompra({
+        chave: chaveEfetiva,
+        uidTesouraria: params.uidTesouraria,
+        emailTesouraria: params.emailTesouraria,
+      });
+
+      return {
+        sucesso: true,
+        statusValidacao: "aceita" as const,
+        transacaoId: params.transacaoId,
+        rifas: resultadoManual.rifas,
+        emailEnviado: resultadoManual.emailEnviado,
+      };
+    }
+
     const db = admin.firestore();
-    // transacaoId no PIX é geralmente pix-[pix_order_id] ou [pix_order_id]
-    const pixOrderId = params.transacaoId.replace("pix-", "");
+    const pixOrderId = chaveEfetiva.replace(/^pix-/, "");
 
     if (!pixOrderId) {
       throw new Error("TRANSACAO_SEM_REFERENCIA");
@@ -29,14 +77,41 @@ export class PixValidacaoService {
     let compradorEmailResult: string | null = null;
     let compradorNomeResult: string = "Comprador";
 
-
     await db.runTransaction(async (transaction) => {
       const querySnap = await transaction.get(
         db.collection("pagamentos_pix").where("pix_order_id", "==", pixOrderId).limit(1)
       );
 
       if (querySnap.empty) {
-        throw new Error("PAGAMENTO_NOT_FOUND");
+        // Fallback: tentar atualizar diretamente nos bilhetes com pix_order_id
+        const bilhetesQuery = await transaction.get(
+          db.collection("bilhetes").where("pix_order_id", "==", pixOrderId).limit(100)
+        );
+
+        if (bilhetesQuery.empty) {
+          throw new Error("PAGAMENTO_NOT_FOUND");
+        }
+
+        bilhetesQuery.forEach((doc) => {
+          const d = doc.data();
+          numerosRifasResult.push(doc.id);
+          compradorEmailResult = compradorEmailResult || d.comprador_email || null;
+          compradorNomeResult = compradorNomeResult !== "Comprador" ? compradorNomeResult : (d.comprador_nome || "Comprador");
+          transaction.set(
+            doc.ref,
+            {
+              status: "pago",
+              status_validacao: "aceita",
+              validado_em: validadoEm,
+              validado_por: validadoPor,
+              motivo_recusa: null,
+              data_pagamento: d.data_pagamento || validadoEm,
+            },
+            { merge: true },
+          );
+        });
+
+        return;
       }
 
       const pagRef = querySnap.docs[0].ref;
@@ -58,7 +133,6 @@ export class PixValidacaoService {
       
       const bilhetesSnaps = await transaction.getAll(...bilhetesRefs);
       
-      // Validação opcional: garantir que os bilhetes existam
       const bilhetesInexistentes = bilhetesSnaps.filter(snap => !snap.exists);
       if (bilhetesInexistentes.length > 0) {
         throw new Error("UM_OU_MAIS_BILHETES_NAO_ENCONTRADOS");
@@ -69,7 +143,7 @@ export class PixValidacaoService {
         const bilhete = snap.data();
         
         if (pagamento.reference_id && (bilhete as any)?.pix_reference_id !== pagamento.reference_id) {
-          return; // Bilhete já foi liberado ou pertence a outra transação
+          return;
         }
 
         bilhetesAtualizados++;
@@ -106,7 +180,6 @@ export class PixValidacaoService {
       numerosRifasResult = numerosRifas;
       compradorEmailResult = pagamento.comprador_email || null;
       compradorNomeResult = pagamento.comprador_nome || "Comprador";
-      
     });
 
     const emailEnviado = compradorEmailResult
@@ -127,15 +200,34 @@ export class PixValidacaoService {
     };
   }
 
-  static async negarTransacao(params: ValidarPixParams) {
+  static async negarTransacao(params: ValidarPixParams): Promise<ResultadoNegacaoPix> {
     const motivo = String(params.motivo || "").trim();
 
     if (!motivo) {
       throw new Error("MOTIVO_REQUIRED");
     }
 
+    const chaveEfetiva = String(params.chaveAcao || params.transacaoId || "").trim();
+
+    if (ehChaveManual(chaveEfetiva)) {
+      const resultadoManual = await ComprasManuaisService.negarCompra({
+        chave: chaveEfetiva,
+        uidTesouraria: params.uidTesouraria,
+        emailTesouraria: params.emailTesouraria,
+        motivo,
+      });
+
+      return {
+        sucesso: true,
+        statusValidacao: "negada" as const,
+        transacaoId: params.transacaoId,
+        rifas: resultadoManual.rifas,
+        motivo,
+      };
+    }
+
     const db = admin.firestore();
-    const pixOrderId = params.transacaoId.replace("pix-", "");
+    const pixOrderId = chaveEfetiva.replace(/^pix-/, "");
 
     if (!pixOrderId) {
       throw new Error("TRANSACAO_SEM_REFERENCIA");
@@ -152,7 +244,31 @@ export class PixValidacaoService {
       );
 
       if (querySnap.empty) {
-        throw new Error("PAGAMENTO_NOT_FOUND");
+        // Fallback: tentar atualizar diretamente nos bilhetes com pix_order_id
+        const bilhetesQuery = await transaction.get(
+          db.collection("bilhetes").where("pix_order_id", "==", pixOrderId).limit(100)
+        );
+
+        if (bilhetesQuery.empty) {
+          throw new Error("PAGAMENTO_NOT_FOUND");
+        }
+
+        bilhetesQuery.forEach((doc) => {
+          numerosRifasResult.push(doc.id);
+          transaction.set(
+            doc.ref,
+            {
+              status: "recusado",
+              status_validacao: "negada",
+              validado_em: validadoEm,
+              validado_por: validadoPor,
+              motivo_recusa: motivo,
+            },
+            { merge: true },
+          );
+        });
+
+        return;
       }
 
       const pagRef = querySnap.docs[0].ref;
@@ -184,7 +300,7 @@ export class PixValidacaoService {
         const bilhete = snap.data();
         
         if (pagamento.reference_id && (bilhete as any)?.pix_reference_id !== pagamento.reference_id) {
-          return; // Bilhete já foi liberado ou pertence a outra transação
+          return;
         }
 
         bilhetesAtualizados++;
@@ -239,6 +355,83 @@ export class PixValidacaoService {
       transacaoId: params.transacaoId,
       rifas: numerosRifasResult,
       motivo,
+    };
+  }
+
+  static async aceitarTransacoesEmLote(params: {
+    itens: ItemLoteValidacaoTransacao[];
+    uidTesouraria: string;
+    emailTesouraria?: string;
+  }): Promise<ResultadoLoteValidacaoTransacoes> {
+    let processadas = 0;
+    let ignoradas = 0;
+    const erros: Array<{ id: string; erro: string }> = [];
+
+    for (const item of params.itens) {
+      try {
+        await this.aceitarTransacao({
+          transacaoId: item.id,
+          chaveAcao: item.chaveAcao,
+          uidTesouraria: params.uidTesouraria,
+          emailTesouraria: params.emailTesouraria,
+        });
+        processadas++;
+      } catch (err: any) {
+        if (err.message === "PIX_ALREADY_VALIDATED" || err.message === "TRANSACAO_JA_FINALIZADA") {
+          ignoradas++;
+        } else {
+          erros.push({ id: item.id, erro: err.message || "Erro ao aprovar" });
+        }
+      }
+    }
+
+    return {
+      sucesso: erros.length === 0,
+      processadas,
+      ignoradas,
+      erros,
+    };
+  }
+
+  static async negarTransacoesEmLote(params: {
+    itens: ItemLoteValidacaoTransacao[];
+    uidTesouraria: string;
+    emailTesouraria?: string;
+    motivo: string;
+  }): Promise<ResultadoLoteValidacaoTransacoes> {
+    const motivo = String(params.motivo || "").trim();
+    if (!motivo) {
+      throw new Error("MOTIVO_REQUIRED");
+    }
+
+    let processadas = 0;
+    let ignoradas = 0;
+    const erros: Array<{ id: string; erro: string }> = [];
+
+    for (const item of params.itens) {
+      try {
+        await this.negarTransacao({
+          transacaoId: item.id,
+          chaveAcao: item.chaveAcao,
+          uidTesouraria: params.uidTesouraria,
+          emailTesouraria: params.emailTesouraria,
+          motivo,
+        });
+        processadas++;
+      } catch (err: any) {
+        if (err.message === "PIX_ALREADY_VALIDATED") {
+          ignoradas++;
+        } else {
+          erros.push({ id: item.id, erro: err.message || "Erro ao recusar" });
+        }
+      }
+    }
+
+    return {
+      sucesso: erros.length === 0,
+      processadas,
+      ignoradas,
+      erros,
     };
   }
 }

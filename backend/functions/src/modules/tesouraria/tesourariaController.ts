@@ -13,6 +13,8 @@ import { reenviarEmailComprovante } from "./controllers/reenviarEmailComprovante
 import { sincronizarPixTransacoes } from "./controllers/sincronizarPixTransacoesController";
 import { aceitarCompraManual } from "./controllers/aceitarCompraManualController";
 import { negarCompraManual } from "./controllers/negarCompraManualController";
+import { aceitarLotePixTransacoes } from "./controllers/aceitarLotePixTransacoesController";
+import { negarLotePixTransacoes } from "./controllers/negarLotePixTransacoesController";
 
 export const tesourariaController = {
   atualizarCompradorCompra,
@@ -27,4 +29,6 @@ export const tesourariaController = {
   negarPixTransacao,
   aceitarCompraManual,
   negarCompraManual,
+  aceitarLotePixTransacoes,
+  negarLotePixTransacoes,
 };
