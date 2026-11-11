@@ -1,4 +1,5 @@
 import CloseIcon from "@mui/icons-material/Close";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import {
   Box,
   Button,
@@ -37,6 +38,8 @@ export interface AuditoriaCompraDetalhesDialogProps {
   compra: TransacaoTesouraria | null;
   /** Callback para fechamento do modal */
   onClose: () => void;
+  /** Callback opcional para abrir a visualização do comprovante */
+  onVerComprovante?: (compra: TransacaoTesouraria) => void;
 }
 
 function CampoDetalhe({
@@ -73,8 +76,14 @@ function CampoDetalhe({
 export function AuditoriaCompraDetalhesDialog({
   compra,
   onClose,
+  onVerComprovante,
 }: AuditoriaCompraDetalhesDialogProps) {
   const { isMobile } = useTesourariaLayout();
+
+  const txidIdentificador = compra
+    ? compra.pixOrderId ||
+      (compra.id.startsWith("pix-") ? compra.id.replace("pix-", "") : null)
+    : null;
 
   const conteudoDetalhes = compra && (
     <Stack spacing={2}>
@@ -144,6 +153,46 @@ export function AuditoriaCompraDetalhesDialog({
         </Stack>
       </Box>
 
+      {/* Ação de Comprovante Anexado */}
+      {compra.comprovanteUrl && (
+        <Box sx={surfaces.cartaoInfo}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={1}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DescriptionOutlinedIcon sx={{ color: colors.verdeForte }} />
+              <Box>
+                <Typography sx={typography.label}>Comprovante Anexado</Typography>
+                <Typography variant="caption" sx={{ color: colors.cinzaTexto }}>
+                  Arquivo disponível para auditoria e conferência
+                </Typography>
+              </Box>
+            </Stack>
+
+            {onVerComprovante && (
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => onVerComprovante(compra)}
+                sx={{
+                  borderRadius: 2,
+                  borderColor: colors.verdeForte,
+                  color: colors.verdeForte,
+                  fontWeight: 800,
+                  textTransform: "none",
+                  "&:hover": { bgcolor: "rgba(11, 122, 97, 0.08)" },
+                }}
+              >
+                Ver Comprovante
+              </Button>
+            )}
+          </Stack>
+        </Box>
+      )}
+
       {/* Grid de Informações Essenciais */}
       <Box sx={layout.gridDois}>
         <CampoDetalhe
@@ -174,6 +223,12 @@ export function AuditoriaCompraDetalhesDialog({
           label="Data do pagamento"
           valor={formatarDataAuditoria(compra.dataPagamento)}
         />
+        {txidIdentificador && (
+          <CampoDetalhe
+            label="Identificador Pix (txid)"
+            valor={txidIdentificador}
+          />
+        )}
       </Box>
 
       {/* Rifas Vinculadas */}

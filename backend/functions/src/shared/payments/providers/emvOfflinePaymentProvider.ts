@@ -23,7 +23,10 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
   private readonly cidadeBeneficiario: string;
 
   constructor() {
-    this.chavePix = process.env.PIX_CHAVE_ESTATICA || process.env.CHAVE_PIX_INFINITEPAY || "comissao.formatura@unifei.edu.br";
+    this.chavePix =
+      process.env.PIX_CHAVE_ESTATICA ||
+      process.env.CHAVE_PIX_INFINITEPAY ||
+      "d23badb8-4e1c-480b-ae3d-064a58bfe174";
     this.nomeBeneficiario = process.env.PIX_NOME_BENEFICIARIO || "COMISSAO FORMATURA UNIFEI";
     this.cidadeBeneficiario = process.env.PIX_CIDADE_BENEFICIARIO || "ITAJUBA";
   }

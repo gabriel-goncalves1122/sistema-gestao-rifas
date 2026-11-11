@@ -45,11 +45,7 @@ export class PaymentProviderFactory {
       return "MERCADOPAGO_API";
     }
 
-    // Se houver token do Mercado Pago configurado, opera via gateway API; caso contrário, offline.
-    if (process.env.MERCADOPAGO_ACCESS_TOKEN) {
-      return "MERCADOPAGO_API";
-    }
-
+    // Na branch main-comprovantes, o modo padrão de operação é EMV_OFFLINE (InfinitePay)
     return "EMV_OFFLINE";
   }
 
