@@ -40,6 +40,8 @@ export function usePixController({
     sincronizarBanco,
     aceitarTransacao,
     negarTransacao,
+    aceitarTransacoesEmLote,
+    negarTransacoesEmLote,
   } = usePixTransacoes();
 
   const conciliacao = useConciliacaoExtrato(carregarDados);
@@ -63,14 +65,18 @@ export function usePixController({
       erroValidacaoPixPorId,
       onAceitar: aceitarTransacao,
       onNegar: negarTransacao,
+      onAceitarLote: aceitarTransacoesEmLote,
+      onNegarLote: negarTransacoesEmLote,
       onAbrirConciliacao: conciliacao.abrirDialog,
     }),
     [
       aceitarTransacao,
+      aceitarTransacoesEmLote,
       conciliacao.abrirDialog,
       erroValidacaoPixPorId,
       filtros,
       negarTransacao,
+      negarTransacoesEmLote,
       resumo,
       setFiltros,
       transacoes,

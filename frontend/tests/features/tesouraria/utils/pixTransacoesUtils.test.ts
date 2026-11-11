@@ -128,7 +128,7 @@ describe("Utils: pixTransacoesUtils", () => {
         statusPagamento: "PAID",
         compradorId: "venda_003",
         aderido: { id: "aderido_003", nome: "Carla Dias" },
-        rifas: [{ numero: "030", status: "pago" }],
+        rifas: [{ numero: "030", status: "pendente" }],
       }),
     ];
 

@@ -31,15 +31,30 @@ describe("Service: pixTransacoesService", () => {
   });
 
   it("Deve buscar transações no endpoint atual e normalizar o payload", async () => {
-    const transacoes = [
-      criarTransacao({ id: "tx_001", statusValidacao: "aceita" }),
-    ];
-    vi.mocked(fetchAPI).mockResolvedValueOnce({ transacoes });
+    const transacaoRaw = {
+      id: "tx_001",
+      metodo: "PIX",
+      statusPagamento: "PAID",
+      statusValidacao: "aceita",
+      valorBruto: 10,
+      valorPago: 10,
+      moeda: "BRL",
+      dataCriacao: "2026-10-01T10:00:00.000-03:00",
+      pixOrderId: "order_teste",
+    };
+    vi.mocked(fetchAPI).mockResolvedValueOnce({ transacoes: [transacaoRaw] });
 
     const resultado = await pixTransacoesService.buscarTransacoes();
 
     expect(fetchAPI).toHaveBeenCalledWith("/tesouraria/transacoes-bancarias");
-    expect(resultado).toEqual(transacoes);
+    expect(resultado).toEqual([
+      {
+        ...transacaoRaw,
+        origem: "PIX",
+        comprovanteUrl: null,
+        chaveAcao: "tx_001",
+      },
+    ]);
   });
 
   it("Deve normalizar status de validação Pix vindo no formato de API", async () => {
@@ -106,6 +121,7 @@ describe("Service: pixTransacoesService", () => {
     expect(fetchAPI).toHaveBeenCalledWith(
       "/tesouraria/transacoes-bancarias/ORDE_001/aceitar",
       "POST",
+      undefined,
     );
   });
 

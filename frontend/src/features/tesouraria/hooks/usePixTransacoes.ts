@@ -5,9 +5,11 @@ import { useDebounce } from "@/shared/hooks/useDebounce";
 
 import { pixTransacoesService } from "../services/pixTransacoesService";
 import {
+  ItemLoteValidacaoTransacao,
   PixTransacoesFiltros,
   PixTransacoesResumo,
   PixTransacao,
+  ResultadoLoteValidacaoTransacoes,
 } from "../types/pixTransacoes";
 import {
   calcularResumoPixTransacoes,
@@ -46,8 +48,8 @@ export function usePixTransacoes() {
 
       return { transacoes, resumo };
     },
-    staleTime: 180_000,
-    refetchOnMount: false,
+    staleTime: 30_000,
+    refetchOnMount: "always",
   });
 
   const transacoes = data?.transacoes || [];
@@ -100,12 +102,12 @@ export function usePixTransacoes() {
   );
 
   const aceitarTransacao = useCallback(
-    async (transacaoId: string) => {
+    async (transacaoId: string, chaveAcao?: string) => {
       const previousData = queryClient.getQueryData(["tesouraria", "pix"]);
       atualizarTransacaoLocal(transacaoId, { statusValidacao: "aceita" });
 
       try {
-        await pixTransacoesService.aceitarTransacao(transacaoId);
+        await pixTransacoesService.aceitarTransacao(transacaoId, chaveAcao);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
           queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
@@ -120,7 +122,7 @@ export function usePixTransacoes() {
   );
 
   const negarTransacao = useCallback(
-    async (transacaoId: string, motivo: string) => {
+    async (transacaoId: string, motivo: string, chaveAcao?: string) => {
       const previousData = queryClient.getQueryData(["tesouraria", "pix"]);
       atualizarTransacaoLocal(transacaoId, {
         statusValidacao: "negada",
@@ -129,7 +131,7 @@ export function usePixTransacoes() {
       });
 
       try {
-        await pixTransacoesService.negarTransacao(transacaoId, motivo);
+        await pixTransacoesService.negarTransacao(transacaoId, motivo, chaveAcao);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
           queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
@@ -137,6 +139,59 @@ export function usePixTransacoes() {
       } catch (error) {
         queryClient.setQueryData(["tesouraria", "pix"], previousData);
         console.error("Erro ao negar transação:", error);
+        throw error;
+      }
+    },
+    [queryClient, atualizarTransacaoLocal],
+  );
+
+  const aceitarTransacoesEmLote = useCallback(
+    async (itens: ItemLoteValidacaoTransacao[]): Promise<ResultadoLoteValidacaoTransacoes> => {
+      const previousData = queryClient.getQueryData(["tesouraria", "pix"]);
+      itens.forEach((item) => {
+        atualizarTransacaoLocal(item.id, { statusValidacao: "aceita" });
+      });
+
+      try {
+        const resultado = await pixTransacoesService.aceitarTransacoesEmLote(itens);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+        ]);
+        return resultado;
+      } catch (error) {
+        queryClient.setQueryData(["tesouraria", "pix"], previousData);
+        console.error("Erro ao aceitar transações em lote:", error);
+        throw error;
+      }
+    },
+    [queryClient, atualizarTransacaoLocal],
+  );
+
+  const negarTransacoesEmLote = useCallback(
+    async (
+      itens: ItemLoteValidacaoTransacao[],
+      motivo: string,
+    ): Promise<ResultadoLoteValidacaoTransacoes> => {
+      const previousData = queryClient.getQueryData(["tesouraria", "pix"]);
+      itens.forEach((item) => {
+        atualizarTransacaoLocal(item.id, {
+          statusValidacao: "negada",
+          statusPagamento: "DECLINED",
+          observacao: motivo,
+        });
+      });
+
+      try {
+        const resultado = await pixTransacoesService.negarTransacoesEmLote(itens, motivo);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] }),
+          queryClient.invalidateQueries({ queryKey: ["tesouraria", "relatorio"] }),
+        ]);
+        return resultado;
+      } catch (error) {
+        queryClient.setQueryData(["tesouraria", "pix"], previousData);
+        console.error("Erro ao negar transações em lote:", error);
         throw error;
       }
     },
@@ -156,5 +211,7 @@ export function usePixTransacoes() {
     sincronizarBanco,
     aceitarTransacao,
     negarTransacao,
+    aceitarTransacoesEmLote,
+    negarTransacoesEmLote,
   };
 }

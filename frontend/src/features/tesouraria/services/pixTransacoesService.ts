@@ -1,8 +1,10 @@
 import { fetchAPI } from "@/shared/services/api";
 
 import {
+  ItemLoteValidacaoTransacao,
   PixTransacoesResumo,
   PixTransacao,
+  ResultadoLoteValidacaoTransacoes,
   StatusValidacaoPix,
 } from "../types/pixTransacoes";
 import { RESUMO_PIX_TRANSACOES_VAZIO } from "../utils/pixTransacoesUtils";
@@ -22,19 +24,36 @@ function normalizarTransacao(transacao: unknown): PixTransacao | null {
 
   const transacaoPix = transacao as PixTransacao & {
     status_validacao?: unknown;
+    comprovante_url?: string | null;
+    chave_acao?: string;
   };
   const {
     status_validacao,
     statusValidacao: statusValidacaoOriginal,
+    comprovante_url,
+    chave_acao,
     ...transacaoSemCampoLegado
   } = transacaoPix;
   const statusValidacao = normalizarStatusValidacaoPix(
     statusValidacaoOriginal || status_validacao,
   );
 
-  return statusValidacao
-    ? { ...transacaoSemCampoLegado, statusValidacao }
-    : transacaoSemCampoLegado;
+  const origem =
+    transacaoPix.origem || (transacaoPix.pixOrderId ? "PIX" : "COMPROVANTE");
+  const comprovanteUrl =
+    transacaoPix.comprovanteUrl !== undefined
+      ? transacaoPix.comprovanteUrl
+      : comprovante_url || null;
+  const chaveAcao = transacaoPix.chaveAcao || chave_acao || transacaoPix.id;
+
+  const base: PixTransacao = {
+    ...transacaoSemCampoLegado,
+    origem,
+    comprovanteUrl,
+    chaveAcao,
+  };
+
+  return statusValidacao ? { ...base, statusValidacao } : base;
 }
 
 function normalizarTransacoes(resposta: unknown): PixTransacao[] {
@@ -89,18 +108,40 @@ export const pixTransacoesService = {
     return fetchAPI("/tesouraria/transacoes-bancarias/sincronizar", "POST");
   },
 
-  async aceitarTransacao(transacaoId: string) {
+  async aceitarTransacao(transacaoId: string, chaveAcao?: string) {
     return fetchAPI(
       `/tesouraria/transacoes-bancarias/${transacaoId}/aceitar`,
       "POST",
+      chaveAcao ? { chaveAcao } : undefined,
     );
   },
 
-  async negarTransacao(transacaoId: string, motivo: string) {
+  async negarTransacao(transacaoId: string, motivo: string, chaveAcao?: string) {
     return fetchAPI(
       `/tesouraria/transacoes-bancarias/${transacaoId}/negar`,
       "POST",
-      { motivo },
+      { motivo, chaveAcao },
+    );
+  },
+
+  async aceitarTransacoesEmLote(
+    itens: ItemLoteValidacaoTransacao[],
+  ): Promise<ResultadoLoteValidacaoTransacoes> {
+    return fetchAPI(
+      "/tesouraria/transacoes-bancarias/aceitar-lote",
+      "POST",
+      { transacoes: itens },
+    );
+  },
+
+  async negarTransacoesEmLote(
+    itens: ItemLoteValidacaoTransacao[],
+    motivo: string,
+  ): Promise<ResultadoLoteValidacaoTransacoes> {
+    return fetchAPI(
+      "/tesouraria/transacoes-bancarias/negar-lote",
+      "POST",
+      { transacoes: itens, motivo },
     );
   },
 };

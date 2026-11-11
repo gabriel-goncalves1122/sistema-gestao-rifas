@@ -35,37 +35,48 @@ export function pixPagamentoConfirmadoBanco(transacao: PixTransacao): boolean {
 
 /**
  * Determina o status visual de validação da transação para exibição de Badges/Pills na interface da Tesouraria.
- * - 'sem_confirmacao_bancaria': banco ainda não liquidou;
- * - 'aprovada' / 'negada': decisão final já proferida pela tesouraria;
- * - 'pendente_validacao': liquidado no banco, aguardando conferência manual da tesouraria.
+ * - 'sem_confirmacao_bancaria': banco ainda não liquidou e não há comprovante para análise;
+ * - 'aceita' / 'negada': decisão final já proferida pela tesouraria ou bilhetes liquidados;
+ * - 'pendente_validacao': liquidado no banco, em análise ou comprovante aguardando conferência da tesouraria.
  *
  * @param {PixTransacao} transacao - Transação avaliada.
  * @returns {StatusValidacaoUI} Estado visual para a interface.
  */
 export function obterStatusValidacaoPix(transacao: PixTransacao): StatusValidacaoUI {
-  if (!pixPagamentoConfirmadoBanco(transacao)) {
-    return "sem_confirmacao_bancaria";
-  }
-
   if (transacao.statusValidacao) {
     return transacao.statusValidacao;
   }
 
-  return "pendente_validacao";
+  if (transacao.rifas && transacao.rifas.length > 0) {
+    if (transacao.rifas.every((r) => r.status === "pago")) {
+      return "aceita";
+    }
+    if (transacao.rifas.every((r) => r.status === "recusado")) {
+      return "negada";
+    }
+  }
+
+  if (
+    transacao.origem === "COMPROVANTE" ||
+    Boolean(transacao.comprovanteUrl) ||
+    transacao.statusPagamento === "IN_ANALYSIS" ||
+    pixPagamentoConfirmadoBanco(transacao)
+  ) {
+    return "pendente_validacao";
+  }
+
+  return "sem_confirmacao_bancaria";
 }
 
 /**
  * Determina se a tesouraria pode realizar ações de aprovação ou recusa manual sobre a transação.
- * Apenas permitido se o banco tiver liquidado e a transação estiver pendente de validação.
+ * Válido para qualquer transação pendente de validação (Pix confirmados/em análise ou Comprovantes).
  *
  * @param {PixTransacao} transacao - Transação avaliada.
  * @returns {boolean} `true` se os botões de ação devem ser habilitados.
  */
 export function podeValidarPixTransacao(transacao: PixTransacao): boolean {
-  return (
-    pixPagamentoConfirmadoBanco(transacao) &&
-    obterStatusValidacaoPix(transacao) === "pendente_validacao"
-  );
+  return obterStatusValidacaoPix(transacao) === "pendente_validacao";
 }
 
 export { formatarDataPix, formatarMoedaPix };
@@ -142,9 +153,24 @@ function atendeFiltroRapido(
   status: PixTransacoesFiltros["status"],
 ): boolean {
   if (status === "novas") return podeValidarPixTransacao(transacao);
-  if (status === "aprovadas") return transacao.statusValidacao === "aceita";
-  if (status === "recusadas") return transacao.statusValidacao === "negada";
-  if (status === "aguardando_pagamento") return !pixPagamentoConfirmadoBanco(transacao);
+  if (status === "aprovadas") {
+    return (
+      transacao.statusValidacao === "aceita" ||
+      obterStatusValidacaoPix(transacao) === "aceita"
+    );
+  }
+  if (status === "recusadas") {
+    return (
+      transacao.statusValidacao === "negada" ||
+      obterStatusValidacaoPix(transacao) === "negada"
+    );
+  }
+  if (status === "aguardando_pagamento") {
+    return (
+      !podeValidarPixTransacao(transacao) &&
+      !["aceita", "negada"].includes(transacao.statusValidacao || "")
+    );
+  }
   if (status === "todas") return true;
 
   return true;
@@ -400,6 +426,14 @@ export function filtrarPixTransacoes(
   const termoNumerico = somenteNumeros(termo);
 
   return transacoes.filter((transacao) => {
+    if (
+      filtros.origem &&
+      filtros.origem !== "todas" &&
+      transacao.origem !== filtros.origem
+    ) {
+      return false;
+    }
+
     const camposBusca = [
       transacao.descricao,
       transacao.compradorNome,

@@ -11,8 +11,8 @@ interface PixTransacaoAcoesProps {
   transacao: PixTransacao;
   onConcluido?: () => void;
   compact?: boolean;
-  onAceitar: (id: string) => Promise<void>;
-  onNegar: (id: string, motivo: string) => Promise<void>;
+  onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
+  onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
 }
 
 export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onAceitar, onNegar }: PixTransacaoAcoesProps) {
@@ -28,7 +28,7 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
     e?.stopPropagation();
     setAcaoEmAndamento("aceitar");
     try {
-      await onAceitar(transacao.id);
+      await onAceitar(transacao.id, transacao.chaveAcao);
       onConcluido?.();
     } catch (error) {
       // erro já tratado no hook/service
@@ -49,7 +49,7 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
     setAcaoEmAndamento("negar");
     setModalNegarOpen(false);
     try {
-      await onNegar(transacao.id, motivoNegar);
+      await onNegar(transacao.id, motivoNegar, transacao.chaveAcao);
       onConcluido?.();
     } catch (error) {
       // erro já tratado

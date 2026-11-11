@@ -64,6 +64,21 @@ export interface PixTransacao {
 
   observacao?: string;
   statusValidacao?: StatusValidacaoPix;
+  origem?: "PIX" | "COMPROVANTE";
+  comprovanteUrl?: string | null;
+  chaveAcao?: string;
+}
+
+export interface ItemLoteValidacaoTransacao {
+  id: string;
+  chaveAcao?: string;
+}
+
+export interface ResultadoLoteValidacaoTransacoes {
+  sucesso: boolean;
+  processadas: number;
+  ignoradas: number;
+  erros: Array<{ id: string; erro: string }>;
 }
 
 export interface PixTransacoesResumo {
@@ -135,4 +150,5 @@ export type FiltroRapidoTransacoesPix =
 export interface PixTransacoesFiltros {
   status: FiltroRapidoTransacoesPix;
   busca: string;
+  origem?: "todas" | "PIX" | "COMPROVANTE";
 }
