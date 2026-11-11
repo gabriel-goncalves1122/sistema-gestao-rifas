@@ -1,36 +1,50 @@
+// ============================================================================
+// ARQUIVO: frontend/src/features/aderidos/CheckoutModal.tsx
+// ============================================================================
 import {
   Alert,
-  Box,
   Dialog,
   DialogContent,
   Snackbar,
   Stack,
 } from "@mui/material";
-import { yupResolver } from "@hookform/resolvers/yup";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
 
-import {
-  CheckoutFormData,
-  checkoutSchema,
-} from "./components/checkout/checkoutSchema";
-import { CheckoutDadosCompradorForm } from "./components/checkout/CheckoutDadosCompradorForm";
 import { CheckoutModalHeader } from "./components/checkout/CheckoutModalHeader";
-import { CheckoutPixBox } from "./components/checkout/CheckoutPixBox";
 import { CheckoutResumoVenda } from "./components/checkout/CheckoutResumoVenda";
-import { CheckoutSubmitButton } from "./components/checkout/CheckoutSubmitButton";
+import { CheckoutNovaApiView } from "./components/checkout/novaApi/CheckoutNovaApiView";
 import { usePixStateMachine } from "./hooks/usePixStateMachine";
 import { checkoutStorage } from "./utils/checkoutStorage";
-import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 
+/**
+ * Modos de Checkout suportados pela interface:
+ * - `nova_api`: Chave direta / InfinitePay com foco em Copia-e-Cola e Comprovante (sem CPF, sem e-mail obrigatório).
+ * - `mercadopago`: Gateway com confirmação automática via Webhook (exige CPF e E-mail).
+ */
+export type ModoCheckout = "nova_api" | "mercadopago";
+
+/**
+ * Propriedades do orquestrador modal de Checkout.
+ */
 interface CheckoutModalProps {
+  /** Se o modal está aberto na tela */
   open: boolean;
+  /** Disparado ao fechar a janela */
   onClose: () => void;
+  /** Disparado após a conclusão com sucesso */
   onSuccess: () => void;
+  /** Lista de bilhetes selecionados no carrinho */
   numerosRifas: string[];
+  /** Callback para invalidar e recarregar dados do painel */
   invalidarDadosPainel: () => Promise<void>;
+  /** Modo inicial selecionado (padrão: "nova_api") */
+  modoInicial?: ModoCheckout;
 }
 
+/**
+ * Conteúdo interno do modal de Checkout.
+ * Orquestra a troca entre a Nova API e o Mercado Pago, preservando a máquina de estados Pix.
+ */
 function CheckoutModalContent({
   open,
   onClose,
@@ -63,33 +77,6 @@ function CheckoutModalContent({
     abortarGeracaoPendente,
   } = usePixStateMachine({ numerosRifas, sessaoCheckoutId, invalidarDadosPainel });
 
-  const formRestaurado = checkoutStorage.get().formData || {
-    nome: "",
-    telefone: "",
-    email: "",
-    documento: "",
-  };
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useForm<CheckoutFormData>({
-    resolver: yupResolver(checkoutSchema) as any,
-    mode: "onChange",
-    shouldUnregister: false,
-    defaultValues: formRestaurado,
-  });
-
-  useEffect(() => {
-    const subscription = watch((value) => {
-      checkoutStorage.update({ formData: value as CheckoutFormData });
-    });
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
   const prevOpen = useRef(open);
 
   useEffect(() => {
@@ -101,7 +88,7 @@ function CheckoutModalContent({
           JSON.stringify([...numerosRifas].sort());
 
       if (cobrancaAtual && cobrancaAtual.status === "aguardando_pagamento" && temMesmasRifas) {
-        // Retoma o fluxo silenciosamente (usePixStateMachine já carrega do storage)
+        // Retoma o fluxo silenciosamente
       } else {
         resetarFluxoPix();
       }
@@ -131,39 +118,9 @@ function CheckoutModalContent({
     onClose();
   };
 
-  const handleCancelarPixExplicito = () => {
-    const confirmar = window.confirm(
-      "Se você já enviou o código Pix para o comprador, cancelar agora impedirá que ele pague. Deseja realmente cancelar o Pix e liberar as rifas?",
-    );
-    if (!confirmar) return;
-    cancelarPix(false);
-  };
-
-  const handleConfirmarEnvio = (
-    arquivo: File | null,
-    resultado: ResultadoValidacaoArquivo | null,
-  ) => {
-    confirmarEnvioComprovante(
-      arquivo,
-      resultado?.hashSha256,
-      resultado?.mimeDetectado,
-    );
-  };
-
   const numerosRifasEfetivos = cobrancaPix?.numerosRifas?.length
     ? cobrancaPix.numerosRifas
     : numerosRifas;
-
-  const onSubmit = (dados: CheckoutFormData) => {
-    gerarCobranca(dados);
-  };
-
-  const handleCopiarPix = () => {
-    const sucesso = copiarPix();
-    if (sucesso) {
-      setSnackbarOpen(true);
-    }
-  };
 
   return (
     <>
@@ -173,39 +130,27 @@ function CheckoutModalContent({
       />
 
       <DialogContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-          <Stack spacing={2.25}>
+        <Stack spacing={2.25}>
+          {/* Resumo visual do lote de rifas e valor total */}
+          <CheckoutResumoVenda numerosRifas={numerosRifasEfetivos} />
 
-            <CheckoutResumoVenda numerosRifas={numerosRifasEfetivos} />
-
-            <CheckoutDadosCompradorForm
-              register={register}
-              setValue={setValue}
-              errors={errors}
-              isDisabled={Boolean(cobrancaPix) || pollingStatus === "gerando"}
-            />
-
-            <CheckoutPixBox
-              cobranca={cobrancaPix}
-              gerando={pollingStatus === "gerando"}
-              cancelando={cancelandoPix}
-              enviandoComprovante={enviandoComprovante}
-              erro={erroPix}
-              pollingStatus={pollingStatus === "gerando" ? "idle" : pollingStatus}
-              onCopiarPix={handleCopiarPix}
-              onCancelarPix={handleCancelarPixExplicito}
-              onExpirarPix={marcarComoExpiradoLocal}
-              onResetPix={resetarFluxoPix}
-              onSuccess={onSuccess}
-              onConfirmarEnvio={handleConfirmarEnvio}
-            />
-
-            <CheckoutSubmitButton
-              gerandoPix={pollingStatus === "gerando"}
-              pagamentoGerado={Boolean(cobrancaPix)}
-            />
-          </Stack>
-        </Box>
+          {/* Fluxo de Checkout Pix Direto / Chave Rápida */}
+          <CheckoutNovaApiView
+            numerosRifas={numerosRifasEfetivos}
+            cobrancaPix={cobrancaPix}
+            pollingStatus={pollingStatus}
+            cancelandoPix={cancelandoPix}
+            enviandoComprovante={enviandoComprovante}
+            erroPix={erroPix}
+            gerarCobranca={gerarCobranca}
+            copiarPix={copiarPix}
+            cancelarPix={cancelarPix}
+            resetarFluxoPix={resetarFluxoPix}
+            onSuccess={onSuccess}
+            confirmarEnvioComprovante={confirmarEnvioComprovante}
+            setSnackbarOpen={setSnackbarOpen}
+          />
+        </Stack>
       </DialogContent>
 
       <Snackbar
@@ -232,6 +177,11 @@ function CheckoutModalContent({
   );
 }
 
+/**
+ * Modal flutuante de Checkout para venda de rifas.
+ *
+ * @param {CheckoutModalProps} props - Propriedades do modal.
+ */
 export function CheckoutModal(props: CheckoutModalProps) {
   if (!props.open) return null;
 
@@ -242,7 +192,7 @@ export function CheckoutModal(props: CheckoutModalProps) {
       onClose={(_, reason) => {
         if (reason === "backdropClick") return;
         if (reason === "escapeKeyDown") {
-           return;
+          return;
         }
       }}
       fullWidth

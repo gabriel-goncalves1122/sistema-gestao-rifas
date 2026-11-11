@@ -23,10 +23,13 @@ export const storageService = {
    * Realiza o upload blindado de comprovante bancário (PDF, JPEG, PNG, WEBP, HEIC)
    * garantindo explicitamente o Content-Type nos metadados para evitar corrupção de cabeçalho.
    *
+   * Retorna o caminho canônico do arquivo no bucket (fullPath), dispensando chamada a getDownloadURL
+   * no cliente e evitando violações de permissão (storage/unauthorized) para usuários comuns.
+   *
    * @param {File} arquivo - Arquivo de comprovante validado.
    * @param {string} [mimeType] - MIME type canônico verificado por magic bytes.
    * @param {string} [pasta="comprovantes"] - Diretório destino no bucket.
-   * @returns {Promise<string>} URL de download pública do comprovante.
+   * @returns {Promise<string>} Caminho de referência (fullPath) do comprovante no Storage.
    * @sideEffects Upload no Firebase Storage com metadados estritos.
    */
   async uploadComprovante(
@@ -44,7 +47,7 @@ export const storageService = {
       },
     };
 
-    await uploadBytes(storageRef, arquivo, metadata);
-    return getDownloadURL(storageRef);
+    const snapshot = await uploadBytes(storageRef, arquivo, metadata);
+    return snapshot.ref.fullPath;
   },
 };

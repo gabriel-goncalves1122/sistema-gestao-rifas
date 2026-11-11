@@ -20,10 +20,10 @@ export interface CriarCobrancaProviderInput {
   nome: string;
   /** Telefone com DDD do comprador */
   telefone: string;
-  /** E-mail do comprador */
-  email: string;
-  /** Documento de identificação (CPF ou CNPJ apenas dígitos) */
-  documento: string;
+  /** E-mail do comprador (opcional para provedores locais/offline) */
+  email?: string;
+  /** Documento de identificação CPF/CNPJ (opcional para provedores locais/offline) */
+  documento?: string;
   /** Lista de identificadores das rifas compradas */
   numerosRifas: string[];
   /** Valor total da transação em centavos inteiros (ex: R$ 30,00 -> 3000) */

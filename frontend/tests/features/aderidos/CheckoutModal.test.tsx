@@ -26,6 +26,7 @@ vi.mock("@/features/aderidos/services/checkoutPixService", () => ({
   checkoutPixService: {
     criarCobrancaPix: vi.fn(),
     cancelarCobrancaPix: vi.fn(),
+    confirmarEnvioPix: vi.fn(),
   },
 }));
 
@@ -73,223 +74,348 @@ describe("Componente <CheckoutModal />", () => {
     });
   });
 
-  it("Deve mostrar erro de validacao sem exigir comprovante", async () => {
-    render(
-      <CheckoutModal
-        invalidarDadosPainel={vi.fn()}
-        open={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-        numerosRifas={["001"]}
-      />,
-    );
+  describe("Modo Nova API (Pix Rápido / Chave InfinitePay)", () => {
+    it("Deve renderizar por padrão o modo Nova API sem campo de CPF e com e-mail opcional", () => {
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+        />,
+      );
 
-    expect(screen.getByText(/Resumo da venda/i)).toBeInTheDocument();
+      expect(screen.getByText(/Chave Pix da Comissão/i)).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-nome")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-telefone")).toBeInTheDocument();
+      expect(screen.getByTestId("checkout-email")).toBeInTheDocument();
+      expect(screen.queryByTestId("checkout-documento")).not.toBeInTheDocument();
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+    it("Deve validar apenas Nome e Telefone na Nova API, sem exigir CPF", async () => {
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+        />,
+      );
 
-    await waitFor(() => {
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Informe o nome completo do comprador/i),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(/Informe o WhatsApp do comprador/i),
+        ).toBeInTheDocument();
+      });
+
       expect(
-        screen.getByText(/Informe o nome completo do comprador/i),
-      ).toBeInTheDocument();
+        screen.queryByText(/Informe o CPF ou CNPJ/i),
+      ).not.toBeInTheDocument();
+      expect(checkoutPixService.criarCobrancaPix).not.toHaveBeenCalled();
+    });
+
+    it("Deve gerar Pix rápido apenas com Nome e WhatsApp", async () => {
+      vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
+        id: "pix_rapido_01",
+        status: "aguardando_pagamento",
+        copiaECola: "000201PIXINFINITEPAYRAPIDO",
+        expiraEm: null,
+      });
+
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+        />,
+      );
+
+      fireEvent.change(screen.getByTestId("checkout-nome"), {
+        target: { value: "Lucas Silva" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-telefone"), {
+        target: { value: "35999998888" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+
+      await waitFor(() => {
+        expect(checkoutPixService.criarCobrancaPix).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nome: "Lucas Silva",
+            telefone: "(35) 99999-8888",
+            numerosRifas: ["001"],
+          }),
+        );
+      });
 
       expect(
-        screen.getByText(/Informe o CPF ou CNPJ do pagador/i),
+        await screen.findByText("000201PIXINFINITEPAYRAPIDO"),
       ).toBeInTheDocument();
     });
 
-    expect(
-      screen.queryByText(/Anexe o comprovante do PIX/i),
-    ).not.toBeInTheDocument();
-    expect(checkoutPixService.criarCobrancaPix).not.toHaveBeenCalled();
+    it("Deve permitir alternar para o modo Mercado Pago pelo seletor de abas", () => {
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+        />,
+      );
+
+      expect(screen.queryByTestId("checkout-documento")).not.toBeInTheDocument();
+
+      const btnMercadoPago = screen.getByRole("button", {
+        name: /mercado pago/i,
+      });
+      fireEvent.click(btnMercadoPago);
+
+      expect(screen.getByTestId("checkout-documento")).toBeInTheDocument();
+      expect(
+        screen.getByText(/Pix Dinâmico Automático \(Mercado Pago\)/i),
+      ).toBeInTheDocument();
+    });
   });
 
-  it("Deve gerar pagamento via Pix pelo backend do sistema", async () => {
-    vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
-      id: "pix_001",
-      status: "aguardando_pagamento",
-      qrCodeBase64: "base64-qr-code",
-      copiaECola: "000201PIXTESTE",
-      expiraEm: "2030-01-01T12:00:00.000Z",
+  describe("Modo Mercado Pago (Gateway Automático com CPF e E-mail)", () => {
+    it("Deve mostrar erro de validacao exigindo CPF no modo Mercado Pago", async () => {
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+          modoInicial="mercadopago"
+        />,
+      );
+
+      expect(screen.getByText(/Resumo da venda/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Informe o nome completo do comprador/i),
+        ).toBeInTheDocument();
+
+        expect(
+          screen.getByText(/Informe o CPF ou CNPJ do pagador/i),
+        ).toBeInTheDocument();
+      });
+
+      expect(checkoutPixService.criarCobrancaPix).not.toHaveBeenCalled();
     });
 
-    render(
-      <CheckoutModal
-        invalidarDadosPainel={vi.fn()}
-        open={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-        numerosRifas={["001", "002"]}
-      />,
-    );
+    it("Deve gerar pagamento via Pix pelo backend do sistema no modo Mercado Pago", async () => {
+      vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
+        id: "pix_001",
+        status: "aguardando_pagamento",
+        qrCodeBase64: "base64-qr-code",
+        copiaECola: "000201PIXTESTE",
+        expiraEm: "2030-01-01T12:00:00.000Z",
+      });
 
-    fireEvent.change(screen.getByTestId("checkout-nome"), {
-      target: { value: "Ana Beatriz" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-telefone"), {
-      target: { value: "35999998888" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-email"), {
-      target: { value: "ana@email.com" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-documento"), {
-      target: { value: "12345678909" },
-    });
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001", "002"]}
+          modoInicial="mercadopago"
+        />,
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+      fireEvent.change(screen.getByTestId("checkout-nome"), {
+        target: { value: "Ana Beatriz" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-telefone"), {
+        target: { value: "35999998888" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-email"), {
+        target: { value: "ana@email.com" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-documento"), {
+        target: { value: "12345678909" },
+      });
 
-    await waitFor(() => {
-      expect(checkoutPixService.criarCobrancaPix).toHaveBeenCalledWith(expect.objectContaining({
-        nome: "Ana Beatriz",
-        telefone: "(35) 99999-8888",
-        email: "ana@email.com",
-        documento: "123.456.789-09",
-        numerosRifas: ["001", "002"],
-        sessaoCheckoutId: expect.any(String),
-      }));
-    });
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
 
-    expect(await screen.findByText("000201PIXTESTE")).toBeInTheDocument();
-    expect(screen.getByAltText("QR Code Pix")).toBeInTheDocument();
-    expect(screen.getByText(/Pagamento gerado/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /pagamento gerado/i }),
-    ).toBeInTheDocument();
-    expect(mockOnSuccess).not.toHaveBeenCalled();
-  });
+      await waitFor(() => {
+        expect(checkoutPixService.criarCobrancaPix).toHaveBeenCalledWith(
+          expect.objectContaining({
+            nome: "Ana Beatriz",
+            telefone: "(35) 99999-8888",
+            email: "ana@email.com",
+            documento: "123.456.789-09",
+            numerosRifas: ["001", "002"],
+            sessaoCheckoutId: expect.any(String),
+          }),
+        );
+      });
 
-  it("Deve permitir fechar o modal durante aguardando_pagamento SEM cancelar o Pix no Mercado Pago", async () => {
-    vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
-      id: "pix_ativo_whatsapp",
-      status: "aguardando_pagamento",
-      qrCodeBase64: "base64-qr-code",
-      copiaECola: "000201PIXWHATSAPP",
-      expiraEm: "2030-01-01T12:00:00.000Z",
-    });
-
-    render(
-      <CheckoutModal
-        invalidarDadosPainel={vi.fn()}
-        open={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-        numerosRifas={["001"]}
-      />,
-    );
-
-    fireEvent.change(screen.getByTestId("checkout-nome"), {
-      target: { value: "Comprador Remoto" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-telefone"), {
-      target: { value: "35999998888" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-email"), {
-      target: { value: "comprador@email.com" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-documento"), {
-      target: { value: "12345678909" },
+      expect(await screen.findByText("000201PIXTESTE")).toBeInTheDocument();
+      expect(screen.getByAltText("QR Code Pix")).toBeInTheDocument();
+      expect(screen.getByText(/Pagamento gerado/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /pagamento gerado/i }),
+      ).toBeInTheDocument();
+      expect(mockOnSuccess).not.toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+    it("Deve permitir fechar o modal durante aguardando_pagamento SEM cancelar o Pix no Mercado Pago", async () => {
+      vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
+        id: "pix_ativo_whatsapp",
+        status: "aguardando_pagamento",
+        qrCodeBase64: "base64-qr-code",
+        copiaECola: "000201PIXWHATSAPP",
+        expiraEm: "2030-01-01T12:00:00.000Z",
+      });
 
-    expect(await screen.findByText("000201PIXWHATSAPP")).toBeInTheDocument();
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+          modoInicial="mercadopago"
+        />,
+      );
 
-    // Clica no X do header do modal para fechar e mandar no WhatsApp
-    const btnFecharModal = screen.getByRole("button", { name: /fechar modal de venda/i });
-    fireEvent.click(btnFecharModal);
+      fireEvent.change(screen.getByTestId("checkout-nome"), {
+        target: { value: "Comprador Remoto" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-telefone"), {
+        target: { value: "35999998888" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-email"), {
+        target: { value: "comprador@email.com" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-documento"), {
+        target: { value: "12345678909" },
+      });
 
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-    expect(checkoutPixService.cancelarCobrancaPix).not.toHaveBeenCalled();
-  });
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
 
-  it("Deve mostrar indisponibilidade quando o endpoint futuro ainda nao responder", async () => {
-    vi.mocked(checkoutPixService.criarCobrancaPix).mockRejectedValueOnce(
-      new Error("Erro HTTP 404"),
-    );
+      expect(await screen.findByText("000201PIXWHATSAPP")).toBeInTheDocument();
 
-    render(
-      <CheckoutModal
-        invalidarDadosPainel={vi.fn()}
-        open={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-        numerosRifas={["001"]}
-      />,
-    );
+      const btnFecharModal = screen.getByRole("button", {
+        name: /fechar modal de venda/i,
+      });
+      fireEvent.click(btnFecharModal);
 
-    fireEvent.change(screen.getByTestId("checkout-nome"), {
-      target: { value: "Ana Beatriz" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-telefone"), {
-      target: { value: "35999998888" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-email"), {
-      target: { value: "ana@email.com" },
-    });
-    fireEvent.change(screen.getByTestId("checkout-documento"), {
-      target: { value: "12345678909" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
-
-    expect(
-      await screen.findByText(/Pagamento via Pix indisponivel no momento/i),
-    ).toBeInTheDocument();
-  });
-
-  it("Deve fechar o modal e limpar o cache quando o pagamento for aprovado e o botão clicado", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-
-    vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
-      id: "pix_002",
-      status: "aguardando_pagamento",
-      qrCodeBase64: "base64-qr-code",
-      copiaECola: "000201PIXTESTE",
-      expiraEm: "2030-01-01T12:00:00.000Z",
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(checkoutPixService.cancelarCobrancaPix).not.toHaveBeenCalled();
     });
 
-    render(
-      <CheckoutModal
-        invalidarDadosPainel={vi.fn()}
-        open={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-        numerosRifas={["001"]}
-      />,
-    );
+    it("Deve mostrar indisponibilidade quando o endpoint futuro ainda nao responder", async () => {
+      vi.mocked(checkoutPixService.criarCobrancaPix).mockRejectedValueOnce(
+        new Error("Erro HTTP 404"),
+      );
 
-    // Precisamos envolver os eventos de click/change em act para não gerar warnings
-    fireEvent.change(screen.getByTestId("checkout-nome"), { target: { value: "Ana" } });
-    fireEvent.change(screen.getByTestId("checkout-telefone"), { target: { value: "35999998888" } });
-    fireEvent.change(screen.getByTestId("checkout-email"), { target: { value: "ana@email.com" } });
-    fireEvent.change(screen.getByTestId("checkout-documento"), { target: { value: "12345678909" } });
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+          modoInicial="mercadopago"
+        />,
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+      fireEvent.change(screen.getByTestId("checkout-nome"), {
+        target: { value: "Ana Beatriz" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-telefone"), {
+        target: { value: "35999998888" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-email"), {
+        target: { value: "ana@email.com" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-documento"), {
+        target: { value: "12345678909" },
+      });
 
-    expect(await screen.findByText("000201PIXTESTE")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
 
-    expect(await screen.findByText("000201PIXTESTE")).toBeInTheDocument();
-
-    // Simula que o Firestore enviou atualização de sucesso (Real-time Pix)
-    await act(async () => {
-      if (mockOnSnapshotCallback.current) {
-        mockOnSnapshotCallback.current({
-          exists: () => true,
-          data: () => ({ status_pagamento_banco: "approved" }),
-        });
-      }
+      expect(
+        await screen.findByText(/Pagamento via Pix indisponivel no momento/i),
+      ).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      expect(screen.getByText(/Pagamento confirmado!/i)).toBeInTheDocument();
+    it("Deve fechar o modal e limpar o cache quando o pagamento for aprovado e o botão clicado", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      vi.mocked(checkoutPixService.criarCobrancaPix).mockResolvedValueOnce({
+        id: "pix_002",
+        status: "aguardando_pagamento",
+        qrCodeBase64: "base64-qr-code",
+        copiaECola: "000201PIXTESTE",
+        expiraEm: "2030-01-01T12:00:00.000Z",
+      });
+
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001"]}
+          modoInicial="mercadopago"
+        />,
+      );
+
+      fireEvent.change(screen.getByTestId("checkout-nome"), {
+        target: { value: "Ana" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-telefone"), {
+        target: { value: "35999998888" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-email"), {
+        target: { value: "ana@email.com" },
+      });
+      fireEvent.change(screen.getByTestId("checkout-documento"), {
+        target: { value: "12345678909" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /gerar pagamento/i }));
+
+      expect(await screen.findByText("000201PIXTESTE")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+        if (mockOnSnapshotCallback.current) {
+          mockOnSnapshotCallback.current({
+            exists: () => true,
+            data: () => ({ status_pagamento_banco: "approved" }),
+          });
+        }
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Pagamento confirmado!/i)).toBeInTheDocument();
+      });
+
+      const btnFechar = screen.getByRole("button", { name: /Concluir Venda/i });
+      fireEvent.click(btnFechar);
+
+      expect(mockOnSuccess).toHaveBeenCalled();
+
+      vi.useRealTimers();
     });
-
-    // Clica no botão de fechar (que aparece após sucesso)
-    const btnFechar = screen.getByRole("button", { name: /Concluir Venda/i });
-    fireEvent.click(btnFechar);
-
-    expect(mockOnSuccess).toHaveBeenCalled();
-
-    vi.useRealTimers();
   });
 });

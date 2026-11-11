@@ -21,8 +21,8 @@ export type PixStatus =
 interface DadosGerarCobrancaPix {
   nome: string;
   telefone: string;
-  email: string;
-  documento: string;
+  email?: string;
+  documento?: string;
 }
 
 interface UsePixStateMachineParams {

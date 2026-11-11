@@ -17,8 +17,8 @@ export const VALOR_RIFA_REAIS = 10;
 export interface CheckoutPixDadosNormalizados {
   nome: string;
   telefone: string;
-  email: string;
-  documento: string;
+  email?: string;
+  documento?: string;
   numerosRifas: string[];
   sessaoCheckoutId?: string;
 }
@@ -193,7 +193,8 @@ export function normalizarNumerosRifas(valor: unknown): string[] {
 
 /**
  * Normaliza e valida os dados de entrada de um comprador para criação de cobrança Pix.
- * Limpa máscaras de telefone e documento e garante que campos obrigatórios estejam presentes.
+ * Limpa máscaras de telefone e documento e garante que campos obrigatórios (nome, telefone, rifas) estejam presentes.
+ * Email e documento são opcionais no modelo EMV / Nova API, mas validados quando presentes.
  *
  * @param {CriarCheckoutPixPayload} payload - Payload bruto recebido na rota de checkout Pix.
  * @returns {CheckoutPixDadosNormalizados} Estrutura sanitizada com campos prontos para processamento.
@@ -204,11 +205,11 @@ export function normalizarDadosCheckoutPix(
 ): CheckoutPixDadosNormalizados {
   const nome = String(payload?.nome || "").trim();
   const telefone = somenteNumeros(payload?.telefone);
-  const email = String(payload?.email || "").trim().toLowerCase();
-  const documento = somenteNumeros(payload?.documento);
+  const email = payload?.email ? String(payload.email).trim().toLowerCase() : undefined;
+  const documento = payload?.documento ? somenteNumeros(payload.documento) : undefined;
   const numerosRifas = normalizarNumerosRifas(payload?.numerosRifas);
 
-  if (!nome || !telefone || !email || !documento || numerosRifas.length === 0) {
+  if (!nome || !telefone || numerosRifas.length === 0) {
     throw new Error("INVALID_DATA");
   }
 

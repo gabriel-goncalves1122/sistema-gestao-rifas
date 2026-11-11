@@ -26,13 +26,17 @@ export const checkoutPixSchema = yup
     documento: yup
       .string()
       .trim()
-      .matches(/^(\d{11}|\d{14})$/, "CPF ou CNPJ inválido (deve conter 11 ou 14 dígitos numéricos).")
+      .test(
+        "cpf-cnpj-formato-valido",
+        "CPF ou CNPJ inválido (deve conter 11 ou 14 dígitos numéricos).",
+        (value) => !value || /^(\d{11}|\d{14})$/.test(value),
+      )
       .test(
         "cpf-cnpj-digitos-validos",
         "CPF ou CNPJ inválido. Verifique os números digitados.",
-        (value) => Boolean(value && validarDocumentoPix(value)),
+        (value) => !value || validarDocumentoPix(value),
       )
-      .required("Documento CPF é obrigatório"),
+      .optional(),
     numerosRifas: yup
       .array()
       .of(yup.string().trim().required())

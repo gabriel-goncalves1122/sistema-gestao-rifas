@@ -7,8 +7,8 @@ export type CheckoutPixStatus =
 export interface CriarCheckoutPixPayload {
   nome: string;
   telefone: string;
-  email: string;
-  documento: string;
+  email?: string;
+  documento?: string;
   numerosRifas: string[];
   sessaoCheckoutId?: string;
 }

@@ -34,12 +34,37 @@ describe("Helper: checkoutPixHelper", () => {
     expect(calcularValorPixCentavos(dados.numerosRifas)).toBe(2000);
   });
 
-  it("Deve rejeitar payload incompleto", () => {
+  it("Deve aceitar payload da Nova API sem email e sem documento", () => {
+    const dados = normalizarDadosCheckoutPix({
+      nome: " Carlos Aluno ",
+      telefone: "(35) 98888-7777",
+      numerosRifas: ["005"],
+    });
+
+    expect(dados).toEqual({
+      nome: "Carlos Aluno",
+      telefone: "35988887777",
+      email: undefined,
+      documento: undefined,
+      numerosRifas: ["005"],
+      sessaoCheckoutId: undefined,
+    });
+  });
+
+  it("Deve rejeitar payload incompleto (sem nome, sem telefone ou sem rifas)", () => {
     expect(() =>
       normalizarDadosCheckoutPix({
         nome: "",
         telefone: "",
         numerosRifas: [],
+      }),
+    ).toThrow("INVALID_DATA");
+
+    expect(() =>
+      normalizarDadosCheckoutPix({
+        nome: "João",
+        telefone: "",
+        numerosRifas: ["001"],
       }),
     ).toThrow("INVALID_DATA");
   });

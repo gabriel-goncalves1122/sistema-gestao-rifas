@@ -21,6 +21,12 @@ export class MercadoPagoPaymentProvider implements IPaymentProvider {
    * @returns {Promise<CriarCobrancaProviderOutput>} Cobrança com QR Code retornado pelo gateway.
    */
   async criarCobranca(input: CriarCobrancaProviderInput): Promise<CriarCobrancaProviderOutput> {
+    if (!input.documento || !input.email) {
+      throw new Error(
+        "MERCADOPAGO_DADOS_OBRIGATORIOS_AUSENTES: CPF e e-mail são obrigatórios para emissão via Mercado Pago.",
+      );
+    }
+
     const resposta = await MercadoPagoPixClient.criarPedidoPix({
       referenceId: input.referenceId,
       nome: input.nome,

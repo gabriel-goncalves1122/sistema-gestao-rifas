@@ -1,33 +1,80 @@
-import { Dialog, Box, IconButton } from "@mui/material";
+import { Dialog, Box, IconButton, CircularProgress } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import { useEffect, useState } from "react";
+import { ref, getDownloadURL } from "firebase/storage";
+import { storage } from "@/shared/config/firebase";
 
 /**
  * Interface de propriedades do componente `ModalImagemPix`.
  */
 export interface ModalImagemPixProps {
-  /** URL de download da imagem ou documento PDF do comprovante Pix no Storage, ou null para manter fechado. */
+  /** URL pública ou caminho no Storage (fullPath) do comprovante Pix, ou null para manter fechado. */
   url: string | null;
   /** Callback acionado ao solicitar o fechamento do diálogo de zoom do comprovante. */
   onClose: () => void;
 }
 
 /**
- * Componente de visualização universal (Dumb Component) para comprovantes Pix.
- * Renderiza nativamente imagens (JPG, PNG, WEBP, HEIC) e documentos PDF via iframe responsivo,
- * contendo link de escape para visualização em nova aba.
+ * Componente de visualização universal para comprovantes Pix na Tesouraria.
+ * Suporta tanto URLs completas (HTTP/HTTPS/DataURL) quanto caminhos do Storage (ex: 'comprovantes/...').
+ * Renderiza nativamente imagens (JPG, PNG, WEBP, HEIC) e documentos PDF via iframe responsivo.
  *
  * @param {ModalImagemPixProps} props - Propriedades do modal de visualização.
  * @returns {JSX.Element}
  */
 export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
+  const [urlResolvida, setUrlResolvida] = useState<string | null>(null);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    if (!url) {
+      setUrlResolvida(null);
+      setCarregando(false);
+      return;
+    }
+
+    // Se já é uma URL completa ou base64, usa diretamente
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+      setUrlResolvida(url);
+      setCarregando(false);
+      return;
+    }
+
+    // Se for um caminho de referência no storage (ex: comprovantes/123_arquivo.pdf)
+    let ativo = true;
+    setCarregando(true);
+
+    const storageRef = ref(storage, url);
+    getDownloadURL(storageRef)
+      .then((downloadUrl) => {
+        if (ativo) {
+          setUrlResolvida(downloadUrl);
+          setCarregando(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Falha ao resolver URL do comprovante:", err);
+        if (ativo) {
+          setUrlResolvida(null);
+          setCarregando(false);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [url]);
+
+  const urlEfetiva = urlResolvida;
+
   const isPdf =
-    typeof url === "string" &&
-    (/\.pdf(\?|$)/i.test(url) ||
-      url.includes("application%2Fpdf") ||
-      url.startsWith("data:application/pdf"));
+    typeof urlEfetiva === "string" &&
+    (/\.pdf(\?|$)/i.test(urlEfetiva) ||
+      urlEfetiva.includes("application%2Fpdf") ||
+      urlEfetiva.startsWith("data:application/pdf"));
 
   return (
-    <Dialog open={!!url} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={Boolean(url)} onClose={onClose} maxWidth="md" fullWidth>
       <Box
         sx={{
           position: "relative",
@@ -38,10 +85,14 @@ export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
           alignItems: "center",
         }}
       >
-        {url && isPdf && (
+        {carregando && (
+          <CircularProgress sx={{ color: "#0B7A61" }} />
+        )}
+
+        {!carregando && urlEfetiva && isPdf && (
           <Box sx={{ position: "absolute", top: 10, left: 12, zIndex: 10 }}>
             <a
-              href={url}
+              href={urlEfetiva}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -80,7 +131,7 @@ export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
           <CloseIcon />
         </IconButton>
 
-        {url && isPdf ? (
+        {!carregando && urlEfetiva && isPdf ? (
           <Box
             sx={{
               width: "100%",
@@ -91,7 +142,7 @@ export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
             }}
           >
             <iframe
-              src={url}
+              src={urlEfetiva}
               title="Comprovante Pix"
               style={{
                 width: "100%",
@@ -100,9 +151,9 @@ export function ModalImagemPix({ url, onClose }: ModalImagemPixProps) {
               }}
             />
           </Box>
-        ) : url ? (
+        ) : !carregando && urlEfetiva ? (
           <img
-            src={url}
+            src={urlEfetiva}
             alt="Comprovante Pix"
             style={{
               maxWidth: "100%",
