@@ -42,6 +42,28 @@ export const CARGOS_SECRETARIA_OU_ADMIN = [
   "membro_secretaria",
 ];
 
+export const CARGOS_ADMIN = ["admin", "presidencia"];
+
+/**
+ * Avalia se o usuário autenticado possui privilégios de administrador ou super-admin.
+ *
+ * @param {AuthRequest["user"]} user - Objeto do usuário autenticado anexado na requisição.
+ * @returns {boolean} Verdadeiro se for super-admin por email ou possuir cargo de admin/presidência.
+ */
+export function isUsuarioAdmin(user?: AuthRequest["user"]): boolean {
+  if (!user) return false;
+
+  if (user.email) {
+    const superAdmins = obterSuperAdmins();
+    if (superAdmins.includes(user.email.toLowerCase())) {
+      return true;
+    }
+  }
+
+  const cargoEfetivo = user.role || "aderido";
+  return CARGOS_ADMIN.includes(cargoEfetivo);
+}
+
 /**
  * Middleware de autenticação central do Express.
  * Extrai o Bearer token do header 'Authorization', valida-o criptograficamente no Firebase Auth (`verifyIdToken`),
@@ -223,3 +245,38 @@ export const requireSecretariaOrAdmin = async (
 
   next();
 };
+
+/**
+ * Middleware de autorização para rotas restritas exclusivamente a Administradores (ou super-admins via env).
+ * Permite super-admins definidos via `SUPER_ADMIN_EMAILS` ou usuários com cargo em `CARGOS_ADMIN` (admin, presidencia).
+ *
+ * @param {AuthRequest} req - Requisição Express contendo `req.user`.
+ * @param {Response} res - Resposta Express (retorna 401 se deslogado ou 403 se sem permissão).
+ * @param {NextFunction} next - Callback para prosseguir na rota.
+ * @returns {Promise<void>}
+ */
+export const requireAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const user = req.user;
+
+  if (!user) {
+    res.status(401).json({
+      error: "Usuário não autenticado.",
+    });
+    return;
+  }
+
+  if (!isUsuarioAdmin(user)) {
+    const cargoEfetivo = user.role || "aderido";
+    res.status(403).json({
+      error: `Acesso restrito a administradores. Seu cargo atual é: ${cargoEfetivo}`,
+    });
+    return;
+  }
+
+  next();
+};
+

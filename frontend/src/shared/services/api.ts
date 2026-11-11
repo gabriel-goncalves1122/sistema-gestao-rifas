@@ -206,7 +206,13 @@ export async function fetchAPI(
         );
       }
 
-      throw new Error(data.error || `Erro HTTP ${response.status}`);
+      const apiError: any = new Error(
+        data.error || "Erro HTTP " + response.status,
+      );
+      apiError.code = data.code;
+      apiError.status = response.status;
+      apiError.manutencao = data.manutencao;
+      throw apiError;
     }
 
     return data;

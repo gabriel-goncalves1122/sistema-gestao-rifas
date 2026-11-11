@@ -2,7 +2,9 @@
 // ARQUIVO: frontend/src/views/pages/DashboardPage.tsx
 // ============================================================================
 import { startTransition, useCallback, useEffect, useState } from "react";
-import { Box, Container, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, Container, useMediaQuery, useTheme } from "@mui/material";
+import { useModoManutencao } from "@/shared/hooks/useModoManutencao";
+import { ModalManutencaoAdmin } from "@/shared/components/ModalManutencaoAdmin";
 
 import { MinhasRifasTab } from "@/features/aderidos/MinhasRifasTab";
 import { useAuthController } from "@/features/auth/hooks/useAuthController";
@@ -45,6 +47,14 @@ export function DashboardPage() {
   const hasSecretariaAccess = isSuperAdmin || cargo === "secretaria";
 
   const [menuAberto, setMenuAberto] = useState(false);
+  const [modalManutencaoAberto, setModalManutencaoAberto] = useState(false);
+
+  const {
+    emManutencao,
+    statusManutencao,
+    atualizarManutencao,
+    salvandoManutencao,
+  } = useModoManutencao(usuarioAtual);
 
   const [contextoAtual, setContextoAtual] = useState<Contexto>(() => {
     return (
@@ -244,10 +254,43 @@ export function DashboardPage() {
         hasTesourariaAccess={hasTesourariaAccess}
         hasSecretariaAccess={hasSecretariaAccess}
         contextoAtual={contextoAtual}
+        emManutencao={emManutencao}
+        onAbrirManutencao={() => setModalManutencaoAberto(true)}
         onClose={() => setMenuAberto(false)}
         onMudarContexto={mudarContexto}
         onLogout={fazerLogout}
       />
+
+      {isSuperAdmin && emManutencao && (
+        <Container maxWidth="lg" sx={{ mt: 2, mb: 1 }}>
+          <Alert
+            severity="warning"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setModalManutencaoAberto(true)}
+                sx={{ fontWeight: 700 }}
+              >
+                Gerenciar
+              </Button>
+            }
+          >
+            <strong>Modo de Manutenção ATIVO:</strong> Apenas administradores e presidência
+            estão acessando o sistema. Aderidos e visitantes veem a tela institucional de manutenção.
+          </Alert>
+        </Container>
+      )}
+
+      {isSuperAdmin && (
+        <ModalManutencaoAdmin
+          open={modalManutencaoAberto}
+          onClose={() => setModalManutencaoAberto(false)}
+          statusAtual={statusManutencao}
+          onSalvar={atualizarManutencao}
+          salvando={salvandoManutencao}
+        />
+      )}
 
       <Container maxWidth="lg" sx={{ mt: 3, mb: 4 }}>
         {contextoAtual === "aderido" && (

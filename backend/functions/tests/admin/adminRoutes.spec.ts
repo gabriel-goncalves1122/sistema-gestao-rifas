@@ -7,6 +7,13 @@ import { jest, describe, beforeAll, it, expect } from "@jest/globals";
 
 import adminRoutes from "../../src/modules/admin/adminRoutes";
 
+jest.mock("../../src/modules/sistema/sistemaController", () => ({
+  sistemaController: {
+    atualizarManutencao: (_req: any, res: any) =>
+      res.status(200).json({ success: true, mock: "manutencao" }),
+  },
+}));
+
 jest.mock("../../src/modules/admin/secretaria/secretariaController", () => ({
   secretariaController: {
     listarAderidos: (_req: any, res: any) =>
@@ -46,6 +53,7 @@ jest.mock("../../src/shared/middlewares/authMiddleware", () => ({
   validateToken: (_req: any, _res: any, next: any) => next(),
   requireTesourariaOrAdmin: (_req: any, _res: any, next: any) => next(),
   requireSecretariaOrAdmin: (_req: any, _res: any, next: any) => next(),
+  requireAdmin: (_req: any, _res: any, next: any) => next(),
 }));
 
 jest.mock("../../src/shared/middlewares/validate", () => ({
@@ -59,6 +67,15 @@ describe("Rotas: /admin", () => {
     app = express();
     app.use(express.json());
     app.use("/admin", adminRoutes);
+  });
+
+  it("PUT /admin/manutencao deve chamar sistemaController.atualizarManutencao", async () => {
+    const response = await request(app)
+      .put("/admin/manutencao")
+      .send({ emManutencao: true });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ success: true, mock: "manutencao" });
   });
 
   it("POST /admin/aderidos deve chamar secretariaController.adicionarAderido", async () => {

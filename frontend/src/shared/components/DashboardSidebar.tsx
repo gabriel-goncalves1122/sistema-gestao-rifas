@@ -8,11 +8,13 @@ import {
   ListItemText,
   Divider,
   Drawer,
+  Chip,
 } from "@mui/material";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
+import BuildCircleOutlinedIcon from "@mui/icons-material/BuildCircleOutlined";
 
 import { dashboardSidebarStyles } from "@/shared/styles/dashboardSidebarStyles";
 import { Contexto } from "@/views/pages/DashboardPage";
@@ -31,6 +33,10 @@ export interface DashboardSidebarProps {
   hasSecretariaAccess: boolean;
   /** Identificador do contexto visual atualmente ativo ("aderido", "tesouraria", "secretaria"). */
   contextoAtual: Contexto;
+  /** Se o modo de manutenção está ativo atualmente no sistema. */
+  emManutencao?: boolean;
+  /** Callback acionado para abrir o diálogo de controle de modo de manutenção. */
+  onAbrirManutencao?: () => void;
   /** Callback acionado para fechar o Drawer lateral. */
   onClose: () => void;
   /** Callback disparado ao selecionar um novo módulo/contexto de navegação. */
@@ -52,6 +58,8 @@ export function DashboardSidebar({
   hasTesourariaAccess,
   hasSecretariaAccess,
   contextoAtual,
+  emManutencao = false,
+  onAbrirManutencao,
   onClose,
   onMudarContexto,
   onLogout,
@@ -72,7 +80,14 @@ export function DashboardSidebar({
       anchor="left"
       open={open}
       onClose={onClose}
-      PaperProps={{ sx: dashboardSidebarStyles.drawerPaper }}
+      slotProps={{
+        backdrop: {
+          sx: dashboardSidebarStyles.backdrop,
+        },
+      }}
+      PaperProps={{
+        sx: dashboardSidebarStyles.drawerPaper,
+      }}
     >
       <Box sx={dashboardSidebarStyles.root} role="presentation">
         <Box
@@ -177,6 +192,52 @@ export function DashboardSidebar({
                     fontWeight: itemTesourariaSelecionado ? 900 : 700,
                   }}
                 />
+              </ListItemButton>
+            </ListItem>
+          )}
+
+          {isSuperAdmin && onAbrirManutencao && (
+            <ListItem disablePadding sx={{ mt: 1 }}>
+              <ListItemButton
+                onClick={() => {
+                  onAbrirManutencao();
+                  onClose();
+                }}
+                sx={{
+                  borderRadius: 2,
+                  backgroundColor: emManutencao
+                    ? "rgba(237, 108, 2, 0.08)"
+                    : "transparent",
+                  "&:hover": {
+                    backgroundColor: emManutencao
+                      ? "rgba(237, 108, 2, 0.16)"
+                      : "rgba(11, 47, 36, 0.04)",
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    color: emManutencao ? "warning.main" : "#0B2F24",
+                    minWidth: 40,
+                  }}
+                >
+                  <BuildCircleOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Modo Manutenção"
+                  primaryTypographyProps={{
+                    fontWeight: 700,
+                    color: emManutencao ? "warning.dark" : "text.primary",
+                  }}
+                />
+                {emManutencao && (
+                  <Chip
+                    size="small"
+                    color="warning"
+                    label="ATIVO"
+                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 800 }}
+                  />
+                )}
               </ListItemButton>
             </ListItem>
           )}

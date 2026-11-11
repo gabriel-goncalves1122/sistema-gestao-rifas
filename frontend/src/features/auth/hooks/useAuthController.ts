@@ -73,7 +73,11 @@ function normalizarNomeUsuario(dadosUsuario: any) {
  * @returns {CargoComissao} Cargo válido.
  */
 function normalizarCargoUsuario(dadosUsuario: any): CargoComissao {
-  return (dadosUsuario?.cargo as CargoComissao) || "aderido";
+  return (
+    (dadosUsuario?.cargo as CargoComissao) ||
+    (dadosUsuario?.role as CargoComissao) ||
+    "aderido"
+  );
 }
 
 /**
@@ -219,7 +223,7 @@ export function useAuthController() {
     });
 
     return () => {
-      unsubscribeAuth();
+      unsubscribeAuth?.();
       unsubscribeUsuario?.();
     };
   }, []);
