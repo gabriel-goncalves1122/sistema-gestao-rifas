@@ -32,6 +32,7 @@ export interface MinhasRifasDesktopViewProps {
   gruposRecusados: GrupoRifasRecusadas[];
   onVoltar: () => void;
   onAbrirCorrecao: (grupo: GrupoRifasRecusadas) => void;
+  onDesistirVenda?: (numerosRifas: string[]) => Promise<boolean | void> | void;
   possuiSelecao: boolean;
   valorTotalSelecionado: number;
   onVenderClick: () => void;
@@ -58,6 +59,7 @@ export function MinhasRifasDesktopView({
   gruposRecusados,
   onVoltar,
   onAbrirCorrecao,
+  onDesistirVenda,
   possuiSelecao,
   valorTotalSelecionado,
   onVenderClick,
@@ -70,6 +72,7 @@ export function MinhasRifasDesktopView({
             gruposRecusados={gruposRecusados}
             onVoltar={onVoltar}
             onAbrirCorrecao={onAbrirCorrecao}
+            onDesistirVenda={onDesistirVenda}
           />
         </Box>
       ) : (

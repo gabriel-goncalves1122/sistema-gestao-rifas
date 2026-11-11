@@ -3,6 +3,7 @@
 // ============================================================================
 import { corrigirDadosRifas } from "./controllers/corrigirDadosRifasController";
 import { corrigirRecusadas } from "./controllers/corrigirRecusadasController";
+import { desistirRecusadas } from "./controllers/desistirRecusadasController";
 import { getMinhasRifas } from "./controllers/getMinhasRifasController";
 import { obterHistoricoDetalhado } from "./controllers/obterHistoricoDetalhadoController";
 import { obterMeuRelatorioVendas } from "./controllers/obterMeuRelatorioVendasController";
@@ -17,4 +18,5 @@ export const rifasController = {
   obterHistoricoDetalhado,
   corrigirRecusadas,
   corrigirDadosRifas,
+  desistirRecusadas,
 };

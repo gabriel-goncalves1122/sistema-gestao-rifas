@@ -219,6 +219,18 @@ export function usePainelAderidoController() {
     setFeedbackRelatorio((prev) => ({ ...prev, open: false }));
   }, []);
 
+  const desistirVendaRecusada = useCallback(
+    async (numeros: string[]) => {
+      const sucesso = await dadosPainel.desistirVendaRecusada(numeros);
+      if (!sucesso) return false;
+
+      await dadosPainel.invalidarDadosPainel();
+      setVisaoAtual("geral");
+      return true;
+    },
+    [dadosPainel.desistirVendaRecusada, dadosPainel.invalidarDadosPainel],
+  );
+
   return {
     carregando: dadosPainel.carregando,
     visaoAtual,
@@ -260,6 +272,7 @@ export function usePainelAderidoController() {
     alternarSelecaoRifa: selecao.alternarSelecaoRifa,
     finalizarVendaComSucesso,
     corrigirDadosRecusados,
+    desistirVendaRecusada,
     exportarRelatorioVendas,
     fecharFeedbackRelatorio,
     invalidarDadosPainel: dadosPainel.invalidarDadosPainel,

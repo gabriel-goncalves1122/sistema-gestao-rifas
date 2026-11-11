@@ -78,6 +78,21 @@ export class RifasService {
   }
 
   /**
+   * Cancela em definitivo a venda de rifas recusadas, liberando os bilhetes para o estoque.
+   *
+   * @param {string} emailLogado - Email do aderido autenticado.
+   * @param {string[]} numerosRifas - Lista de números das rifas recusadas a desistir.
+   * @returns {Promise<boolean>} `true` se liberado com sucesso.
+   * @transactional Atualiza os bilhetes para 'disponivel' e remove os compradores correspondentes.
+   */
+  static async desistirRifasRecusadas(
+    emailLogado: string,
+    numerosRifas: string[],
+  ): Promise<boolean> {
+    return CorrecaoRifasService.desistirRifasRecusadas(emailLogado, numerosRifas);
+  }
+
+  /**
    * Permite a correção cadastral (nome, telefone, email) de bilhetes recusados ou com a flag `correcao_pendente`.
    * Preserva o status financeiro de 'pago' caso o bilhete estivesse pago com pendência puramente cadastral.
    *

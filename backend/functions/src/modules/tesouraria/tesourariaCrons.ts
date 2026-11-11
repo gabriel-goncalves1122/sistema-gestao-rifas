@@ -55,15 +55,69 @@ export const limparPixExpirados = onSchedule(
             throw new Error("Sem orderId para consultar.");
           }
 
-          // 2. Consulta o status real no Mercado Pago para ter 100% de certeza
-          const pagamentoMP = await MercadoPagoPixClient.consultarPedido(orderId);
+          // 2. Se o pagamento foi gerado offline (InfinitePay / EMV) sem conexão com gateway externo
+          const isGeradoOffline =
+            Boolean(pagamento.raw_mercadopago?.geradoOffline) ||
+            orderId.startsWith("RIFA") ||
+            Boolean((pagamento as any).dados_conciliacao);
+
+          if (isGeradoOffline) {
+            await db.runTransaction(async (transaction) => {
+              const trSnap = await transaction.get(docSnap.ref);
+              if (!trSnap.exists) return;
+              const trPagamento = trSnap.data() as PagamentoPix;
+
+              if (
+                !["pending", "CRIANDO", "WAITING"].includes(
+                  String(trPagamento.status_pagamento_banco),
+                )
+              ) {
+                return;
+              }
+
+              await liberarBilhetesNaTransacao(
+                transaction,
+                db,
+                FieldValue.delete(),
+                trPagamento.numeros_rifas || [],
+                "cancelled",
+                "Pagamento offline expirado por inatividade.",
+                false,
+                undefined,
+                trPagamento.reference_id,
+              );
+
+              transaction.update(docSnap.ref, {
+                status_pagamento_banco: "cancelled",
+                erro_criacao: "Expirado automaticamente (CRON Offline).",
+              });
+            });
+
+            console.log(
+              `[CRON] Pagamento offline ${pagamentoId} expirado com sucesso e rifas liberadas.`,
+            );
+            return;
+          }
+
+          // 3. Para pagamentos online, consulta o status real no Mercado Pago
+          let pagamentoMP: any = null;
+          try {
+            pagamentoMP = await MercadoPagoPixClient.consultarPedido(orderId);
+          } catch (mpQueryErr: any) {
+            console.warn(
+              `[CRON] Não foi possível consultar Mercado Pago para orderId ${orderId}: ${mpQueryErr?.message}. Prosseguindo com cancelamento por expiração.`,
+            );
+          }
+
           const statusMP = pagamentoMP?.status || "";
           const statusCanonico = mapearStatusMercadoPagoParaCanonico(statusMP);
 
           // Se o banco disser que foi pago/autorizado (ex: approved, authorized), aplicamos o pagamento
           // usando o mesmo helper do webhook, para não deixá-lo no vácuo se o webhook falhou.
           if (statusCanonico === "pago") {
-            console.log(`[CRON] Pagamento ${pagamentoId} está pago no MP. Sincronizando aprovação...`);
+            console.log(
+              `[CRON] Pagamento ${pagamentoId} está pago no MP. Sincronizando aprovação...`,
+            );
             await aprovarOuRejeitarPixNoFirestore(db, pagamentoMP);
             return;
           }

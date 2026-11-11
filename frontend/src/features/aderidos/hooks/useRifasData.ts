@@ -190,6 +190,15 @@ export function useRifasData() {
     [],
   );
 
+  const desistirVendaRecusada = useCallback(async (numeros: string[]) => {
+    try {
+      await aderidoRifaService.desistirRifasRecusadas(numeros);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const carregando =
     authCarregando ||
     Boolean(
@@ -211,5 +220,6 @@ export function useRifasData() {
     invalidarDadosPainel,
     marcarNotificacoesLidasOtimista,
     corrigirDadosRecusados,
+    desistirVendaRecusada,
   };
 }

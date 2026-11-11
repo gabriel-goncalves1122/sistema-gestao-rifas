@@ -122,4 +122,98 @@ export class CorrecaoRifasService {
       throw new Error("Falha ao salvar a correção no banco de dados.");
     }
   }
+
+  /**
+   * Cancela em definitivo a venda de rifas recusadas, liberando os bilhetes de volta
+   * para o inventário com status 'disponivel' e removendo o comprador vinculado.
+   *
+   * @param {string} emailLogado - Email do aderido autenticado.
+   * @param {string[]} numerosRifas - Lista de números de bilhetes recusados a liberar.
+   * @returns {Promise<boolean>} Retorna true caso a transação seja concluída com sucesso.
+   * @throws {Error} Lança "USER_NOT_FOUND" se o aderido não existir ou erro se a transação falhar.
+   * @transactional Executa em transação Firestore garantindo atomicidade e idempotência.
+   * @sideEffects Atualiza bilhetes para 'disponivel' e remove os compradores correspondentes.
+   */
+  static async desistirRifasRecusadas(
+    emailLogado: string,
+    numerosRifas: string[],
+  ): Promise<boolean> {
+    if (!Array.isArray(numerosRifas) || numerosRifas.length === 0) {
+      throw new Error("INVALID_DATA");
+    }
+
+    const db = admin.firestore();
+    const contextoAderido = await obterContextoAderidoPorEmail(emailLogado);
+
+    try {
+      await db.runTransaction(async (transaction) => {
+        const bilhetesRefs = numerosRifas.map((numero) =>
+          db.collection("bilhetes").doc(numero),
+        );
+        const bilhetesSnaps =
+          typeof transaction.getAll === "function"
+            ? await transaction.getAll(...bilhetesRefs)
+            : await Promise.all(
+                bilhetesRefs.map((ref) => transaction.get(ref)),
+              );
+
+        const compradoresIds = new Set<string>();
+
+        for (let i = 0; i < bilhetesSnaps.length; i++) {
+          const bilheteSnap = bilhetesSnaps[i];
+          const bilheteRef = bilheteSnap.ref || bilhetesRefs[i];
+
+          if (!bilheteSnap.exists) continue;
+
+          const dadosBilhete = bilheteSnap.data() as Bilhete;
+
+          const podeDesistir =
+            dadosBilhete?.vendedor_id === contextoAderido.idAderido &&
+            dadosBilhete?.status === "recusado";
+
+          if (!podeDesistir) continue;
+
+          if (dadosBilhete.comprador_id) {
+            compradoresIds.add(dadosBilhete.comprador_id);
+          }
+
+          transaction.update(bilheteRef, {
+            status: "disponivel",
+            comprador_id: admin.firestore.FieldValue.delete(),
+            comprador_nome: admin.firestore.FieldValue.delete(),
+            comprador_telefone: admin.firestore.FieldValue.delete(),
+            comprador_email: admin.firestore.FieldValue.delete(),
+            data_reserva: admin.firestore.FieldValue.delete(),
+            data_pagamento: admin.firestore.FieldValue.delete(),
+            data_expiracao: admin.firestore.FieldValue.delete(),
+            sessao_checkout_id: admin.firestore.FieldValue.delete(),
+            comprovante_url: admin.firestore.FieldValue.delete(),
+            log_automacao: admin.firestore.FieldValue.delete(),
+            motivo_recusa: admin.firestore.FieldValue.delete(),
+            correcao_pendente: admin.firestore.FieldValue.delete(),
+            pix_order_id: admin.firestore.FieldValue.delete(),
+            pix_qr_code_id: admin.firestore.FieldValue.delete(),
+            pix_reference_id: admin.firestore.FieldValue.delete(),
+            status_pagamento_banco: admin.firestore.FieldValue.delete(),
+            status_validacao: admin.firestore.FieldValue.delete(),
+            valor_bruto: admin.firestore.FieldValue.delete(),
+            valor_pago: 0,
+          });
+        }
+
+        compradoresIds.forEach((compradorId) => {
+          const compradorRef = db.collection("compradores").doc(compradorId);
+          transaction.delete(compradorRef);
+        });
+      });
+
+      return true;
+    } catch (error: any) {
+      if (error?.message === "USER_NOT_FOUND" || error?.message === "INVALID_DATA") {
+        throw error;
+      }
+      console.error("[CorrecaoRifasService] Erro ao desistir de rifas:", error);
+      throw new Error("Falha ao liberar rifas recusadas no banco de dados.");
+    }
+  }
 }

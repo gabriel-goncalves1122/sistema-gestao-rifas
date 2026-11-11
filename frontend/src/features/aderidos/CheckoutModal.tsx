@@ -3,18 +3,23 @@
 // ============================================================================
 import {
   Alert,
+  Button,
   Dialog,
   DialogContent,
   Snackbar,
   Stack,
 } from "@mui/material";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import FlashOnIcon from "@mui/icons-material/FlashOn";
 import { useEffect, useRef, useState } from "react";
 
 import { CheckoutModalHeader } from "./components/checkout/CheckoutModalHeader";
 import { CheckoutResumoVenda } from "./components/checkout/CheckoutResumoVenda";
 import { CheckoutNovaApiView } from "./components/checkout/novaApi/CheckoutNovaApiView";
+import { CheckoutMercadoPagoView } from "./components/checkout/mercadopago/CheckoutMercadoPagoView";
 import { usePixStateMachine } from "./hooks/usePixStateMachine";
 import { checkoutStorage } from "./utils/checkoutStorage";
+import { colors } from "@/shared/tokens/colors";
 
 /**
  * Modos de Checkout suportados pela interface:
@@ -51,7 +56,9 @@ function CheckoutModalContent({
   onSuccess,
   numerosRifas,
   invalidarDadosPainel,
+  modoInicial = "nova_api",
 }: CheckoutModalProps) {
+  const [modoCheckout, setModoCheckout] = useState<ModoCheckout>(modoInicial);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const sessaoCheckoutId = useRef(
     checkoutStorage.get().sessaoCheckoutId || `sessao_${Date.now()}`
@@ -134,22 +141,109 @@ function CheckoutModalContent({
           {/* Resumo visual do lote de rifas e valor total */}
           <CheckoutResumoVenda numerosRifas={numerosRifasEfetivos} />
 
-          {/* Fluxo de Checkout Pix Direto / Chave Rápida */}
-          <CheckoutNovaApiView
-            numerosRifas={numerosRifasEfetivos}
-            cobrancaPix={cobrancaPix}
-            pollingStatus={pollingStatus}
-            cancelandoPix={cancelandoPix}
-            enviandoComprovante={enviandoComprovante}
-            erroPix={erroPix}
-            gerarCobranca={gerarCobranca}
-            copiarPix={copiarPix}
-            cancelarPix={cancelarPix}
-            resetarFluxoPix={resetarFluxoPix}
-            onSuccess={onSuccess}
-            confirmarEnvioComprovante={confirmarEnvioComprovante}
-            setSnackbarOpen={setSnackbarOpen}
-          />
+          {/* Seletor de Modo de Pagamento (Nova API vs Mercado Pago) */}
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              p: 0.5,
+              bgcolor: colors.fundoSuave,
+              borderRadius: 2.5,
+              border: `1px solid ${colors.borda}`,
+            }}
+          >
+            <Button
+              fullWidth
+              size="small"
+              onClick={() => setModoCheckout("nova_api")}
+              disabled={Boolean(cobrancaPix) || pollingStatus === "gerando"}
+              startIcon={<FlashOnIcon fontSize="small" />}
+              sx={{
+                borderRadius: 2,
+                py: 0.85,
+                fontWeight: 800,
+                fontSize: { xs: "0.78rem", sm: "0.82rem" },
+                textTransform: "none",
+                transition: "all 0.2s ease",
+                ...(modoCheckout === "nova_api"
+                  ? {
+                      bgcolor: colors.branco,
+                      color: colors.verdeEscuro,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                      "&:hover": { bgcolor: colors.branco },
+                    }
+                  : {
+                      color: colors.cinzaTexto,
+                      "&:hover": { bgcolor: "transparent", color: colors.verdeEscuro },
+                    }),
+              }}
+            >
+              Pix Chave Rápida
+            </Button>
+
+            <Button
+              fullWidth
+              size="small"
+              onClick={() => setModoCheckout("mercadopago")}
+              disabled={Boolean(cobrancaPix) || pollingStatus === "gerando"}
+              startIcon={<AccountBalanceIcon fontSize="small" />}
+              sx={{
+                borderRadius: 2,
+                py: 0.85,
+                fontWeight: 800,
+                fontSize: { xs: "0.78rem", sm: "0.82rem" },
+                textTransform: "none",
+                transition: "all 0.2s ease",
+                ...(modoCheckout === "mercadopago"
+                  ? {
+                      bgcolor: colors.branco,
+                      color: colors.verdeEscuro,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                      "&:hover": { bgcolor: colors.branco },
+                    }
+                  : {
+                      color: colors.cinzaTexto,
+                      "&:hover": { bgcolor: "transparent", color: colors.verdeEscuro },
+                    }),
+              }}
+            >
+              Mercado Pago
+            </Button>
+          </Stack>
+
+          {/* Renderização Condicional do Fluxo de Checkout Escolhido */}
+          {modoCheckout === "nova_api" ? (
+            <CheckoutNovaApiView
+              numerosRifas={numerosRifasEfetivos}
+              cobrancaPix={cobrancaPix}
+              pollingStatus={pollingStatus}
+              cancelandoPix={cancelandoPix}
+              enviandoComprovante={enviandoComprovante}
+              erroPix={erroPix}
+              gerarCobranca={gerarCobranca}
+              copiarPix={copiarPix}
+              cancelarPix={cancelarPix}
+              resetarFluxoPix={resetarFluxoPix}
+              onSuccess={onSuccess}
+              confirmarEnvioComprovante={confirmarEnvioComprovante}
+              setSnackbarOpen={setSnackbarOpen}
+            />
+          ) : (
+            <CheckoutMercadoPagoView
+              numerosRifas={numerosRifasEfetivos}
+              cobrancaPix={cobrancaPix}
+              pollingStatus={pollingStatus}
+              cancelandoPix={cancelandoPix}
+              erroPix={erroPix}
+              gerarCobranca={gerarCobranca}
+              copiarPix={copiarPix}
+              cancelarPix={cancelarPix}
+              resetarFluxoPix={resetarFluxoPix}
+              marcarComoExpiradoLocal={marcarComoExpiradoLocal}
+              onSuccess={onSuccess}
+              setSnackbarOpen={setSnackbarOpen}
+            />
+          )}
         </Stack>
       </DialogContent>
 

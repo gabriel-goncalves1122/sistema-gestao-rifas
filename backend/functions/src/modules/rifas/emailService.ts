@@ -11,42 +11,81 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const criarTemplateEmail = (
-  nome: string,
-  mensagem: string,
-  textoStatus: string,
-  corStatus: string,
-  bilhetesHtml: string,
-) => `
-  <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #eaeaea;">
+interface TemplateEmailParams {
+  nome: string;
+  tituloCabecalho: string;
+  mensagem: string;
+  textoStatus: string;
+  corStatus: string;
+  bgStatus: string;
+  bordaStatus: string;
+  bilhetesHtml: string;
+}
+
+/**
+ * Constrói o template HTML institucional para e-mails transacionais de compra e confirmação de rifas.
+ *
+ * @param {TemplateEmailParams} params - Dados da mensagem, status e bilhetes.
+ * @returns {string} Código HTML completo e responsivo para envio via SMTP.
+ */
+const criarTemplateEmail = (params: TemplateEmailParams): string => `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${params.tituloCabecalho}</title>
+</head>
+<body style="margin: 0; padding: 24px 12px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <div style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0;">
     
-    <div style="background: linear-gradient(135deg, #1976d2, #283593); color: white; padding: 25px 20px; text-align: center;">
-      <h2 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 1px;">COMISSÃO DE FORMATURA 2026</h2>
-      <p style="margin: 5px 0 0 0; font-size: 15px; opacity: 0.9;">A contagem regressiva começou! 🎓✨</p>
+    <!-- Cabeçalho Institucional -->
+    <div style="background: linear-gradient(135deg, #0B2F24 0%, #154734 100%); color: #ffffff; padding: 26px 24px; text-align: center;">
+      <h1 style="margin: 0; font-size: 19px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">COMISSÃO DE FORMATURA 2026</h1>
+      <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.85; letter-spacing: 0.3px;">Universidade Federal de Itajubá • UNIFEI</p>
     </div>
 
-    <div style="padding: 30px 25px;">
-      <h3 style="color: #333333; margin-top: 0; font-size: 20px;">E aí, ${nome}! 🎉</h3>
-      <p style="color: #555555; line-height: 1.6; font-size: 16px;">${mensagem}</p>
+    <!-- Conteúdo Principal -->
+    <div style="padding: 28px 24px;">
+      <h2 style="color: #0f172a; margin-top: 0; font-size: 17px; font-weight: 700;">Olá, ${params.nome}.</h2>
+      <p style="color: #334155; line-height: 1.6; font-size: 15px; margin: 10px 0 20px 0;">${params.mensagem}</p>
       
-      <div style="margin: 25px 0; padding: 15px 20px; border-left: 5px solid ${corStatus}; background-color: #f8f9fa; border-radius: 0 8px 8px 0;">
-        <p style="margin: 0; font-size: 12px; color: #777; text-transform: uppercase; font-weight: bold;">Status do Pedido</p>
-        <p style="margin: 5px 0 0 0; font-size: 18px; font-weight: 900; color: ${corStatus};">${textoStatus}</p>
+      <!-- Card de Status do Pedido -->
+      <div style="margin: 20px 0; padding: 12px 16px; border-left: 4px solid ${params.corStatus}; background-color: ${params.bgStatus}; border-radius: 0 8px 8px 0; border-top: 1px solid ${params.bordaStatus}; border-right: 1px solid ${params.bordaStatus}; border-bottom: 1px solid ${params.bordaStatus};">
+        <p style="margin: 0; font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Status do Pedido</p>
+        <p style="margin: 3px 0 0 0; font-size: 14px; font-weight: 800; color: ${params.corStatus}; letter-spacing: 0.3px;">${params.textoStatus}</p>
       </div>
 
-      <h4 style="color: #333333; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; margin-bottom: 15px;">Bilhete(s):</h4>
-      <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-        ${bilhetesHtml}
+      <!-- Seção de Bilhetes -->
+      <h3 style="color: #0f172a; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin: 24px 0 14px 0;">
+        Bilhete(s) do Sorteio:
+      </h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+        ${params.bilhetesHtml}
       </div>
     </div>
 
-    <div style="background-color: #f5f5f5; color: #888888; padding: 20px; text-align: center; font-size: 13px;">
-      <p style="margin: 0;">Este é um e-mail automático. Muito obrigado por apoiar a nossa formatura! 🚀</p>
-      <p style="margin: 8px 0 0 0; font-weight: bold;">Comissão de Formatura 2026</p>
+    <!-- Rodapé Corporativo -->
+    <div style="background-color: #f8fafc; color: #64748b; padding: 20px 24px; text-align: center; font-size: 12px; border-top: 1px solid #e2e8f0; line-height: 1.5;">
+      <p style="margin: 0; font-weight: 600; color: #334155;">Comissão de Formatura 2026</p>
+      <p style="margin: 3px 0 0 0;">Mensagem automática emitida pelo Sistema Oficial de Gestão de Rifas.</p>
+      <p style="margin: 3px 0 0 0;">Suporte e atendimento: <a href="mailto:comissao0026@gmail.com" style="color: #0B2F24; text-decoration: underline; font-weight: 600;">comissao0026@gmail.com</a></p>
     </div>
   </div>
+</body>
+</html>
 `;
 
+/**
+ * Dispara e-mail transacional institucional (recibo de reserva ou comprovante oficial aprovado).
+ *
+ * @param {string} emailDestino - Endereço eletrônico do comprador.
+ * @param {string} nomeComprador - Nome do comprador cadastrado.
+ * @param {string[]} numerosRifas - Lista de números das rifas vinculadas.
+ * @param {"pendente" | "aprovado"} status - Situação do pedido ('pendente' para reserva em análise, 'aprovado' para pagamento confirmado).
+ * @returns {Promise<boolean>} Verdadeiro se o e-mail foi despachado com sucesso.
+ * @sideEffects Envio assíncrono de e-mail via servidor SMTP do Gmail.
+ */
 export const enviarEmailRecibo = async (
   emailDestino: string,
   nomeComprador: string,
@@ -55,69 +94,74 @@ export const enviarEmailRecibo = async (
 ): Promise<boolean> => {
   if (!emailDestino || numerosRifas.length === 0) return false;
 
-  const primeiroNome = nomeComprador.split(" ")[0];
+  const primeiroNome = String(nomeComprador || "Comprador").trim().split(" ")[0];
 
   try {
     if (status === "pendente") {
-      const assunto = "⏳ Pedido recebido! Seus números estão reservados";
+      const assunto = "Confirmação de Reserva: Pedido de Rifas Recebido";
       const mensagem =
-        "Recebemos o comprovante do seu PIX e seus números já estão guardadinhos com a gente! Nossa tesouraria vai dar aquela conferida rápida e, assim que estiver tudo certo, você receberá os bilhetes oficiais por aqui. Fique de olho!";
+        "Recebemos seu pedido. Seus bilhetes foram reservados e aguardam validação da Tesouraria. Você receberá a confirmação definitiva assim que o pagamento for aprovado.";
 
       const bilhetesHtml = numerosRifas
         .map(
           (num) => `
-        <span style="display: inline-block; background-color: #fff3e0; color: #f57c00; padding: 10px 18px; border-radius: 8px; font-weight: bold; font-size: 18px; border: 1px solid #ffe0b2;">
-          🎟️ ${num}
+        <span style="display: inline-block; background-color: #f8fafc; color: #0f172a; padding: 7px 14px; border-radius: 6px; font-weight: 700; font-size: 15px; border: 1px solid #cbd5e1; font-family: monospace, monospace;">
+          Nº ${num}
         </span>
       `,
         )
         .join("");
 
-      const html = criarTemplateEmail(
-        primeiroNome,
+      const html = criarTemplateEmail({
+        nome: primeiroNome,
+        tituloCabecalho: "Reserva de Rifas Registrada",
         mensagem,
-        "EM ANÁLISE",
-        "#ff9800",
+        textoStatus: "EM ANÁLISE PELA TESOURARIA",
+        corStatus: "#b45309",
+        bgStatus: "#fef3c7",
+        bordaStatus: "#fde68a",
         bilhetesHtml,
-      );
+      });
 
       await transporter.sendMail({
         from: '"Comissão de Formatura 2026" <comissao0026@gmail.com>',
         to: emailDestino,
         subject: assunto,
-        html: html,
+        html,
       });
 
       return true;
     } else if (status === "aprovado") {
-      const assunto = "🎉 Seus bilhetes tão na mão! Pagamento Aprovado";
+      const assunto = "Comprovante Oficial: Pagamento Confirmado e Bilhetes Emitidos";
       const mensagem =
-        "Opa! Pagamento aprovadíssimo! 🚀 Muito obrigado por apoiar a nossa formatura. Este e-mail é o seu comprovante oficial para o sorteio. Boa sorte! 🍀";
+        "Seu pagamento foi confirmado com sucesso. Seus bilhetes oficiais já estão ativos para o sorteio. Guarde este e-mail como comprovante.";
 
-      // Agrupa todas as rifas da compra em um único bloco HTML
       const bilhetesHtml = numerosRifas
         .map(
           (num) => `
-        <span style="display: inline-block; background-color: #e8f5e9; color: #2e7d32; padding: 12px 24px; border-radius: 8px; font-weight: 900; font-size: 22px; border: 2px dashed #a5d6a7; text-align: center; letter-spacing: 2px;">
-          🎟️ ${num}
+        <span style="display: inline-block; background-color: #ecfdf5; color: #065f46; padding: 9px 18px; border-radius: 8px; font-weight: 800; font-size: 17px; border: 2px solid #059669; font-family: monospace, monospace; letter-spacing: 0.5px;">
+          Nº ${num}
         </span>
       `,
         )
         .join("");
 
-      const html = criarTemplateEmail(
-        primeiroNome,
+      const html = criarTemplateEmail({
+        nome: primeiroNome,
+        tituloCabecalho: "Comprovante Oficial de Participação",
         mensagem,
-        "PAGAMENTO APROVADO",
-        "#4caf50",
+        textoStatus: "PAGAMENTO CONFIRMADO • BILHETES ATIVOS",
+        corStatus: "#047857",
+        bgStatus: "#ecfdf5",
+        bordaStatus: "#a7f3d0",
         bilhetesHtml,
-      );
+      });
 
       await transporter.sendMail({
         from: '"Comissão de Formatura 2026" <comissao0026@gmail.com>',
         to: emailDestino,
         subject: assunto,
-        html: html,
+        html,
       });
 
       return true;

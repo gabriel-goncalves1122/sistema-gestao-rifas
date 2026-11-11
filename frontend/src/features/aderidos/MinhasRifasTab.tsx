@@ -54,6 +54,7 @@ export function MinhasRifasTab() {
               painel.setGrupoParaCorrigir(grupo);
               painel.setModalCorrecaoAberto(true);
             }}
+            onDesistirVenda={painel.desistirVendaRecusada}
             possuiSelecao={painel.possuiSelecao}
             valorTotalSelecionado={painel.valorTotalSelecionado}
             onVenderClick={() => painel.setModalCheckoutAberto(true)}

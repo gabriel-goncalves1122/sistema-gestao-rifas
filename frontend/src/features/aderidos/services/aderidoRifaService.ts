@@ -52,6 +52,20 @@ export const aderidoRifaService = {
   },
 
   /**
+   * Cancela em definitivo uma venda recusada pela tesouraria, liberando as rifas de volta para o inventário disponível.
+   *
+   * @param {string[]} numerosRifas - Lista com os números das rifas recusadas para desistência.
+   * @returns {Promise<boolean>} Retorna true se a liberação for concluída com sucesso.
+   */
+  async desistirRifasRecusadas(numerosRifas: string[]): Promise<boolean> {
+    await fetchAPI("/rifas/desistir", "POST", {
+      numerosRifas,
+    });
+
+    return true;
+  },
+
+  /**
    * Obtém o relatório consolidado de vendas de rifas do aderido autenticado.
    *
    * @returns {Promise<RelatorioVendasAderido>} Dados completos de estatísticas e bilhetes vendidos.

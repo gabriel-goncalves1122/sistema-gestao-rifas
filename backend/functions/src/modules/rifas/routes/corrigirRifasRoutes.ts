@@ -24,4 +24,12 @@ corrigirRifasRoutes.post(
   rifasController.corrigirDadosRifas,
 );
 
+// POST /rifas/desistir
+// Cancela a venda de rifas recusadas e libera os bilhetes de volta para o estoque.
+corrigirRifasRoutes.post(
+  "/desistir",
+  validateToken,
+  rifasController.desistirRecusadas,
+);
+
 export default corrigirRifasRoutes;

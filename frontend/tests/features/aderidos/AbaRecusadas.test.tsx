@@ -1,7 +1,7 @@
 // ============================================================================
 // ARQUIVO: frontend/tests/aderidos/AbaRecusadas.test.tsx
 // ============================================================================
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { AbaRecusadas } from "@/features/aderidos/AbaRecusadas";
 
@@ -92,5 +92,60 @@ describe("Componente: AbaRecusadas", () => {
     expect(
       screen.getByText(/Correção de cadastro \(Pagamento aprovado\)/i),
     ).toBeInTheDocument();
+  });
+
+  it("Não deve exibir botão de desistir da venda quando apenasCorrecaoCadastro for true", () => {
+    render(
+      <AbaRecusadas
+        gruposRecusados={[
+          {
+            ...mockGrupos[0],
+            apenasCorrecaoCadastro: true,
+          },
+        ]}
+        onVoltar={vi.fn()}
+        onAbrirCorrecao={vi.fn()}
+        onDesistirVenda={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", {
+        name: /Desistir da venda \/ Liberar rifas/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Deve abrir diálogo de confirmação e chamar onDesistirVenda com os números das rifas ao confirmar", async () => {
+    const mockDesistir = vi.fn().mockResolvedValue(true);
+    render(
+      <AbaRecusadas
+        gruposRecusados={mockGrupos}
+        onVoltar={vi.fn()}
+        onAbrirCorrecao={vi.fn()}
+        onDesistirVenda={mockDesistir}
+      />,
+    );
+
+    const btnDesistir = screen.getByRole("button", {
+      name: /Desistir da venda \/ Liberar rifas/i,
+    });
+    expect(btnDesistir).toBeInTheDocument();
+
+    fireEvent.click(btnDesistir);
+
+    expect(
+      screen.getByText(/Liberar rifas para nova venda\?/i),
+    ).toBeInTheDocument();
+
+    const btnConfirmar = screen.getByRole("button", {
+      name: /Confirmar e liberar/i,
+    });
+    await act(async () => {
+      fireEvent.click(btnConfirmar);
+    });
+
+    expect(mockDesistir).toHaveBeenCalledTimes(1);
+    expect(mockDesistir).toHaveBeenCalledWith(["015", "016"]);
   });
 });

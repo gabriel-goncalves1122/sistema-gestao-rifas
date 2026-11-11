@@ -1,7 +1,7 @@
 // ============================================================================
 // ARQUIVO: frontend/src/views/components/aderidos/AbaRecusadas.tsx
 // ============================================================================
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -9,10 +9,16 @@ import {
   Button,
   Chip,
   Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ReportGmailerrorredIcon from "@mui/icons-material/ReportGmailerrorred";
 import BuildCircleIcon from "@mui/icons-material/BuildCircle";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { GrupoRifasRecusadas } from "./types/painelAderido";
 import { formatarDataCurta } from "@/shared/utils/formatadores";
@@ -22,18 +28,34 @@ interface AbaRecusadasProps {
   gruposRecusados: GrupoRifasRecusadas[];
   onVoltar: () => void;
   onAbrirCorrecao: (grupo: GrupoRifasRecusadas) => void;
+  onDesistirVenda?: (numerosRifas: string[]) => Promise<boolean | void> | void;
 }
 
 export function AbaRecusadas({
   gruposRecusados,
   onVoltar,
   onAbrirCorrecao,
+  onDesistirVenda,
 }: AbaRecusadasProps) {
   const inicioRef = useRef<HTMLDivElement | null>(null);
+  const [grupoParaDesistir, setGrupoParaDesistir] =
+    useState<GrupoRifasRecusadas | null>(null);
+  const [desistindo, setDesistindo] = useState(false);
 
   useEffect(() => {
     inicioRef.current?.focus();
   }, []);
+
+  const handleConfirmarDesistencia = async () => {
+    if (!grupoParaDesistir || !onDesistirVenda) return;
+    setDesistindo(true);
+    try {
+      await onDesistirVenda(grupoParaDesistir.bilhetes);
+      setGrupoParaDesistir(null);
+    } finally {
+      setDesistindo(false);
+    }
+  };
 
   return (
     <Box ref={inicioRef} tabIndex={-1} sx={{ outline: "none" }}>
@@ -285,10 +307,83 @@ export function AbaRecusadas({
               >
                 Corrigir dados
               </Button>
+
+              {!grupo.apenasCorrecaoCadastro && onDesistirVenda && (
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteOutlineIcon />}
+                  onClick={() => setGrupoParaDesistir(grupo)}
+                  sx={{
+                    minHeight: 40,
+                    borderRadius: 2,
+                    fontWeight: 800,
+                    textTransform: "none",
+                    borderWidth: 1.5,
+                    "&:hover": {
+                      borderWidth: 1.5,
+                    },
+                  }}
+                >
+                  Desistir da venda / Liberar rifas
+                </Button>
+              )}
             </Stack>
           </Paper>
         ))}
       </Box>
+
+      <Dialog
+        open={Boolean(grupoParaDesistir)}
+        onClose={() => !desistindo && setGrupoParaDesistir(null)}
+        PaperProps={{
+          sx: { borderRadius: 3, p: 1 },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 900, color: colors.pretoEsverdeado }}>
+          Liberar rifas para nova venda?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText
+            sx={{ color: colors.cinzaTexto, fontWeight: 550, lineHeight: 1.5 }}
+          >
+            Ao desistir desta venda recusada, as rifas{" "}
+            <strong style={{ color: colors.pretoEsverdeado }}>
+              {grupoParaDesistir?.bilhetes.join(", ")}
+            </strong>{" "}
+            serão canceladas e voltarão a ficar disponíveis no seu inventário para
+            serem vendidas a outro comprador.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 3, gap: 1 }}>
+          <Button
+            onClick={() => setGrupoParaDesistir(null)}
+            disabled={desistindo}
+            sx={{
+              fontWeight: 750,
+              textTransform: "none",
+              color: colors.cinzaTexto,
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmarDesistencia}
+            disabled={desistindo}
+            sx={{
+              fontWeight: 850,
+              borderRadius: 2,
+              textTransform: "none",
+              minWidth: 160,
+            }}
+          >
+            {desistindo ? "Liberando..." : "Confirmar e liberar"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
