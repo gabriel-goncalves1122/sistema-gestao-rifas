@@ -1,4 +1,4 @@
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, UploadMetadata } from "firebase/storage";
 import { storage } from "@/shared/config/firebase";
 
 /**
@@ -16,6 +16,35 @@ export const storageService = {
   async uploadImagem(arquivo: File, pasta = "premios"): Promise<string> {
     const storageRef = ref(storage, `${pasta}/${Date.now()}_${arquivo.name}`);
     await uploadBytes(storageRef, arquivo);
+    return getDownloadURL(storageRef);
+  },
+
+  /**
+   * Realiza o upload blindado de comprovante bancário (PDF, JPEG, PNG, WEBP, HEIC)
+   * garantindo explicitamente o Content-Type nos metadados para evitar corrupção de cabeçalho.
+   *
+   * @param {File} arquivo - Arquivo de comprovante validado.
+   * @param {string} [mimeType] - MIME type canônico verificado por magic bytes.
+   * @param {string} [pasta="comprovantes"] - Diretório destino no bucket.
+   * @returns {Promise<string>} URL de download pública do comprovante.
+   * @sideEffects Upload no Firebase Storage com metadados estritos.
+   */
+  async uploadComprovante(
+    arquivo: File,
+    mimeType?: string,
+    pasta = "comprovantes",
+  ): Promise<string> {
+    const nomeLimpo = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storageRef = ref(storage, `${pasta}/${Date.now()}_${nomeLimpo}`);
+
+    const metadata: UploadMetadata = {
+      contentType: mimeType || arquivo.type || "application/octet-stream",
+      customMetadata: {
+        enviadoEm: new Date().toISOString(),
+      },
+    };
+
+    await uploadBytes(storageRef, arquivo, metadata);
     return getDownloadURL(storageRef);
   },
 };

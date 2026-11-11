@@ -1,5 +1,11 @@
+// ============================================================================
+// ARQUIVO: frontend/src/features/aderidos/components/checkout/CheckoutPixBox.tsx
+// ============================================================================
+
+import { useState } from "react";
 import CloseIcon from "@mui/icons-material/Close";
 import PixIcon from "@mui/icons-material/Pix";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { Box, IconButton, Stack, Typography, CircularProgress, Button } from "@mui/material";
 
 import type { CheckoutPixCobranca } from "../../types/checkoutPix";
@@ -16,11 +22,14 @@ import {
   CheckoutPixPollingNotice,
   CheckoutQrCodeDisplay,
 } from "./CheckoutPixBoxStates";
+import { CheckoutComprovanteUpload } from "./CheckoutComprovanteUpload";
+import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 import { colors } from "@/shared/tokens/colors";
 
 interface CheckoutPixBoxProps {
   cobranca?: CheckoutPixCobranca | null;
   gerando?: boolean;
+  enviandoComprovante?: boolean;
   erro?: string | null;
   pollingStatus?: PixStatus;
   cancelando?: boolean;
@@ -29,6 +38,10 @@ interface CheckoutPixBoxProps {
   onExpirarPix?: () => void;
   onResetPix?: () => void;
   onSuccess?: () => void;
+  onConfirmarEnvio?: (
+    arquivo: File | null,
+    resultado: ResultadoValidacaoArquivo | null,
+  ) => void;
 }
 
 function obterQrCodeSrc(cobranca: CheckoutPixCobranca) {
@@ -43,6 +56,7 @@ function obterQrCodeSrc(cobranca: CheckoutPixCobranca) {
 export function CheckoutPixBox({
   cobranca,
   gerando = false,
+  enviandoComprovante = false,
   erro,
   pollingStatus = "idle",
   cancelando = false,
@@ -51,8 +65,22 @@ export function CheckoutPixBox({
   onExpirarPix,
   onResetPix,
   onSuccess,
+  onConfirmarEnvio,
 }: CheckoutPixBoxProps) {
   const qrCodeSrc = cobranca ? obterQrCodeSrc(cobranca) : "";
+  const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
+  const [resultadoValidacao, setResultadoValidacao] = useState<ResultadoValidacaoArquivo | null>(null);
+
+  const handleArquivoValido = (arquivo: File | null, resultado: ResultadoValidacaoArquivo | null) => {
+    setArquivoComprovante(arquivo);
+    setResultadoValidacao(resultado);
+  };
+
+  const handleSubmeterEnvio = () => {
+    if (onConfirmarEnvio) {
+      onConfirmarEnvio(arquivoComprovante, resultadoValidacao);
+    }
+  };
 
   return (
     <Box
@@ -82,7 +110,7 @@ export function CheckoutPixBox({
         {!gerando && cobranca && pollingStatus !== "sucesso" && onCancelarPix && (
           <IconButton
             onClick={onCancelarPix}
-            disabled={cancelando}
+            disabled={cancelando || enviandoComprovante}
             size="small"
             sx={{ color: colors.erroForte }}
             aria-label="Cancelar pagamento"
@@ -141,6 +169,45 @@ export function CheckoutPixBox({
                 onCancelarPix={onCancelarPix}
                 onExpirarPix={onExpirarPix}
               />
+
+              <CheckoutComprovanteUpload
+                arquivoSelecionado={arquivoComprovante}
+                onArquivoValido={handleArquivoValido}
+                disabled={enviandoComprovante || cancelando}
+              />
+
+              {onConfirmarEnvio && (
+                <Button
+                  onClick={handleSubmeterEnvio}
+                  variant="contained"
+                  fullWidth
+                  disabled={enviandoComprovante || cancelando}
+                  startIcon={
+                    enviandoComprovante ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <CheckCircleIcon />
+                    )
+                  }
+                  sx={{
+                    mt: 1,
+                    py: 1.35,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 900,
+                    fontSize: "0.95rem",
+                    bgcolor: colors.verdeForteEscuro,
+                    color: colors.branco,
+                    "&:hover": { bgcolor: colors.verdeEscuro },
+                  }}
+                >
+                  {enviandoComprovante
+                    ? "Enviando comprovante..."
+                    : arquivoComprovante
+                      ? "Confirmar com Comprovante"
+                      : "Já realizei o pagamento (Confirmar)"}
+                </Button>
+              )}
             </>
           )}
 

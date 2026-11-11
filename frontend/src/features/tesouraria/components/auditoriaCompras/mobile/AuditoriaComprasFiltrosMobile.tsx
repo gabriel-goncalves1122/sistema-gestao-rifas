@@ -60,7 +60,7 @@ export function AuditoriaComprasFiltrosMobile({
           <TextField
             fullWidth
             size="small"
-            placeholder="Nome do comprador ou nº da rifa"
+            placeholder="Buscar por nome do comprador ou nº da rifa..."
             value={filtros.busca}
             onChange={(event) =>
               onChangeFiltros({ ...filtros, busca: event.target.value })
@@ -83,33 +83,22 @@ export function AuditoriaComprasFiltrosMobile({
                 </InputAdornment>
               ) : undefined,
             }}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                borderRadius: 2,
-                bgcolor: colors.fundoSuave,
-              },
-            }}
           />
 
           <Tooltip title="Exportar CSV">
             <span>
               <IconButton
                 aria-label="Exportar CSV"
-                onClick={onExportarCsv}
                 disabled={!possuiResultados}
+                onClick={onExportarCsv}
                 sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
                   bgcolor: colors.verdeEscuro,
                   color: colors.branco,
-                  flexShrink: 0,
-                  "&:hover": {
-                    bgcolor: colors.verdeEscuroHover,
-                  },
+                  borderRadius: 2,
+                  "&:hover": { bgcolor: colors.verdeMaisEscuro },
                   "&.Mui-disabled": {
-                    bgcolor: colors.verdeClaro,
-                    color: colors.cinzaTexto,
+                    bgcolor: colors.fundoVerdeSuave,
+                    color: colors.textoSuave,
                   },
                 }}
               >
@@ -119,66 +108,16 @@ export function AuditoriaComprasFiltrosMobile({
           </Tooltip>
         </Stack>
 
-        {filtrosAtivos && (
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="center"
-            justifyContent="space-between"
-          >
-            <Chip
-              label="Filtro ativo"
-              size="small"
-              sx={{
-                height: 26,
-                borderRadius: 1.75,
-                color: colors.verdeEscuro,
-                bgcolor: "rgba(11, 122, 97, 0.10)",
-                border: "1px solid rgba(6, 61, 49, 0.12)",
-                fontWeight: 800,
-                fontSize: "0.72rem",
-              }}
-            />
-
-            <Button
-              type="button"
-              size="small"
-              aria-label="Limpar filtros"
-              startIcon={<CloseIcon fontSize="small" />}
-              onClick={onLimparFiltros}
-              sx={{
-                flexShrink: 0,
-                borderRadius: 2,
-                color: colors.verdeEscuro,
-                bgcolor: "rgba(11, 122, 97, 0.08)",
-                border: "1px solid rgba(6, 61, 49, 0.14)",
-                fontWeight: 850,
-                textTransform: "none",
-                fontSize: "0.75rem",
-                px: 1.2,
-                py: 0.2,
-                "&:hover": {
-                  bgcolor: "rgba(11, 122, 97, 0.16)",
-                },
-              }}
-            >
-              Limpar filtros
-            </Button>
-          </Stack>
-        )}
-
-        {/* Linha 1 de Chips: Status com contadores numéricos (100% da largura) */}
+        {/* Linha 1: Status Financeiro */}
         <Box
           sx={{
             display: "flex",
-            width: "100%",
             gap: 0.75,
             overflowX: "auto",
-            overscrollBehaviorX: "contain",
-            WebkitOverflowScrolling: "touch",
-            py: 0.2,
-            scrollbarWidth: "none",
+            pb: 0.5,
+            pt: 0.25,
             "&::-webkit-scrollbar": { display: "none" },
+            scrollbarWidth: "none",
           }}
         >
           <AuditoriaFiltroStatusChips
@@ -188,18 +127,17 @@ export function AuditoriaComprasFiltrosMobile({
           />
         </Box>
 
-        {/* Linha 2 de Chips: Toggles de Canal (Pix / Comprovante) e Correção (100% da largura sem sobreposição) */}
+        {/* Linha 2: Origem e Correção */}
         <Box
           sx={{
             display: "flex",
-            width: "100%",
             gap: 0.75,
+            alignItems: "center",
             overflowX: "auto",
-            overscrollBehaviorX: "contain",
-            WebkitOverflowScrolling: "touch",
-            py: 0.15,
-            scrollbarWidth: "none",
+            pb: 0.5,
+            pt: 0.25,
             "&::-webkit-scrollbar": { display: "none" },
+            scrollbarWidth: "none",
           }}
         >
           <AuditoriaFiltroOrigemChips
@@ -213,6 +151,39 @@ export function AuditoriaComprasFiltrosMobile({
             onChangeFiltros={onChangeFiltros}
           />
         </Box>
+
+        {/* Linha 3: Limpar Filtros Isolado */}
+        {filtrosAtivos && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              pt: 0.5,
+              borderTop: "1px dashed rgba(2, 27, 22, 0.08)",
+            }}
+          >
+            <Button
+              size="small"
+              onClick={onLimparFiltros}
+              startIcon={<CloseIcon fontSize="small" />}
+              sx={{
+                color: colors.vermelhoTexto,
+                fontWeight: 900,
+                textTransform: "none",
+                fontSize: "0.78rem",
+                py: 0.25,
+                px: 1,
+                borderRadius: 1.5,
+                bgcolor: "rgba(155, 28, 28, 0.05)",
+                "&:hover": {
+                  bgcolor: "rgba(155, 28, 28, 0.12)",
+                },
+              }}
+            >
+              Limpar filtros ativos
+            </Button>
+          </Box>
+        )}
       </Stack>
     </Paper>
   );

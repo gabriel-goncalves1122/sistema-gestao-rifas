@@ -1,4 +1,4 @@
-import { TesourariaSectionHeader } from "../../shared/TesourariaSectionHeader";
+import { TesourariaSectionHeader } from "../../../components/shared/TesourariaSectionHeader";
 
 export function AuditoriaComprasHeader() {
   return (

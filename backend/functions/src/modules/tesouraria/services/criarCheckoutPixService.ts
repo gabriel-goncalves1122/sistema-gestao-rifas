@@ -11,7 +11,6 @@ import {
   montarReferenceIdPix,
   montarRespostaCheckoutPix,
   normalizarDadosCheckoutPix,
-  normalizarQrCodeMercadoPago,
   isRifaDisponivelParaPix,
   montarBilheteReservadoPix,
 } from "../helpers/checkoutPixHelper";
@@ -27,9 +26,20 @@ import {
 } from "../helpers/checkoutPixFirestoreHelper";
 import { CheckoutPixResposta, CriarCheckoutPixPayload } from "../types/checkoutPixTypes";
 import { obterContextoAderidoPorEmail } from "../../rifas/helpers/usuarioRifasHelper";
-import { MercadoPagoPixClient } from "../../../shared/services/mercadoPagoPixClient";
+import { PaymentProviderFactory } from "../../../shared/payments/paymentProviderFactory";
 
 export class CriarCheckoutPixService {
+  /**
+   * Cria uma nova cobrança Pix para o conjunto de rifas selecionadas consumindo
+   * o provedor de pagamento desacoplado ativo (Mercado Pago ou Pix EMV Offline).
+   *
+   * @param {string} uid - Identificador do aderido vendedor.
+   * @param {string} emailLogado - E-mail do aderido autenticado.
+   * @param {CriarCheckoutPixPayload} payload - Dados cadastrais do comprador e lista de rifas.
+   * @returns {Promise<CheckoutPixResposta>} Resposta com ID do pagamento, QR Code e Copia-e-Cola.
+   * @throws {Error} "UNAUTHORIZED", "RIFA_NOT_FOUND" ou "RIFA_INDISPONIVEL".
+   * @transactional Executa validação de concorrência e reserva atômica no Firestore.
+   */
   static async executar(
     uid: string,
     emailLogado: string,
@@ -139,11 +149,12 @@ export class CriarCheckoutPixService {
 
     if (existente) return montarRespostaPagamentoPix(existente);
 
-    let respostaMercadoPago: any;
+    const provedor = PaymentProviderFactory.obterProvedor();
+    let respostaProvedor: any;
     let orderId = "";
 
     try {
-      respostaMercadoPago = await MercadoPagoPixClient.criarPedidoPix({
+      const cobrancaCriada = await provedor.criarCobranca({
         referenceId,
         nome: dados.nome,
         telefone: dados.telefone,
@@ -153,10 +164,19 @@ export class CriarCheckoutPixService {
         valorCentavos: calcularValorPixCentavos(dados.numerosRifas),
         expirationDate: expiraEm,
       });
-      const qrCode = normalizarQrCodeMercadoPago(respostaMercadoPago);
-      orderId = String(respostaMercadoPago?.id || "").trim();
 
-      if (!orderId) throw new Error("MERCADOPAGO_ORDER_INVALIDO");
+      orderId = cobrancaCriada.orderId;
+      respostaProvedor = cobrancaCriada.rawResponse;
+
+      if (!orderId) throw new Error("PROVEDOR_ORDER_INVALIDO");
+
+      const qrCode = {
+        id: orderId,
+        copiaECola: cobrancaCriada.copiaECola,
+        qrCodeImagemUrl: cobrancaCriada.qrCodeImagemUrl || null,
+        qrCodeBase64: cobrancaCriada.qrCodeBase64 || null,
+        expiraEm: cobrancaCriada.expiraEm || expiraEm,
+      };
 
       await persistirPedidoMercadoPagoNoFirestore({
         db,
@@ -165,7 +185,7 @@ export class CriarCheckoutPixService {
         qrCode,
         expiraEmFallback: expiraEm,
         numerosRifas: dados.numerosRifas,
-        respostaMercadoPago,
+        respostaMercadoPago: respostaProvedor,
       });
 
       return montarRespostaCheckoutPix({
@@ -192,7 +212,7 @@ export class CriarCheckoutPixService {
             {
               pix_order_id: orderId,
               status_pagamento_banco: "WAITING",
-              raw_mercadopago: respostaMercadoPago || null,
+              raw_mercadopago: respostaProvedor || null,
               erro_criacao: erroMensagem(error),
             },
             { merge: true },

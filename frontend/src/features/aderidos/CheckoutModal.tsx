@@ -21,6 +21,7 @@ import { CheckoutResumoVenda } from "./components/checkout/CheckoutResumoVenda";
 import { CheckoutSubmitButton } from "./components/checkout/CheckoutSubmitButton";
 import { usePixStateMachine } from "./hooks/usePixStateMachine";
 import { checkoutStorage } from "./utils/checkoutStorage";
+import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 
 interface CheckoutModalProps {
   open: boolean;
@@ -51,7 +52,9 @@ function CheckoutModalContent({
     cobrancaPix,
     erro: erroPix,
     cancelando: cancelandoPix,
+    enviandoComprovante,
     gerarCobranca,
+    confirmarEnvioComprovante,
     copiarPix,
     cancelarCobranca: cancelarPix,
     resetarFluxo: resetarFluxoPix,
@@ -119,8 +122,7 @@ function CheckoutModalContent({
     }
 
     if (pollingStatus === "aguardando_pagamento") {
-      // Fecha a janela mantendo o Pix ativo no Mercado Pago e no checkoutStorage
-      // para que o comprador possa pagar o código enviado pelo WhatsApp sem cancelamento acidental.
+      // Fecha a janela mantendo o Pix ativo no storage para envio pelo WhatsApp
       onClose();
       return;
     }
@@ -135,6 +137,17 @@ function CheckoutModalContent({
     );
     if (!confirmar) return;
     cancelarPix(false);
+  };
+
+  const handleConfirmarEnvio = (
+    arquivo: File | null,
+    resultado: ResultadoValidacaoArquivo | null,
+  ) => {
+    confirmarEnvioComprovante(
+      arquivo,
+      resultado?.hashSha256,
+      resultado?.mimeDetectado,
+    );
   };
 
   const numerosRifasEfetivos = cobrancaPix?.numerosRifas?.length
@@ -176,6 +189,7 @@ function CheckoutModalContent({
               cobranca={cobrancaPix}
               gerando={pollingStatus === "gerando"}
               cancelando={cancelandoPix}
+              enviandoComprovante={enviandoComprovante}
               erro={erroPix}
               pollingStatus={pollingStatus === "gerando" ? "idle" : pollingStatus}
               onCopiarPix={handleCopiarPix}
@@ -183,6 +197,7 @@ function CheckoutModalContent({
               onExpirarPix={marcarComoExpiradoLocal}
               onResetPix={resetarFluxoPix}
               onSuccess={onSuccess}
+              onConfirmarEnvio={handleConfirmarEnvio}
             />
 
             <CheckoutSubmitButton

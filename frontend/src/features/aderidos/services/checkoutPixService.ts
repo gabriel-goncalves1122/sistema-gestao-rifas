@@ -4,7 +4,7 @@
 // Responsavel por criar cobrancas Pix via backend do sistema.
 //
 // O frontend NUNCA chama provedores financeiros diretamente.
-// Toda a comunicacao com provedores externos (PagBank, etc.)
+// Toda a comunicacao com provedores externos (Mercado Pago / EMV Offline)
 // e feita exclusivamente pelo backend das Firebase Functions.
 //
 // Contrato:
@@ -147,5 +147,26 @@ export const checkoutPixService = {
    */
   async cancelarCobrancaPix(id: string, reterReserva: boolean = false): Promise<void> {
     await fetchAPI(`/tesouraria/checkout/pix/${id}/cancelar`, "POST", { reterReserva });
+  },
+
+  /**
+   * Envia requisição para transicionar o checkout Pix para status em análise pela Tesouraria,
+   * vinculando o comprovante anexado e garantindo a retenção definitiva da reserva.
+   *
+   * @param {string} id - Identificador único da cobrança Pix.
+   * @param {string} [comprovanteUrl] - URL do comprovante hospedado no Storage.
+   * @param {string} [hashComprovante] - Hash SHA-256 para auditoria anti-duplicidade.
+   * @returns {Promise<{ sucesso: boolean; mensagem: string }>}
+   * @sideEffects Realiza requisição HTTP POST para `/tesouraria/checkout/pix/:id/confirmar-envio`.
+   */
+  async confirmarEnvioPix(
+    id: string,
+    comprovanteUrl?: string | null,
+    hashComprovante?: string | null,
+  ): Promise<{ sucesso: boolean; mensagem: string }> {
+    return (await fetchAPI(`/tesouraria/checkout/pix/${id}/confirmar-envio`, "POST", {
+      comprovanteUrl,
+      hashComprovante,
+    })) as { sucesso: boolean; mensagem: string };
   },
 };

@@ -9,6 +9,7 @@ import { criarCheckoutPix } from "../controllers/criarCheckoutPixController";
 import { receberWebhookCheckoutPix } from "../controllers/receberWebhookCheckoutPixController";
 import { simularPagamentoPix } from "../controllers/simularPagamentoPixController";
 import { cancelarCheckoutPix } from "../controllers/cancelarCheckoutPixController";
+import { confirmarEnvioCheckoutPix } from "../controllers/confirmarEnvioCheckoutPixController";
 import { checkoutPixSchema } from "../schemas/checkoutPixSchema";
 
 const checkoutPixRoutes = Router();
@@ -35,6 +36,12 @@ checkoutPixRoutes.post(
   "/checkout/pix/:id/cancelar",
   validateToken,
   cancelarCheckoutPix,
+);
+
+checkoutPixRoutes.post(
+  "/checkout/pix/:id/confirmar-envio",
+  validateToken,
+  confirmarEnvioCheckoutPix,
 );
 
 export default checkoutPixRoutes;

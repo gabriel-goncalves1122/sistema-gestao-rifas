@@ -63,6 +63,7 @@ jest.mock("../../../src/shared/services/mercadoPagoPixClient", () => ({
 
 import { MercadoPagoPixClient } from "../../../src/shared/services/mercadoPagoPixClient";
 import { CriarCheckoutPixService } from "../../../src/modules/tesouraria/services/criarCheckoutPixService";
+import { PaymentProviderFactory } from "../../../src/shared/payments/paymentProviderFactory";
 
 describe("Service: CriarCheckoutPixService", () => {
   const mockPayload = {
@@ -81,6 +82,8 @@ describe("Service: CriarCheckoutPixService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.MODO_PAGAMENTO_PROVIDER = "MERCADOPAGO_API";
+    PaymentProviderFactory.resetarParaTestes();
 
     (obterContextoAderidoPorEmail as jest.Mock).mockResolvedValue(contextoAderidoMock);
     
@@ -149,6 +152,22 @@ describe("Service: CriarCheckoutPixService", () => {
         expiraEm: "2026-01-01T10:00:00Z",
       })
     );
+  });
+
+  it("Deve criar cobrança via EMV_OFFLINE quando configurado", async () => {
+    process.env.MODO_PAGAMENTO_PROVIDER = "EMV_OFFLINE";
+    PaymentProviderFactory.resetarParaTestes();
+
+    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
+    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+
+    const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload);
+
+    expect(MercadoPagoPixClient.criarPedidoPix).not.toHaveBeenCalled();
+    expect(persistirPedidoMercadoPagoNoFirestore).toHaveBeenCalled();
+    expect(result.status).toBe("aguardando_pagamento");
+    expect(result.copiaECola).toContain("br.gov.bcb.pix");
+    expect(result.qrCodeBase64).toBeDefined();
   });
 
   it("Deve disparar compensarErroCriacaoPix caso Mercado Pago falhe (throw erro) antes de retornar orderId", async () => {

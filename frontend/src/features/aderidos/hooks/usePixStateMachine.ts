@@ -3,11 +3,20 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../shared/config/firebase";
 
 import { checkoutPixService } from "../services/checkoutPixService";
+import { storageService } from "@/shared/services/storageService";
 import { CheckoutPixCobranca } from "../types/checkoutPix";
 import { obterMensagemErroPix } from "../utils/errorsPix";
 import { checkoutStorage } from "../utils/checkoutStorage";
 
-export type PixStatus = "idle" | "gerando" | "aguardando_pagamento" | "sucesso" | "erro" | "expirado" | "cancelado";
+export type PixStatus =
+  | "idle"
+  | "gerando"
+  | "aguardando_pagamento"
+  | "enviando_comprovante"
+  | "sucesso"
+  | "erro"
+  | "expirado"
+  | "cancelado";
 
 interface DadosGerarCobrancaPix {
   nome: string;
@@ -24,37 +33,16 @@ interface UsePixStateMachineParams {
 
 /**
  * Hook controlador da Máquina de Estados Finita (FSM) do Checkout Pix do aderido.
- * Governa todo o ciclo de vida da compra:
- * 1. Estado inicial `idle` (com recuperação de cache local via `checkoutStorage`);
- * 2. Estado `gerando`: envio do payload para a API e prevenção de cliques múltiplos / cancelamento de requisições órfãs;
- * 3. Estado `aguardando_pagamento`: estabelece ouvinte em tempo real (`onSnapshot`) no Firestore para detecção imediata de liquidação pelo banco;
- * 4. Transições automáticas para `sucesso` (aprovado no gateway) ou `cancelado`/`expirado`;
- * 5. Gerencia cópia da chave copia-e-cola com fallbacks e cancelamento explícito com retenção ou liberação de reserva.
- *
- * @param {UsePixStateMachineParams} params - Configurações do checkout.
- * @param {string} params.sessaoCheckoutId - Identificador único da sessão temporária de reserva no cliente.
- * @param {string[]} params.numerosRifas - Lista de números de rifa selecionados no carrinho.
- * @param {() => Promise<void>} params.invalidarDadosPainel - Callback para disparar a revalidação dos bilhetes no React Query / Controller.
- * @returns {Object} Estado reativo e ações disparadoras:
- *   - `status`: Estado atual da máquina ('idle' | 'gerando' | 'aguardando_pagamento' | 'sucesso' | 'erro' | 'expirado' | 'cancelado').
- *   - `cobrancaPix`: Dados normalizados da cobrança com QR Code e expiração.
- *   - `erro`: Mensagem amigável de erro se status for 'erro'.
- *   - `cancelando`: Flag booleana indicando requisição de cancelamento em andamento.
- *   - `gerarCobranca`: Função para disparar a geração da cobrança Pix.
- *   - `cancelarCobranca`: Função para cancelar a cobrança atual (com opção de reter ou liberar bilhetes).
- *   - `copiarPix`: Handler de área de transferência (clipboard com fallback legacy).
- *   - `resetarFluxo`: Restaura o estado da máquina para 'idle'.
- *   - `marcarComoExpiradoLocal`: Atualiza o estado visual local para 'expirado' sem cancelar a ordem no gateway.
- *   - `liberarReservaTotal`: Cancela cobrança e limpa a sessão de checkout por completo.
- *   - `abortarGeracaoPendente`: Sinaliza cancelamento caso uma chamada de rede esteja em voo.
+ * Governa todo o ciclo de vida da compra com suporte a Gateway Automático e Pix Offline com Comprovante.
  */
 export function usePixStateMachine({
   sessaoCheckoutId,
   numerosRifas,
   invalidarDadosPainel,
 }: UsePixStateMachineParams) {
-  // Inicialização limpa, pois o modal agora é desmontado.
-  const [cobrancaPix, setCobrancaPix] = useState<CheckoutPixCobranca | null>(() => checkoutStorage.get().cobrancaPix);
+  const [cobrancaPix, setCobrancaPix] = useState<CheckoutPixCobranca | null>(
+    () => checkoutStorage.get().cobrancaPix,
+  );
   const [status, setStatus] = useState<PixStatus>(() => {
     const saved = checkoutStorage.get().cobrancaPix;
     if (!saved) return "idle";
@@ -66,6 +54,7 @@ export function usePixStateMachine({
 
   const [erro, setErro] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const isMounted = useRef(true);
   const currentGeracaoId = useRef<string | null>(null);
   const pendingAborts = useRef<Set<string>>(new Set());
@@ -91,6 +80,7 @@ export function usePixStateMachine({
     setErro(null);
     setStatus("idle");
     setCancelando(false);
+    setEnviandoComprovante(false);
     checkoutStorage.update({ cobrancaPix: null });
     if (limparSessao) {
       checkoutStorage.update({ sessaoCheckoutId: null });
@@ -98,55 +88,66 @@ export function usePixStateMachine({
   }, []);
 
   /**
-   * Atualiza o estado visual local para `expirado` quando o cronômetro chega a zero no cliente,
-   * sem disparar cancelamento destrutivo no Mercado Pago (prevenindo falhas por relógio local adiantado).
+   * Marca o Pix como expirado localmente na interface sem cancelar no backend.
    */
   const marcarComoExpiradoLocal = useCallback(() => {
-    setStatus((atual) => (atual === "aguardando_pagamento" ? "expirado" : atual));
-    setCobrancaPix((prev) =>
-      prev && prev.status === "aguardando_pagamento"
-        ? { ...prev, status: "expirado" }
-        : prev,
-    );
+    setStatus("expirado");
+    setCobrancaPix((prev) => (prev ? { ...prev, status: "expirado" } : null));
   }, []);
 
-  // POLLING REALTIME COM FIRESTORE
+  /**
+   * Listener em tempo real do Firestore para detectar liquidação da ordem Pix.
+   */
   useEffect(() => {
-    if ((status !== "aguardando_pagamento" && status !== "expirado") || !cobrancaPix) return;
+    if (!cobrancaPix?.id || status !== "aguardando_pagamento") return;
 
-    // Conecta-se ao documento em pagamentos_pix em tempo real
-    const cobrancaRef = doc(db, "pagamentos_pix", cobrancaPix.id);
-    const unsubscribe = onSnapshot(cobrancaRef, (docSnap) => {
-      if (!isMounted.current) return;
+    const pagamentoRef = doc(db, "pagamentos_pix", cobrancaPix.id);
 
-      if (checkoutStorage.get().cobrancaPix?.id !== cobrancaPix.id) {
-        return;
-      }
+    const unsubscribe = onSnapshot(
+      pagamentoRef,
+      (docSnap) => {
+        if (!isMounted.current) return;
 
-      if (docSnap.exists()) {
-        const dados = docSnap.data();
-        const statusBanco = String(dados.status_pagamento_banco).toLowerCase();
-
-        let novoStatusLocal = "aguardando_pagamento";
-        if (["approved", "authorized", "paid"].includes(statusBanco)) {
-          novoStatusLocal = "pago";
-        } else if (["rejected", "cancelled", "canceled", "declined", "cancelado", "expired", "expirado"].includes(statusBanco)) {
-          novoStatusLocal = "cancelado";
+        if (checkoutStorage.get().cobrancaPix?.id !== cobrancaPix.id) {
+          return;
         }
 
-        if (novoStatusLocal === "pago") {
-          setStatus("sucesso");
-          setCobrancaPix(prev => prev ? { ...prev, status: "pago" } : null);
-          invalidarDadosPainel();
-        } else if (novoStatusLocal === "cancelado") {
-          setStatus("cancelado");
-          setCobrancaPix(prev => prev ? { ...prev, status: "cancelado" } : null);
-          invalidarDadosPainel();
+        if (docSnap.exists()) {
+          const dados = docSnap.data();
+          const statusBanco = String(dados.status_pagamento_banco).toLowerCase();
+
+          let novoStatusLocal = "aguardando_pagamento";
+          if (["approved", "authorized", "paid", "in_analysis", "pendente"].includes(statusBanco)) {
+            novoStatusLocal = "pago";
+          } else if (
+            [
+              "rejected",
+              "cancelled",
+              "canceled",
+              "declined",
+              "cancelado",
+              "expired",
+              "expirado",
+            ].includes(statusBanco)
+          ) {
+            novoStatusLocal = "cancelado";
+          }
+
+          if (novoStatusLocal === "pago") {
+            setStatus("sucesso");
+            setCobrancaPix((prev) => (prev ? { ...prev, status: "pago" } : null));
+            invalidarDadosPainel();
+          } else if (novoStatusLocal === "cancelado") {
+            setStatus("cancelado");
+            setCobrancaPix((prev) => (prev ? { ...prev, status: "cancelado" } : null));
+            invalidarDadosPainel();
+          }
         }
-      }
-    }, (error) => {
-      console.warn("Erro ao ouvir snapshot do pagamento pix:", error);
-    });
+      },
+      (error) => {
+        console.warn("Erro ao ouvir snapshot do pagamento pix:", error);
+      },
+    );
 
     return () => {
       unsubscribe();
@@ -155,94 +156,149 @@ export function usePixStateMachine({
 
   /**
    * Dispara a geração de uma nova cobrança Pix no backend.
-   * Atribui requestId único para rastreamento de concorrência e aborta cobranças órfãs
-   * caso o componente desmonte ou o usuário cancele a tela antes da resposta.
    *
    * @param {DadosGerarCobrancaPix} dados - Dados cadastrais do pagador.
    */
-  const gerarCobranca = useCallback(async (dados: DadosGerarCobrancaPix) => {
-    if (numerosRifas.length === 0) {
-      setErro("Nenhuma rifa selecionada para pagamento.");
-      return;
-    }
-
-    setStatus("gerando");
-    setErro(null);
-
-    const requestId = Date.now().toString();
-    currentGeracaoId.current = requestId;
-
-    try {
-      const cobranca = await checkoutPixService.criarCobrancaPix({
-        nome: dados.nome,
-        telefone: dados.telefone,
-        email: dados.email,
-        documento: dados.documento,
-        numerosRifas,
-        sessaoCheckoutId,
-      });
-
-      // Se o componente desmontou enquanto gerava, ou o usuário fechou o modal
-      if (!isMounted.current || pendingAborts.current.has(requestId)) {
-        pendingAborts.current.delete(requestId);
-        try {
-          // Cancela em background silenciosamente
-          await checkoutPixService.cancelarCobrancaPix(cobranca.id, false);
-        } catch (e) {
-          console.error("Falha ao abortar cobrança orfã:", e);
-        }
+  const gerarCobranca = useCallback(
+    async (dados: DadosGerarCobrancaPix) => {
+      if (numerosRifas.length === 0) {
+        setErro("Nenhuma rifa selecionada para pagamento.");
         return;
       }
 
-      setCobrancaPix(cobranca);
-      setStatus("aguardando_pagamento");
-    } catch (error) {
-      if (!isMounted.current) return;
-      setErro(obterMensagemErroPix(error));
-      setStatus("erro");
-    }
-  }, [numerosRifas, sessaoCheckoutId]);
+      setStatus("gerando");
+      setErro(null);
+
+      const requestId = Date.now().toString();
+      currentGeracaoId.current = requestId;
+
+      try {
+        const cobranca = await checkoutPixService.criarCobrancaPix({
+          nome: dados.nome,
+          telefone: dados.telefone,
+          email: dados.email,
+          documento: dados.documento,
+          numerosRifas,
+          sessaoCheckoutId,
+        });
+
+        // Se o componente desmontou enquanto gerava, ou o usuário fechou o modal
+        if (!isMounted.current || pendingAborts.current.has(requestId)) {
+          pendingAborts.current.delete(requestId);
+          try {
+            await checkoutPixService.cancelarCobrancaPix(cobranca.id, false);
+          } catch (e) {
+            console.error("Falha ao abortar cobrança órfã:", e);
+          }
+          return;
+        }
+
+        setCobrancaPix(cobranca);
+        setStatus("aguardando_pagamento");
+        invalidarDadosPainel?.();
+      } catch (error: any) {
+        if (!isMounted.current) return;
+        setErro(obterMensagemErroPix(error));
+        setStatus("erro");
+      }
+    },
+    [numerosRifas, sessaoCheckoutId, invalidarDadosPainel],
+  );
+
+  /**
+   * Confirma o envio de comprovante bancário ou declaração de pagamento,
+   * fazendo upload seguro e garantindo transição das rifas para status 'pendente' em análise.
+   */
+  const confirmarEnvioComprovante = useCallback(
+    async (
+      arquivoComprovante?: File | null,
+      hashComprovante?: string | null,
+      mimeType?: string,
+    ) => {
+      if (!cobrancaPix) return;
+
+      setEnviandoComprovante(true);
+      setErro(null);
+
+      try {
+        let comprovanteUrl: string | null = null;
+
+        if (arquivoComprovante) {
+          comprovanteUrl = await storageService.uploadComprovante(
+            arquivoComprovante,
+            mimeType,
+          );
+        }
+
+        await checkoutPixService.confirmarEnvioPix(
+          cobrancaPix.id,
+          comprovanteUrl,
+          hashComprovante,
+        );
+
+        if (isMounted.current) {
+          setStatus("sucesso");
+          setCobrancaPix((prev) => (prev ? { ...prev, status: "pago" } : null));
+        }
+
+        await invalidarDadosPainel?.();
+      } catch (error: any) {
+        if (isMounted.current) {
+          setErro(error?.message || "Falha ao enviar comprovante. Tente novamente.");
+        }
+      } finally {
+        if (isMounted.current) {
+          setEnviandoComprovante(false);
+        }
+      }
+    },
+    [cobrancaPix, invalidarDadosPainel],
+  );
 
   /**
    * Solicita o cancelamento da cobrança Pix ativa.
-   * Trata concorrência e caso o pagamento já tenha sido aprovado enquanto o usuário clicava em cancelar.
    *
    * @param {boolean} [reterReserva=false] - Se `true`, mantém os bilhetes reservados no carrinho.
    */
-  const cancelarCobranca = useCallback(async (reterReserva: boolean = false) => {
-    if (!cobrancaPix) return;
+  const cancelarCobranca = useCallback(
+    async (reterReserva: boolean = false) => {
+      if (!cobrancaPix) return;
 
-    setCancelando(true);
-    try {
-      await checkoutPixService.cancelarCobrancaPix(cobrancaPix.id, reterReserva);
-      if (isMounted.current) {
-        resetarFluxo(true);
-      }
-      invalidarDadosPainel?.();
-    } catch (error: any) {
-      if (!isMounted.current) return;
-
-      const isJaAprovado = error?.message?.includes("PAGAMENTO_JA_APROVADO") || error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") || error?.message?.includes("approved");
-
-      if (isJaAprovado) {
-        setStatus("sucesso");
-        setCobrancaPix(prev => prev ? { ...prev, status: "pago" } : null);
+      setCancelando(true);
+      try {
+        await checkoutPixService.cancelarCobrancaPix(cobrancaPix.id, reterReserva);
+        if (isMounted.current) {
+          resetarFluxo(true);
+        }
         invalidarDadosPainel?.();
-        return;
-      }
+      } catch (error: any) {
+        if (!isMounted.current) return;
 
-      setErro(obterMensagemErroPix(error));
-      setTimeout(() => {
-        if (isMounted.current) setErro(null);
-      }, 5000);
-    } finally {
-      if (isMounted.current) setCancelando(false);
-    }
-  }, [cobrancaPix, resetarFluxo, invalidarDadosPainel]);
+        const isJaAprovado =
+          error?.message?.includes("PAGAMENTO_JA_APROVADO") ||
+          error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") ||
+          error?.message?.includes("approved");
+
+        if (isJaAprovado) {
+          setStatus("sucesso");
+          setCobrancaPix((prev) => (prev ? { ...prev, status: "pago" } : null));
+          invalidarDadosPainel?.();
+          return;
+        }
+
+        setErro(obterMensagemErroPix(error));
+        setTimeout(() => {
+          if (isMounted.current) setErro(null);
+        }, 5000);
+      } finally {
+        if (isMounted.current) setCancelando(false);
+      }
+    },
+    [cobrancaPix, resetarFluxo, invalidarDadosPainel],
+  );
 
   /**
-   * Libera totalmente a reserva dos bilhetes e encerra a sessão de checkout Pix,
-   * protegendo cobranças que já foram pagas para jamais disparar cancelamento indevido.
+   * Libera totalmente a reserva dos bilhetes e encerra a sessão de checkout Pix.
    */
   const liberarReservaTotal = useCallback(async () => {
     if (cobrancaPix && cobrancaPix.status !== "pago" && status !== "sucesso") {
@@ -260,7 +316,7 @@ export function usePixStateMachine({
   }, [cobrancaPix, status, resetarFluxo, invalidarDadosPainel]);
 
   /**
-   * Registra a solicitação de cancelamento da requisição assíncrona em voo caso o modal seja fechado.
+   * Registra a solicitação de cancelamento da requisição em voo se o modal fechar.
    */
   const abortarGeracaoPendente = useCallback(() => {
     if (currentGeracaoId.current) {
@@ -269,10 +325,7 @@ export function usePixStateMachine({
   }, []);
 
   /**
-   * Copia a chave Pix Copia e Cola para a área de transferência do sistema operacional.
-   * Utiliza `navigator.clipboard` moderno com fallback para `document.execCommand('copy')`.
-   *
-   * @returns {boolean} `true` se a cópia foi iniciada/realizada com sucesso.
+   * Copia a chave Pix Copia e Cola para a área de transferência.
    */
   const copiarPix = useCallback((): boolean => {
     if (!cobrancaPix?.copiaECola) return false;
@@ -314,7 +367,9 @@ export function usePixStateMachine({
     cobrancaPix,
     erro,
     cancelando,
+    enviandoComprovante,
     gerarCobranca,
+    confirmarEnvioComprovante,
     cancelarCobranca,
     copiarPix,
     resetarFluxo,
