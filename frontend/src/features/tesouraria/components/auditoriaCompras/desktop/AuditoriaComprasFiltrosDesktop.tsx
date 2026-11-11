@@ -1,6 +1,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined";
 import {
   Box,
   Button,
@@ -14,7 +15,6 @@ import {
 } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
-import { components } from "@/shared/tokens/components";
 
 import { AuditoriaComprasFiltrosProps } from "../shared/auditoriaComprasFiltrosTypes";
 import {
@@ -39,6 +39,7 @@ export function AuditoriaComprasFiltrosDesktop({
   onChangeFiltros,
   onLimparFiltros,
   onExportarCsv,
+  onAbrirConciliacao,
 }: AuditoriaComprasFiltrosProps) {
   return (
     <Paper
@@ -63,7 +64,7 @@ export function AuditoriaComprasFiltrosDesktop({
           <Box>
             <Typography
               sx={{
-                color: colors.textoForte,
+                color: colors.pretoEsverdeado,
                 fontWeight: 950,
                 fontSize: "1rem",
                 lineHeight: 1.2,
@@ -72,7 +73,7 @@ export function AuditoriaComprasFiltrosDesktop({
               Filtros da auditoria
             </Typography>
             <Typography
-              sx={{ color: colors.textoSuave, fontSize: "0.82rem", mt: 0.25 }}
+              sx={{ color: colors.cinzaTexto, fontSize: "0.82rem", mt: 0.25 }}
             >
               Localize uma compra pelo nome do comprador ou número da rifa.
             </Typography>
@@ -100,6 +101,29 @@ export function AuditoriaComprasFiltrosDesktop({
               </Button>
             )}
 
+            {onAbrirConciliacao && (
+              <Button
+                startIcon={<SyncAltOutlinedIcon />}
+                onClick={onAbrirConciliacao}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  borderColor: colors.verdeForte,
+                  color: colors.verdeForte,
+                  fontWeight: 850,
+                  textTransform: "none",
+                  px: 1.75,
+                  py: 0.75,
+                  "&:hover": {
+                    bgcolor: "rgba(11, 122, 97, 0.08)",
+                    borderColor: colors.verdeEscuro,
+                  },
+                }}
+              >
+                Conciliar Extrato
+              </Button>
+            )}
+
             <Button
               startIcon={<FileDownloadOutlinedIcon />}
               onClick={onExportarCsv}
@@ -112,10 +136,10 @@ export function AuditoriaComprasFiltrosDesktop({
                 textTransform: "none",
                 px: 1.75,
                 py: 0.75,
-                "&:hover": { bgcolor: colors.verdeMaisEscuro },
+                "&:hover": { bgcolor: colors.verdeEscuroHover },
                 "&.Mui-disabled": {
-                  bgcolor: colors.fundoVerdeSuave,
-                  color: colors.textoSuave,
+                  bgcolor: colors.verdeClaro,
+                  color: colors.cinzaDisabled,
                 },
               }}
             >
@@ -135,7 +159,7 @@ export function AuditoriaComprasFiltrosDesktop({
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: colors.textoSuave }} />
+                <SearchIcon sx={{ color: colors.cinzaIcone }} />
               </InputAdornment>
             ),
             endAdornment: filtros.busca ? (
@@ -153,7 +177,7 @@ export function AuditoriaComprasFiltrosDesktop({
           sx={{
             "& .MuiOutlinedInput-root": {
               borderRadius: 2,
-              bgcolor: components.searchField.backgroundColor,
+              bgcolor: colors.fundoSuave,
             },
           }}
         />

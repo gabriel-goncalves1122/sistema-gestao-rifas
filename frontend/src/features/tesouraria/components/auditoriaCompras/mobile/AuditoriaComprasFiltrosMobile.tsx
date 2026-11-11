@@ -1,6 +1,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined";
 import {
   Box,
   Button,
@@ -37,6 +38,7 @@ export function AuditoriaComprasFiltrosMobile({
   onChangeFiltros,
   onLimparFiltros,
   onExportarCsv,
+  onAbrirConciliacao,
 }: AuditoriaComprasFiltrosProps) {
   return (
     <Paper
@@ -85,6 +87,23 @@ export function AuditoriaComprasFiltrosMobile({
             }}
           />
 
+          {onAbrirConciliacao && (
+            <Tooltip title="Conciliar Extrato">
+              <IconButton
+                aria-label="Conciliar Extrato"
+                onClick={onAbrirConciliacao}
+                sx={{
+                  border: `1px solid ${colors.verdeForte}`,
+                  color: colors.verdeForte,
+                  borderRadius: 2,
+                  "&:hover": { bgcolor: "rgba(11, 122, 97, 0.08)" },
+                }}
+              >
+                <SyncAltOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
           <Tooltip title="Exportar CSV">
             <span>
               <IconButton
@@ -95,10 +114,10 @@ export function AuditoriaComprasFiltrosMobile({
                   bgcolor: colors.verdeEscuro,
                   color: colors.branco,
                   borderRadius: 2,
-                  "&:hover": { bgcolor: colors.verdeMaisEscuro },
+                  "&:hover": { bgcolor: colors.verdeEscuroHover },
                   "&.Mui-disabled": {
-                    bgcolor: colors.fundoVerdeSuave,
-                    color: colors.textoSuave,
+                    bgcolor: colors.verdeClaro,
+                    color: colors.cinzaDisabled,
                   },
                 }}
               >
@@ -131,59 +150,59 @@ export function AuditoriaComprasFiltrosMobile({
         <Box
           sx={{
             display: "flex",
-            gap: 0.75,
             alignItems: "center",
-            overflowX: "auto",
-            pb: 0.5,
+            justifyContent: "space-between",
+            gap: 1,
             pt: 0.25,
-            "&::-webkit-scrollbar": { display: "none" },
-            scrollbarWidth: "none",
+            minWidth: 0,
           }}
         >
-          <AuditoriaFiltroOrigemChips
-            filtros={filtros}
-            contagens={contagens}
-            onChangeFiltros={onChangeFiltros}
-          />
-          <AuditoriaFiltroCorrecaoChip
-            filtros={filtros}
-            contagens={contagens}
-            onChangeFiltros={onChangeFiltros}
-          />
-        </Box>
-
-        {/* Linha 3: Limpar Filtros Isolado */}
-        {filtrosAtivos && (
           <Box
             sx={{
               display: "flex",
-              justifyContent: "flex-end",
-              pt: 0.5,
-              borderTop: "1px dashed rgba(2, 27, 22, 0.08)",
+              alignItems: "center",
+              gap: 0.75,
+              overflowX: "auto",
+              minWidth: 0,
+              flex: 1,
+              "&::-webkit-scrollbar": { display: "none" },
+              scrollbarWidth: "none",
             }}
           >
-            <Button
+            <AuditoriaFiltroOrigemChips
+              filtros={filtros}
+              onChangeFiltros={onChangeFiltros}
+            />
+            <AuditoriaFiltroCorrecaoChip
+              filtros={filtros}
+              contagens={contagens}
+              onChangeFiltros={onChangeFiltros}
+            />
+          </Box>
+
+          {filtrosAtivos && (
+            <Chip
               size="small"
+              label="Limpar"
+              onDelete={onLimparFiltros}
               onClick={onLimparFiltros}
-              startIcon={<CloseIcon fontSize="small" />}
               sx={{
-                color: colors.vermelhoTexto,
-                fontWeight: 900,
-                textTransform: "none",
-                fontSize: "0.78rem",
-                py: 0.25,
-                px: 1,
-                borderRadius: 1.5,
-                bgcolor: "rgba(155, 28, 28, 0.05)",
-                "&:hover": {
-                  bgcolor: "rgba(155, 28, 28, 0.12)",
+                flexShrink: 0,
+                height: 26,
+                fontWeight: 800,
+                fontSize: "0.72rem",
+                bgcolor: "rgba(11, 122, 97, 0.08)",
+                color: colors.verdeEscuro,
+                border: "1px solid rgba(11, 122, 97, 0.2)",
+                "& .MuiChip-deleteIcon": {
+                  color: colors.verdeEscuro,
+                  fontSize: 14,
+                  "&:hover": { color: colors.verdeEscuro },
                 },
               }}
-            >
-              Limpar filtros ativos
-            </Button>
-          </Box>
-        )}
+            />
+          )}
+        </Box>
       </Stack>
     </Paper>
   );
