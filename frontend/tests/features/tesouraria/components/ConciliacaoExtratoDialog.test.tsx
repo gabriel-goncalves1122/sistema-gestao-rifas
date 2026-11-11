@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ConciliacaoExtratoDialog } from "@/features/tesouraria/components/auditoriaCompras/conciliacao/ConciliacaoExtratoDialog";
+import { ConciliacaoExtratoDialog } from "@/features/tesouraria/components/pix/transacoes/shared/ConciliacaoExtratoDialog";
 import { ResultadoAnaliseExtrato } from "@/features/tesouraria/types/conciliacaoExtrato";
 
 describe("ConciliacaoExtratoDialog", () => {

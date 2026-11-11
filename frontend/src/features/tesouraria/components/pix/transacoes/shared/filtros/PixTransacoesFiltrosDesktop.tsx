@@ -1,4 +1,5 @@
 import CloseIcon from "@mui/icons-material/Close";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
@@ -16,6 +17,7 @@ export function PixTransacoesFiltrosDesktop({
   onChangeFiltros,
   totalResultados,
   contagens,
+  onAbrirConciliacao,
 }: PixTransacoesFiltrosProps) {
   const buscaAtiva = filtros.busca.trim().length > 0;
   const statusAtivoNaoPadrao = filtros.status !== "novas";
@@ -64,6 +66,31 @@ export function PixTransacoesFiltrosDesktop({
           </Box>
 
           <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
+            {onAbrirConciliacao && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<CloudUploadOutlinedIcon fontSize="small" />}
+                onClick={onAbrirConciliacao}
+                sx={{
+                  borderRadius: 2,
+                  borderColor: colors.verdeForte,
+                  color: colors.verdeForte,
+                  fontWeight: 850,
+                  textTransform: "none",
+                  fontSize: "0.82rem",
+                  px: 1.5,
+                  py: 0.4,
+                  "&:hover": {
+                    bgcolor: "rgba(11, 122, 97, 0.08)",
+                    borderColor: colors.verdeEscuro,
+                  },
+                }}
+              >
+                Conciliar Extrato
+              </Button>
+            )}
+
             {totalResultados !== undefined && (
               <Chip
                 size="small"

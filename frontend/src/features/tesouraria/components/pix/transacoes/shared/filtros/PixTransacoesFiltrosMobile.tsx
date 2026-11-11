@@ -1,4 +1,5 @@
 import CloseIcon from "@mui/icons-material/Close";
+import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import { Button, Chip, Paper, Stack } from "@mui/material";
 
 import { colors } from "@/shared/tokens/colors";
@@ -14,6 +15,7 @@ export function PixTransacoesFiltrosMobile({
   filtros,
   onChangeFiltros,
   contagens,
+  onAbrirConciliacao,
 }: PixTransacoesFiltrosProps) {
   const buscaAtiva = filtros.busca.trim().length > 0;
   const filtroStatusAtivo = filtros.status !== "novas";
@@ -50,23 +52,53 @@ export function PixTransacoesFiltrosMobile({
           alignItems="center"
           justifyContent="space-between"
         >
-          <Chip
-            label={
-              totalFiltrosAtivos > 0
-                ? `${totalFiltrosAtivos} filtro${totalFiltrosAtivos > 1 ? "s" : ""} ativo${totalFiltrosAtivos > 1 ? "s" : ""}`
-                : "Sem filtros ativos"
-            }
-            size="small"
-            sx={{
-              height: 28,
-              borderRadius: 2,
-              color: totalFiltrosAtivos > 0 ? colors.verdeEscuro : colors.textoSuave,
-              bgcolor: totalFiltrosAtivos > 0 ? "rgba(11, 122, 97, 0.10)" : "#F6F8F7",
-              border: "1px solid rgba(6, 61, 49, 0.12)",
-              fontWeight: 800,
-              fontSize: "0.72rem",
-            }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip
+              label={
+                totalFiltrosAtivos > 0
+                  ? `${totalFiltrosAtivos} filtro${totalFiltrosAtivos > 1 ? "s" : ""} ativo${totalFiltrosAtivos > 1 ? "s" : ""}`
+                  : "Sem filtros ativos"
+              }
+              size="small"
+              sx={{
+                height: 28,
+                borderRadius: 2,
+                color: totalFiltrosAtivos > 0 ? colors.verdeEscuro : colors.textoSuave,
+                bgcolor: totalFiltrosAtivos > 0 ? "rgba(11, 122, 97, 0.10)" : "#F6F8F7",
+                border: "1px solid rgba(6, 61, 49, 0.12)",
+                fontWeight: 800,
+                fontSize: "0.72rem",
+              }}
+            />
+
+            {onAbrirConciliacao && (
+              <Button
+                type="button"
+                size="small"
+                aria-label="Conciliar Extrato"
+                startIcon={<CloudUploadOutlinedIcon fontSize="small" />}
+                onClick={onAbrirConciliacao}
+                sx={{
+                  flexShrink: 0,
+                  borderRadius: 2,
+                  color: colors.verdeForte,
+                  bgcolor: colors.verdeClaro,
+                  border: `1px solid ${colors.verdeForte}`,
+                  fontWeight: 850,
+                  textTransform: "none",
+                  fontSize: "0.75rem",
+                  px: 1.2,
+                  py: 0.25,
+                  minHeight: 28,
+                  "&:hover": {
+                    bgcolor: "rgba(11, 122, 97, 0.16)",
+                  },
+                }}
+              >
+                Extrato
+              </Button>
+            )}
+          </Stack>
 
           {totalFiltrosAtivos > 0 && (
             <Button

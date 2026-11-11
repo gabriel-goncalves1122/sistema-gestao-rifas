@@ -15,6 +15,8 @@ export interface PixTransacoesFiltrosProps {
   totalResultados?: number;
   /** Contadores pré-calculados para exibição em badges nos chips */
   contagens?: Partial<Record<FiltroRapidoTransacoesPix, number>>;
+  /** Callback opcional para abrir o modal de conciliação por extrato bancário (InfinitePay) */
+  onAbrirConciliacao?: () => void;
 }
 
 export interface ConfigFiltroPix {

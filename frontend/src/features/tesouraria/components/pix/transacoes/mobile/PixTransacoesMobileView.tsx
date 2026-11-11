@@ -24,6 +24,7 @@ interface PixTransacoesMobileViewProps {
   onChangeFiltros: (filtros: PixTransacoesFiltrosState) => void;
   onAceitar: (id: string) => Promise<void>;
   onNegar: (id: string, motivo: string) => Promise<void>;
+  onAbrirConciliacao?: () => void;
 }
 
 /**
@@ -36,6 +37,7 @@ export function PixTransacoesMobileView({
   onChangeFiltros,
   onAceitar,
   onNegar,
+  onAbrirConciliacao,
 }: PixTransacoesMobileViewProps) {
   const [transacaoSelecionada, setTransacaoSelecionada] =
     useState<PixTransacao | null>(null);
@@ -90,6 +92,7 @@ export function PixTransacoesMobileView({
         onChangeFiltros={onChangeFiltros}
         totalResultados={transacoes.length}
         contagens={contagens}
+        onAbrirConciliacao={onAbrirConciliacao}
       />
 
       <Box>

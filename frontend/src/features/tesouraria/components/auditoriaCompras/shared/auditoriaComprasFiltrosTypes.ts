@@ -21,6 +21,4 @@ export interface AuditoriaComprasFiltrosProps {
   onLimparFiltros: () => void;
   /** Callback para exportar as compras filtradas em CSV */
   onExportarCsv: () => void;
-  /** Callback opcional para abrir o modal de conciliação por extrato bancário */
-  onAbrirConciliacao?: () => void;
 }

@@ -1,7 +1,8 @@
 import { startTransition, useCallback } from "react";
-import { Box, CircularProgress } from "@mui/material";
+import { Alert, Box, CircularProgress, Snackbar } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { ConciliacaoExtratoDialog } from "../components/pix/transacoes/shared/ConciliacaoExtratoDialog";
 import { PixTransacoesDesktopView } from "../components/pix/transacoes/desktop/PixTransacoesDesktopView";
 import { PixTransacoesMobileView } from "../components/pix/transacoes/mobile/PixTransacoesMobileView";
 import { PixHeader } from "../components/pix/layout/PixHeader";
@@ -24,6 +25,7 @@ export function TesourariaPage({ variante = "desktop" }: TesourariaPageProps) {
     pixProps,
     abaVisivel,
     aderidosServidor,
+    conciliacao,
     setAbaAtual,
     onSincronizar,
   } = usePixController({ variante });
@@ -101,6 +103,39 @@ export function TesourariaPage({ variante = "desktop" }: TesourariaPageProps) {
           )}
         </AnimatePresence>
       </Box>
+
+      <ConciliacaoExtratoDialog
+        aberto={conciliacao.aberto}
+        onFechar={conciliacao.fecharDialog}
+        arquivo={conciliacao.arquivo}
+        analisando={conciliacao.analisando}
+        aprovando={conciliacao.aprovando}
+        resultado={conciliacao.resultado}
+        selecionados={conciliacao.selecionados}
+        erro={conciliacao.erro}
+        onSelecionarArquivo={conciliacao.processarArquivo}
+        onToggleSelecao={conciliacao.toggleSelecao}
+        onToggleTodos={conciliacao.toggleTodos}
+        onConfirmarAprovacao={conciliacao.confirmarAprovacaoLote}
+        onLimpar={conciliacao.limparEstado}
+        valorTotalSelecionado={conciliacao.valorTotalSelecionado}
+      />
+
+      <Snackbar
+        open={Boolean(conciliacao.feedbackSucesso)}
+        autoHideDuration={6000}
+        onClose={conciliacao.fecharFeedbackSucesso}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={conciliacao.fecharFeedbackSucesso}
+          severity="success"
+          variant="filled"
+          sx={{ borderRadius: 2, fontWeight: 850 }}
+        >
+          {conciliacao.feedbackSucesso}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

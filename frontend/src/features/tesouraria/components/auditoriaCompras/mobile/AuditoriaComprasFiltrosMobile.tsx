@@ -1,7 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined";
 import {
   Box,
   Button,
@@ -38,7 +37,6 @@ export function AuditoriaComprasFiltrosMobile({
   onChangeFiltros,
   onLimparFiltros,
   onExportarCsv,
-  onAbrirConciliacao,
 }: AuditoriaComprasFiltrosProps) {
   return (
     <Paper
@@ -86,23 +84,6 @@ export function AuditoriaComprasFiltrosMobile({
               ) : undefined,
             }}
           />
-
-          {onAbrirConciliacao && (
-            <Tooltip title="Conciliar Extrato">
-              <IconButton
-                aria-label="Conciliar Extrato"
-                onClick={onAbrirConciliacao}
-                sx={{
-                  border: `1px solid ${colors.verdeForte}`,
-                  color: colors.verdeForte,
-                  borderRadius: 2,
-                  "&:hover": { bgcolor: "rgba(11, 122, 97, 0.08)" },
-                }}
-              >
-                <SyncAltOutlinedIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
 
           <Tooltip title="Exportar CSV">
             <span>

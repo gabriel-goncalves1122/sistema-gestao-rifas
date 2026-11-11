@@ -190,4 +190,45 @@ describe("Componente: PixTransacoesFiltros", () => {
       busca: "",
     });
   });
+
+  it("Deve renderizar o botão 'Conciliar Extrato' no desktop e disparar callback ao clicar", () => {
+    const onAbrirConciliacao = vi.fn();
+
+    render(
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={vi.fn()}
+        onAbrirConciliacao={onAbrirConciliacao}
+      />,
+    );
+
+    const botaoConciliar = screen.getByRole("button", {
+      name: /conciliar extrato/i,
+    });
+    expect(botaoConciliar).toBeInTheDocument();
+
+    fireEvent.click(botaoConciliar);
+    expect(onAbrirConciliacao).toHaveBeenCalledTimes(1);
+  });
+
+  it("Deve renderizar o botão 'Extrato' no mobile e disparar callback ao clicar", () => {
+    const onAbrirConciliacao = vi.fn();
+    simularMobile();
+
+    render(
+      <PixTransacoesFiltros
+        filtros={filtrosBase}
+        onChangeFiltros={vi.fn()}
+        onAbrirConciliacao={onAbrirConciliacao}
+      />,
+    );
+
+    const botaoConciliarMobile = screen.getByRole("button", {
+      name: /conciliar extrato/i,
+    });
+    expect(botaoConciliarMobile).toBeInTheDocument();
+
+    fireEvent.click(botaoConciliarMobile);
+    expect(onAbrirConciliacao).toHaveBeenCalledTimes(1);
+  });
 });

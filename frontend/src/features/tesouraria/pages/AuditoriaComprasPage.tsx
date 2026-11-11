@@ -11,15 +11,13 @@ import { AuditoriaComprasFiltros } from "../components/auditoriaCompras/shared/A
 import { AuditoriaComprasHeader } from "../components/auditoriaCompras/shared/AuditoriaComprasHeader";
 import { AuditoriaComprasResumo } from "../components/auditoriaCompras/shared/AuditoriaComprasResumo";
 import { AuditoriaCompraRecusaDialog } from "../components/auditoriaCompras/shared/AuditoriaCompraRecusaDialog";
-import { ConciliacaoExtratoDialog } from "../components/auditoriaCompras/conciliacao/ConciliacaoExtratoDialog";
 import { useAuditoriaComprasController } from "../hooks/useAuditoriaComprasController";
-import { useConciliacaoExtrato } from "../hooks/useConciliacaoExtrato";
 import { useTesourariaLayout } from "../hooks/useTesourariaLayout";
 
 /**
  * Página principal da aba Histórico (Auditoria de Compras) da Tesouraria.
- * Orquestra filtros com contadores em tempo real, resumo quantitativo enxuto,
- * conciliação automática por extrato bancário (InfinitePay) e listagem paginada.
+ * Orquestra filtros com contadores em tempo real, resumo quantitativo enxuto
+ * e listagem paginada de histórico para fins estritos de auditoria.
  *
  * @returns {JSX.Element} Interface completa de auditoria de compras.
  */
@@ -63,8 +61,6 @@ export function AuditoriaComprasPage() {
     fecharRecusa,
   } = useAuditoriaComprasController();
 
-  const conciliacao = useConciliacaoExtrato(carregarHistorico);
-
   if (carregando) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
@@ -84,7 +80,6 @@ export function AuditoriaComprasPage() {
         onChangeFiltros={setFiltros}
         onLimparFiltros={limparFiltros}
         onExportarCsv={baixarCSV}
-        onAbrirConciliacao={conciliacao.abrirDialog}
       />
       <AuditoriaComprasResumo resumo={resumo} />
 
@@ -137,39 +132,6 @@ export function AuditoriaComprasPage() {
       <ModalImagemPix url={comprovanteUrl} onClose={fecharComprovante} />
 
       {/* Modal de Conciliação Automática por Extrato Bancário */}
-      <ConciliacaoExtratoDialog
-        aberto={conciliacao.aberto}
-        onFechar={conciliacao.fecharDialog}
-        arquivo={conciliacao.arquivo}
-        analisando={conciliacao.analisando}
-        aprovando={conciliacao.aprovando}
-        resultado={conciliacao.resultado}
-        selecionados={conciliacao.selecionados}
-        erro={conciliacao.erro}
-        onSelecionarArquivo={conciliacao.processarArquivo}
-        onToggleSelecao={conciliacao.toggleSelecao}
-        onToggleTodos={conciliacao.toggleTodos}
-        onConfirmarAprovacao={conciliacao.confirmarAprovacaoLote}
-        onLimpar={conciliacao.limparEstado}
-        valorTotalSelecionado={conciliacao.valorTotalSelecionado}
-      />
-
-      <Snackbar
-        open={Boolean(conciliacao.feedbackSucesso)}
-        autoHideDuration={6000}
-        onClose={conciliacao.fecharFeedbackSucesso}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={conciliacao.fecharFeedbackSucesso}
-          severity="success"
-          variant="filled"
-          sx={{ borderRadius: 2, fontWeight: 850 }}
-        >
-          {conciliacao.feedbackSucesso}
-        </Alert>
-      </Snackbar>
-
       <Snackbar
         open={Boolean(feedbackEmailComprovante)}
         autoHideDuration={3600}

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { AbaPix } from "../types/pixTabs";
+import { useConciliacaoExtrato } from "./useConciliacaoExtrato";
 import { usePixTransacoes } from "./usePixTransacoes";
 import { useRelatorioTesouraria } from "./useRelatorioTesouraria";
 
@@ -35,10 +36,13 @@ export function usePixController({
     validandoPixPorId,
     erroValidacaoPixPorId,
     setFiltros,
+    carregarDados,
     sincronizarBanco,
     aceitarTransacao,
     negarTransacao,
   } = usePixTransacoes();
+
+  const conciliacao = useConciliacaoExtrato(carregarDados);
 
   const { aderidos, relatorio } = useRelatorioTesouraria();
   const aderidosServidor =
@@ -59,9 +63,11 @@ export function usePixController({
       erroValidacaoPixPorId,
       onAceitar: aceitarTransacao,
       onNegar: negarTransacao,
+      onAbrirConciliacao: conciliacao.abrirDialog,
     }),
     [
       aceitarTransacao,
+      conciliacao.abrirDialog,
       erroValidacaoPixPorId,
       filtros,
       negarTransacao,
@@ -86,11 +92,13 @@ export function usePixController({
     validandoPixPorId,
     erroValidacaoPixPorId,
     pixProps,
+    conciliacao,
     setAbaAtual,
     setFiltros,
     sincronizarBanco,
     onSincronizar: sincronizarBanco,
     onAceitarTransacao: aceitarTransacao,
     onNegarTransacao: negarTransacao,
+    onAbrirConciliacao: conciliacao.abrirDialog,
   };
 }

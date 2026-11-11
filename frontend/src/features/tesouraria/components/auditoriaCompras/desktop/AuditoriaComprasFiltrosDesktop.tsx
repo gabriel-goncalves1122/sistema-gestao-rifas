@@ -1,7 +1,6 @@
 import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SearchIcon from "@mui/icons-material/Search";
-import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined";
 import {
   Box,
   Button,
@@ -39,7 +38,6 @@ export function AuditoriaComprasFiltrosDesktop({
   onChangeFiltros,
   onLimparFiltros,
   onExportarCsv,
-  onAbrirConciliacao,
 }: AuditoriaComprasFiltrosProps) {
   return (
     <Paper
@@ -98,29 +96,6 @@ export function AuditoriaComprasFiltrosDesktop({
                 }}
               >
                 Limpar filtros
-              </Button>
-            )}
-
-            {onAbrirConciliacao && (
-              <Button
-                startIcon={<SyncAltOutlinedIcon />}
-                onClick={onAbrirConciliacao}
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  borderColor: colors.verdeForte,
-                  color: colors.verdeForte,
-                  fontWeight: 850,
-                  textTransform: "none",
-                  px: 1.75,
-                  py: 0.75,
-                  "&:hover": {
-                    bgcolor: "rgba(11, 122, 97, 0.08)",
-                    borderColor: colors.verdeEscuro,
-                  },
-                }}
-              >
-                Conciliar Extrato
               </Button>
             )}
 

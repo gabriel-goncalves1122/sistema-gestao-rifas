@@ -1,12 +1,11 @@
 /**
- * Modal para upload de extrato bancário (InfinitePay) e conciliação em lote na Tesouraria.
+ * Modal para upload de extrato bancário (InfinitePay) e conciliação em lote na validação de transações Pix.
  *
  * @module ConciliacaoExtratoDialog
  */
 import React, { useRef } from "react";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import {
   Alert,
@@ -19,7 +18,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Grid,
   IconButton,
   Paper,
@@ -30,7 +28,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -40,7 +37,7 @@ import { formatarMoeda } from "@/shared/utils/formatadores";
 import {
   ItemMatchConciliacao,
   ResultadoAnaliseExtrato,
-} from "../../../types/conciliacaoExtrato";
+} from "../../../../types/conciliacaoExtrato";
 
 export interface ConciliacaoExtratoDialogProps {
   aberto: boolean;
@@ -59,6 +56,12 @@ export interface ConciliacaoExtratoDialogProps {
   valorTotalSelecionado: number;
 }
 
+/**
+ * Dialog de conciliação por extrato bancário para aprovação em lote de transações Pix pendentes.
+ *
+ * @param {ConciliacaoExtratoDialogProps} props - Propriedades de controle e callbacks.
+ * @returns {JSX.Element} Modal de conciliação com upload, resumo e listagem de matches.
+ */
 export function ConciliacaoExtratoDialog({
   aberto,
   onFechar,

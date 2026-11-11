@@ -20,6 +20,7 @@ interface PixTransacoesDesktopViewProps {
   onChangeFiltros: (filtros: PixTransacoesFiltrosState) => void;
   onAceitar: (id: string) => Promise<void>;
   onNegar: (id: string, motivo: string) => Promise<void>;
+  onAbrirConciliacao?: () => void;
 }
 
 export function PixTransacoesDesktopView({
@@ -29,6 +30,7 @@ export function PixTransacoesDesktopView({
   onChangeFiltros,
   onAceitar,
   onNegar,
+  onAbrirConciliacao,
 }: PixTransacoesDesktopViewProps) {
   const fonte = todasTransacoes || transacoes;
 
@@ -51,6 +53,7 @@ export function PixTransacoesDesktopView({
         onChangeFiltros={onChangeFiltros}
         totalResultados={transacoes.length}
         contagens={contagens}
+        onAbrirConciliacao={onAbrirConciliacao}
       />
 
       {transacoes.length === 0 ? (
