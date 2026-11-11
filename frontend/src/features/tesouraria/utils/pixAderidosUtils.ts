@@ -5,7 +5,7 @@ import {
   TransacaoResumoAderido,
 } from "../types/desempenho";
 import { META_RIFAS_ADERIDO } from "./constants";
-import { somenteNumeros } from "./formatadores";
+import { formatarCpf, somenteNumeros } from "@/shared/utils/formatadores";
 
 export const CPF_NAO_INFORMADO = "CPF não informado";
 export const ADERIDO_NAO_VINCULADO = "Sem aderido vinculado";
@@ -52,21 +52,7 @@ export interface PixAderidoResumo extends AderidoRankingDesempenho {
  * @returns {string} CPF formatado ou 'CPF não informado'.
  */
 export function formatarCpfTesouraria(cpf?: string | null): string {
-  const cpfNumerico = somenteNumeros(cpf).slice(0, 11);
-
-  if (!cpfNumerico) return CPF_NAO_INFORMADO;
-  if (cpfNumerico.length <= 3) return cpfNumerico;
-  if (cpfNumerico.length <= 6) {
-    return `${cpfNumerico.slice(0, 3)}.${cpfNumerico.slice(3)}`;
-  }
-  if (cpfNumerico.length <= 9) {
-    return `${cpfNumerico.slice(0, 3)}.${cpfNumerico.slice(3, 6)}.${cpfNumerico.slice(6)}`;
-  }
-
-  return `${cpfNumerico.slice(0, 3)}.${cpfNumerico.slice(
-    3,
-    6,
-  )}.${cpfNumerico.slice(6, 9)}-${cpfNumerico.slice(9)}`;
+  return formatarCpf(cpf) || CPF_NAO_INFORMADO;
 }
 
 /**

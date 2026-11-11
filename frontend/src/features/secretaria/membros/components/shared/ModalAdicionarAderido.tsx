@@ -30,6 +30,7 @@ import {
 import type { FormNovoAderido, ModalidadeAdesao } from "../../../../../shared/types/secretaria";
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
+import { SectionTitle } from "@/shared/components/SectionTitle";
 import {
   formatarNomeMembro,
   formatarTelefone,
@@ -59,19 +60,6 @@ type CampoNovoAderido = keyof FormNovoAderido;
 type ModalAdicionarChangeEvent =
   | ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   | SelectChangeEvent<string>;
-
-function SectionTitle({ children }: { children: string }) {
-  return (
-    <Typography
-      variant="subtitle2"
-      color="primary.dark"
-      fontWeight={900}
-      sx={{ letterSpacing: "0.01em" }}
-    >
-      {children}
-    </Typography>
-  );
-}
 
 export function ModalAdicionarAderido({
   open,

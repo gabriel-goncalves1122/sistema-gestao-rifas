@@ -417,5 +417,34 @@ describe("Componente <CheckoutModal />", () => {
 
       vi.useRealTimers();
     });
+
+    it("Deve descartar cobrança Pix antiga do localStorage quando abrir o modal com outras rifas selecionadas", async () => {
+      localStorage.setItem(
+        "@aderidos:checkout_cobranca_pix",
+        JSON.stringify({
+          id: "pix_antigo_999",
+          status: "aguardando_pagamento",
+          copiaECola: "000201PIXANTIGO999",
+          numerosRifas: ["099"],
+          expiraEm: "2030-01-01T12:00:00.000Z",
+        }),
+      );
+
+      render(
+        <CheckoutModal
+          invalidarDadosPainel={vi.fn()}
+          open={true}
+          onClose={mockOnClose}
+          onSuccess={mockOnSuccess}
+          numerosRifas={["001", "002"]}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByText("000201PIXANTIGO999")).not.toBeInTheDocument();
+      });
+      expect(screen.getByText(/20,00/i)).toBeInTheDocument();
+      expect(screen.queryByText(/#099/i)).not.toBeInTheDocument();
+    });
   });
 });

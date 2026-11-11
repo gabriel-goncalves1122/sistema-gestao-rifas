@@ -1,58 +1,67 @@
 // ============================================================================
 // ARQUIVO: frontend/src/features/aderidos/components/checkout/CheckoutPixBox.tsx
 // ============================================================================
-
 import { useState } from "react";
-import CloseIcon from "@mui/icons-material/Close";
-import PixIcon from "@mui/icons-material/Pix";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { Box, IconButton, Stack, Typography, CircularProgress, Button } from "@mui/material";
+import { Button, CircularProgress, Stack } from "@mui/material";
 
 import type { CheckoutPixCobranca } from "../../types/checkoutPix";
 import type { PixStatus } from "../../hooks/usePixStateMachine";
+import { CheckoutPixPollingNotice } from "./states/CheckoutPixFeedbackStates";
 import {
   CheckoutPixActions,
   CheckoutPixCopiaECola,
-  CheckoutPixConfirmed,
-  CheckoutPixCanceledNotice,
-  CheckoutPixEmpty,
-  CheckoutPixError,
-  CheckoutPixExpiredNotice,
-  CheckoutPixLoading,
-  CheckoutPixPollingNotice,
   CheckoutQrCodeDisplay,
-} from "./CheckoutPixBoxStates";
+} from "./states/CheckoutPixPaymentControls";
+import {
+  CheckoutPixBoxShell,
+  CheckoutPixTerminalNotice,
+  obterQrCodeSrc,
+} from "./CheckoutPixBoxShell";
 import { CheckoutComprovanteUpload } from "./CheckoutComprovanteUpload";
 import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 import { colors } from "@/shared/tokens/colors";
 
-interface CheckoutPixBoxProps {
+/**
+ * Propriedades do painel padrão de checkout Pix (legado compatível com testes e fluxos combinados).
+ */
+export interface CheckoutPixBoxProps {
+  /** Cobrança Pix ativa. */
   cobranca?: CheckoutPixCobranca | null;
+  /** Indica se a geração da cobrança está em curso. */
   gerando?: boolean;
+  /** Indica se o upload de comprovante está em andamento. */
   enviandoComprovante?: boolean;
+  /** Mensagem de erro caso ocorra falha. */
   erro?: string | null;
+  /** Status atual da máquina de estados Pix. */
   pollingStatus?: PixStatus;
+  /** Indica cancelamento em andamento. */
   cancelando?: boolean;
+  /** Callback para copiar o código copia-e-cola. */
   onCopiarPix: () => void;
+  /** Callback para cancelar a cobrança. */
   onCancelarPix?: () => void;
+  /** Callback acionado na expiração do tempo. */
   onExpirarPix?: () => void;
+  /** Callback para tentar gerar nova cobrança. */
   onResetPix?: () => void;
+  /** Callback acionado ao concluir venda paga. */
   onSuccess?: () => void;
+  /** Callback para enviar comprovante ou confirmar pagamento. */
   onConfirmarEnvio?: (
     arquivo: File | null,
     resultado: ResultadoValidacaoArquivo | null,
   ) => void;
 }
 
-function obterQrCodeSrc(cobranca: CheckoutPixCobranca) {
-  if (cobranca.qrCodeImagemUrl) return cobranca.qrCodeImagemUrl;
-  if (cobranca.qrCodeBase64) {
-    return `data:image/png;base64,${cobranca.qrCodeBase64}`;
-  }
-
-  return "";
-}
-
+/**
+ * Renderiza o painel de pagamento via Pix com QR Code, copia-e-cola, envio opcional
+ * de comprovante e tratamento de estados de espera, expiração ou cancelamento.
+ *
+ * @param {CheckoutPixBoxProps} props - Estado da cobrança e handlers do fluxo Pix.
+ * @returns {JSX.Element} Painel de pagamento via Pix.
+ */
 export function CheckoutPixBox({
   cobranca,
   gerando = false,
@@ -69,9 +78,13 @@ export function CheckoutPixBox({
 }: CheckoutPixBoxProps) {
   const qrCodeSrc = cobranca ? obterQrCodeSrc(cobranca) : "";
   const [arquivoComprovante, setArquivoComprovante] = useState<File | null>(null);
-  const [resultadoValidacao, setResultadoValidacao] = useState<ResultadoValidacaoArquivo | null>(null);
+  const [resultadoValidacao, setResultadoValidacao] =
+    useState<ResultadoValidacaoArquivo | null>(null);
 
-  const handleArquivoValido = (arquivo: File | null, resultado: ResultadoValidacaoArquivo | null) => {
+  const handleArquivoValido = (
+    arquivo: File | null,
+    resultado: ResultadoValidacaoArquivo | null,
+  ) => {
     setArquivoComprovante(arquivo);
     setResultadoValidacao(resultado);
   };
@@ -83,164 +96,80 @@ export function CheckoutPixBox({
   };
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: colors.branco,
-        border: `1px solid ${colors.borda}`,
-      }}
+    <CheckoutPixBoxShell
+      titulo="Pagamento via Pix"
+      cobranca={cobranca}
+      gerando={gerando}
+      ocupado={enviandoComprovante}
+      erro={erro}
+      pollingStatus={pollingStatus}
+      cancelando={cancelando}
+      onCancelarPix={onCancelarPix}
+      onResetPix={onResetPix}
+      onSuccess={onSuccess}
     >
-      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.25 }}>
-        <PixIcon sx={{ color: colors.verdeEscuro }} />
+      <Stack spacing={1.5}>
+        {cobranca && pollingStatus === "aguardando_pagamento" && (
+          <>
+            <CheckoutPixPollingNotice />
+            <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
+            <CheckoutPixCopiaECola codigo={cobranca.copiaECola} />
+            <CheckoutPixActions
+              cobranca={cobranca}
+              cancelando={cancelando}
+              onCopiarPix={onCopiarPix}
+              onCancelarPix={onCancelarPix}
+              onExpirarPix={onExpirarPix}
+            />
 
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            sx={{
-              fontWeight: 900,
-              color: colors.pretoEsverdeado,
-              fontSize: "0.98rem",
-              lineHeight: 1.2,
-            }}
-          >
-            Pagamento via Pix
-          </Typography>
-        </Box>
+            <CheckoutComprovanteUpload
+              arquivoSelecionado={arquivoComprovante}
+              onArquivoValido={handleArquivoValido}
+              disabled={enviandoComprovante || cancelando}
+            />
 
-        {!gerando && cobranca && pollingStatus !== "sucesso" && onCancelarPix && (
-          <IconButton
-            onClick={onCancelarPix}
-            disabled={cancelando || enviandoComprovante}
-            size="small"
-            sx={{ color: colors.erroForte }}
-            aria-label="Cancelar pagamento"
-            title="Cancelar cobrança Pix e liberar rifas"
-          >
-            {cancelando ? <CircularProgress size={18} color="inherit" /> : <CloseIcon />}
-          </IconButton>
+            {onConfirmarEnvio && (
+              <Button
+                onClick={handleSubmeterEnvio}
+                variant="contained"
+                fullWidth
+                disabled={enviandoComprovante || cancelando}
+                startIcon={
+                  enviandoComprovante ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <CheckCircleIcon />
+                  )
+                }
+                sx={{
+                  mt: 1,
+                  py: 1.35,
+                  borderRadius: 2,
+                  textTransform: "none",
+                  fontWeight: 900,
+                  fontSize: "0.95rem",
+                  bgcolor: colors.verdeForteEscuro,
+                  color: colors.branco,
+                  "&:hover": { bgcolor: colors.verdeEscuro },
+                }}
+              >
+                {enviandoComprovante
+                  ? "Enviando comprovante..."
+                  : arquivoComprovante
+                    ? "Confirmar com Comprovante"
+                    : "Já realizei o pagamento (Confirmar)"}
+              </Button>
+            )}
+          </>
+        )}
+
+        {(pollingStatus === "cancelado" || pollingStatus === "expirado") && (
+          <CheckoutPixTerminalNotice
+            status={pollingStatus}
+            onResetPix={onResetPix}
+          />
         )}
       </Stack>
-
-      {gerando && <CheckoutPixLoading />}
-
-      {!gerando && erro && (
-        <Box sx={{ mb: 1.5 }}>
-          <CheckoutPixError erro={erro} />
-        </Box>
-      )}
-
-      {!gerando && !erro && !cobranca && <CheckoutPixEmpty />}
-
-      {!gerando && cobranca && pollingStatus === "sucesso" && (
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <CheckoutPixConfirmed />
-          {onSuccess && (
-            <Button
-              onClick={onSuccess}
-              variant="contained"
-              fullWidth
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 900,
-                bgcolor: colors.verdeForteEscuro,
-                color: colors.branco,
-                py: 1.25,
-                "&:hover": { bgcolor: colors.verdeEscuro },
-              }}
-            >
-              Concluir Venda
-            </Button>
-          )}
-        </Stack>
-      )}
-
-      {!gerando && cobranca && pollingStatus !== "sucesso" && (
-        <Stack spacing={1.5}>
-          {pollingStatus === "aguardando_pagamento" && (
-            <>
-              <CheckoutPixPollingNotice />
-              <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
-              <CheckoutPixCopiaECola codigo={cobranca.copiaECola} />
-              <CheckoutPixActions
-                cobranca={cobranca}
-                cancelando={cancelando}
-                onCopiarPix={onCopiarPix}
-                onCancelarPix={onCancelarPix}
-                onExpirarPix={onExpirarPix}
-              />
-
-              <CheckoutComprovanteUpload
-                arquivoSelecionado={arquivoComprovante}
-                onArquivoValido={handleArquivoValido}
-                disabled={enviandoComprovante || cancelando}
-              />
-
-              {onConfirmarEnvio && (
-                <Button
-                  onClick={handleSubmeterEnvio}
-                  variant="contained"
-                  fullWidth
-                  disabled={enviandoComprovante || cancelando}
-                  startIcon={
-                    enviandoComprovante ? (
-                      <CircularProgress size={20} color="inherit" />
-                    ) : (
-                      <CheckCircleIcon />
-                    )
-                  }
-                  sx={{
-                    mt: 1,
-                    py: 1.35,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 900,
-                    fontSize: "0.95rem",
-                    bgcolor: colors.verdeForteEscuro,
-                    color: colors.branco,
-                    "&:hover": { bgcolor: colors.verdeEscuro },
-                  }}
-                >
-                  {enviandoComprovante
-                    ? "Enviando comprovante..."
-                    : arquivoComprovante
-                      ? "Confirmar com Comprovante"
-                      : "Já realizei o pagamento (Confirmar)"}
-                </Button>
-              )}
-            </>
-          )}
-
-          {(pollingStatus === "cancelado" || pollingStatus === "expirado") && (
-            <Stack spacing={1.5} alignItems="center" sx={{ mt: 1 }}>
-              {pollingStatus === "expirado" ? (
-                <CheckoutPixExpiredNotice />
-              ) : (
-                <CheckoutPixCanceledNotice />
-              )}
-
-              {onResetPix && (
-                <Button
-                  onClick={onResetPix}
-                  variant="contained"
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 900,
-                    bgcolor: colors.verdeEscuro,
-                    color: colors.branco,
-                    px: 3,
-                    py: 1.25,
-                    "&:hover": { bgcolor: colors.verdeEscuroHover },
-                  }}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-            </Stack>
-          )}
-        </Stack>
-      )}
-    </Box>
+    </CheckoutPixBoxShell>
   );
 }

@@ -51,8 +51,8 @@ const documentosMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/features/premios/hooks/usePremiosLayout", () => ({
-  usePremiosLayout: () => ({ isMobile: false, isDesktop: true }),
+vi.mock("@/shared/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => ({ isMobile: false, isDesktop: true }),
 }));
 
 vi.mock("@/features/secretaria/documentos/services/documentosSecretariaService", () => ({

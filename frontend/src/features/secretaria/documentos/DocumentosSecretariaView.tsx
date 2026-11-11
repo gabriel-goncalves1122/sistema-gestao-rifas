@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 
-import { usePremiosLayout } from "../../premios/hooks/usePremiosLayout";
+import { useResponsiveLayout } from "@/shared/hooks/useResponsiveLayout";
 import { DocumentosSecretariaDesktopView } from "./components/desktop/DocumentosSecretariaDesktopView";
 import { DocumentosSecretariaMobileView } from "./components/mobile/DocumentosSecretariaMobileView";
 import { AdicionarDocumentoMenu } from "./components/shared/AdicionarDocumentoMenu";
@@ -9,7 +9,7 @@ import { ModalDocumentoSecretaria } from "./components/shared/ModalDocumentoSecr
 import { useDocumentosSecretaria } from "./hooks/useDocumentosSecretaria";
 
 export function DocumentosSecretariaView() {
-  const { isMobile } = usePremiosLayout();
+  const { isMobile } = useResponsiveLayout();
   const documentosState = useDocumentosSecretaria();
   const {
     documentos,

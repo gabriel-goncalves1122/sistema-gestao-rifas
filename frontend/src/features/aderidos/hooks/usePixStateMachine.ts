@@ -4,9 +4,12 @@ import { db } from "../../../shared/config/firebase";
 
 import { checkoutPixService } from "../services/checkoutPixService";
 import { storageService } from "@/shared/services/storageService";
+import { copiarTextoParaAreaTransferencia } from "@/shared/utils/arquivosBrowser";
+import { extrairMensagemErro } from "@/shared/utils/errors";
 import { CheckoutPixCobranca } from "../types/checkoutPix";
 import { obterMensagemErroPix } from "../utils/errorsPix";
 import { checkoutStorage } from "../utils/checkoutStorage";
+import { mapearStatusBancoPix } from "../utils/statusPixUtils";
 
 export type PixStatus =
   | "idle"
@@ -114,24 +117,9 @@ export function usePixStateMachine({
 
         if (docSnap.exists()) {
           const dados = docSnap.data();
-          const statusBanco = String(dados.status_pagamento_banco).toLowerCase();
-
-          let novoStatusLocal = "aguardando_pagamento";
-          if (["approved", "authorized", "paid", "in_analysis", "pendente"].includes(statusBanco)) {
-            novoStatusLocal = "pago";
-          } else if (
-            [
-              "rejected",
-              "cancelled",
-              "canceled",
-              "declined",
-              "cancelado",
-              "expired",
-              "expirado",
-            ].includes(statusBanco)
-          ) {
-            novoStatusLocal = "cancelado";
-          }
+          const novoStatusLocal = mapearStatusBancoPix(
+            String(dados.status_pagamento_banco),
+          );
 
           if (novoStatusLocal === "pago") {
             setStatus("sucesso");
@@ -196,7 +184,7 @@ export function usePixStateMachine({
         setCobrancaPix(cobranca);
         setStatus("aguardando_pagamento");
         invalidarDadosPainel?.();
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!isMounted.current) return;
         setErro(obterMensagemErroPix(error));
         setStatus("erro");
@@ -242,9 +230,14 @@ export function usePixStateMachine({
         }
 
         await invalidarDadosPainel?.();
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (isMounted.current) {
-          setErro(error?.message || "Falha ao enviar comprovante. Tente novamente.");
+          setErro(
+            extrairMensagemErro(
+              error,
+              "Falha ao enviar comprovante. Tente novamente.",
+            ),
+          );
         }
       } finally {
         if (isMounted.current) {
@@ -271,13 +264,14 @@ export function usePixStateMachine({
           resetarFluxo(true);
         }
         invalidarDadosPainel?.();
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (!isMounted.current) return;
 
+        const mensagemErro = extrairMensagemErro(error, "");
         const isJaAprovado =
-          error?.message?.includes("PAGAMENTO_JA_APROVADO") ||
-          error?.message?.includes("STATUS_INVALIDO_CANCELAMENTO") ||
-          error?.message?.includes("approved");
+          mensagemErro.includes("PAGAMENTO_JA_APROVADO") ||
+          mensagemErro.includes("STATUS_INVALIDO_CANCELAMENTO") ||
+          mensagemErro.includes("approved");
 
         if (isJaAprovado) {
           setStatus("sucesso");
@@ -329,37 +323,7 @@ export function usePixStateMachine({
    */
   const copiarPix = useCallback((): boolean => {
     if (!cobrancaPix?.copiaECola) return false;
-    const texto = cobrancaPix.copiaECola;
-    let copiouViaClipboardApi = false;
-    if (navigator.clipboard?.writeText) {
-      copiouViaClipboardApi = true;
-      navigator.clipboard.writeText(texto).catch(() => {});
-    }
-    const span = document.createElement("span");
-    span.textContent = texto;
-    span.style.whiteSpace = "pre";
-    span.style.webkitUserSelect = "auto";
-    span.style.userSelect = "all";
-    span.style.position = "absolute";
-    span.style.left = "-9999px";
-    document.body.appendChild(span);
-    const selection = window.getSelection();
-    const range = document.createRange();
-    let copiou = false;
-    if (selection) {
-      selection.removeAllRanges();
-      range.selectNode(span);
-      selection.addRange(range);
-      try {
-        copiou = document.execCommand("copy");
-      } catch (err) {
-        console.warn("Falha no execCommand", err);
-      } finally {
-        selection.removeAllRanges();
-      }
-    }
-    document.body.removeChild(span);
-    return copiou || copiouViaClipboardApi;
+    return copiarTextoParaAreaTransferencia(cobrancaPix.copiaECola);
   }, [cobrancaPix]);
 
   return {

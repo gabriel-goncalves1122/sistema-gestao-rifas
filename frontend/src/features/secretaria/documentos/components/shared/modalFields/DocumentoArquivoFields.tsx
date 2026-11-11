@@ -5,7 +5,7 @@ import { colors } from "@/shared/tokens/colors";
 import { formatarTamanhoArquivo } from "../../../utils/documentosSecretariaUtils";
 import { TIPOS_CADASTRO_DOCUMENTO } from "../../../constants/documentosTipos";
 import type { DocumentoFormData, TipoDocumentoCadastro } from "../../../types/documentosSecretariaTypes";
-import { SectionTitle } from "./SectionTitle";
+import { SectionTitle } from "@/shared/components/SectionTitle";
 
 export function DocumentoArquivoFields({
   form,

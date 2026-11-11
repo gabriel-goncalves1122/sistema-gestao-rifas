@@ -2,9 +2,10 @@
 // ARQUIVO: frontend/src/views/pages/DashboardPage.tsx
 // ============================================================================
 import { startTransition, useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Container, useMediaQuery, useTheme } from "@mui/material";
+import { Alert, Box, Button, Container } from "@mui/material";
 import { useModoManutencao } from "@/shared/hooks/useModoManutencao";
 import { ModalManutencaoAdmin } from "@/shared/components/ModalManutencaoAdmin";
+import { useResponsiveLayout } from "@/shared/hooks/useResponsiveLayout";
 
 import { MinhasRifasTab } from "@/features/aderidos/MinhasRifasTab";
 import { useAuthController } from "@/features/auth/hooks/useAuthController";
@@ -17,26 +18,13 @@ import { AppLoadingScreen } from "@/shared/components/AppLoadingScreen";
 import { DashboardSidebar } from "@/shared/components/DashboardSidebar";
 import { DashboardHeader } from "@/views/components/dashboard/DashboardHeader";
 import { checkoutStorage } from "@/features/aderidos/utils/checkoutStorage";
-import { useQueryClient } from "@tanstack/react-query";
-import { pixTransacoesService } from "@/features/tesouraria/services/pixTransacoesService";
-import { auditoriaComprasService } from "@/features/tesouraria/services/auditoriaComprasService";
-import { relatorioTesourariaService } from "@/features/tesouraria/services/relatorioTesourariaService";
-import { secretariaService } from "@/features/secretaria/membros/services/secretariaService";
-import { documentosSecretariaService } from "@/features/secretaria/documentos/services/documentosSecretariaService";
-import { aderidoRifaService } from "@/features/aderidos/services/aderidoRifaService";
-import {
-  filtrarApenasRifasValidas,
-  filtrarApenasNotificacoesValidas,
-} from "@/features/aderidos/utils/validadores";
-import { fetchAPI } from "@/shared/services/api";
+import { useDashboardPrefetch } from "@/views/hooks/useDashboardPrefetch";
 
 export type Contexto = "aderido" | "tesouraria" | "secretaria";
 
 export function DashboardPage() {
   const { usuarioAtual, handleLogout, loading } = useAuthController();
-
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { isMobile } = useResponsiveLayout("sm");
 
   const cargo = usuarioAtual?.cargo;
 
@@ -90,111 +78,12 @@ export function DashboardPage() {
     sessionStorage.setItem("dashboard_aba", abaAtual.toString());
   }, [contextoAtual, abaAtual]);
 
-  const queryClient = useQueryClient();
-
-  // Prefetching inteligente ao navegar entre os contextos do painel
-  useEffect(() => {
-    if (contextoAtual === "aderido" && usuarioAtual?.uid) {
-      const uid = usuarioAtual.uid;
-      queryClient.prefetchQuery({
-        queryKey: ["aderidos", "minhas-rifas", uid],
-        staleTime: 180_000,
-        queryFn: async () => {
-          try {
-            const dados = await aderidoRifaService.buscarMinhasRifas();
-            const validadas = filtrarApenasRifasValidas(dados);
-            localStorage.setItem(
-              `rifas_cache_${uid}`,
-              JSON.stringify(validadas),
-            );
-            return validadas;
-          } catch {
-            return [];
-          }
-        },
-      });
-
-      queryClient.prefetchQuery({
-        queryKey: ["aderidos", "notificacoes", uid],
-        staleTime: 180_000,
-        queryFn: async () => {
-          try {
-            const result = await fetchAPI("/notificacoes");
-            const validadas = filtrarApenasNotificacoesValidas(
-              result?.notificacoes || [],
-            );
-            localStorage.setItem(
-              `notificacoes_cache_${uid}`,
-              JSON.stringify(validadas),
-            );
-            return validadas;
-          } catch {
-            return [];
-          }
-        },
-      });
-    }
-
-    if (contextoAtual === "tesouraria" && hasTesourariaAccess) {
-      queryClient.prefetchQuery({
-        queryKey: ["tesouraria", "pix"],
-        staleTime: 180_000,
-        queryFn: async () => {
-          const [resultadoTransacoes, resultadoResumo] =
-            await Promise.allSettled([
-              pixTransacoesService.buscarTransacoes(),
-              pixTransacoesService.buscarResumo(),
-            ]);
-          return {
-            transacoes:
-              resultadoTransacoes.status === "fulfilled"
-                ? resultadoTransacoes.value
-                : [],
-            resumo:
-              resultadoResumo.status === "fulfilled"
-                ? resultadoResumo.value
-                : null,
-          };
-        },
-      });
-
-      queryClient.prefetchQuery({
-        queryKey: ["tesouraria", "relatorio"],
-        staleTime: 180_000,
-        queryFn: async () => {
-          return await relatorioTesourariaService.obterRelatorioTesouraria();
-        },
-      });
-
-      queryClient.prefetchQuery({
-        queryKey: ["tesouraria", "auditoria-historico"],
-        staleTime: 180_000,
-        queryFn: async () => {
-          return await auditoriaComprasService.buscarHistoricoDetalhado();
-        },
-      });
-    }
-
-    if (contextoAtual === "secretaria" && hasSecretariaAccess) {
-      queryClient.prefetchQuery({
-        queryKey: ["secretaria", "membros"],
-        staleTime: 180_000,
-        queryFn: () => secretariaService.buscarAderidos(),
-      });
-
-      queryClient.prefetchQuery({
-        queryKey: ["secretaria", "documentos"],
-        staleTime: 180_000,
-        queryFn: () => documentosSecretariaService.listarDocumentos(),
-      });
-    }
-  }, [
+  useDashboardPrefetch({
     contextoAtual,
+    usuarioUid: usuarioAtual?.uid,
     hasTesourariaAccess,
     hasSecretariaAccess,
-    queryClient,
-    usuarioAtual?.uid,
-  ]);
+  });
 
   const limiteAbasPorContexto: Record<Contexto, number> = {
     aderido: 1,

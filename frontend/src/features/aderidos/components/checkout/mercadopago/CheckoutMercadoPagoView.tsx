@@ -3,7 +3,6 @@
 // ============================================================================
 import { Box, Stack } from "@mui/material";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -15,7 +14,10 @@ import { CheckoutMercadoPagoPixBox } from "./CheckoutMercadoPagoPixBox";
 import { CheckoutSubmitButton } from "../CheckoutSubmitButton";
 import { CheckoutPixCobranca } from "../../../types/checkoutPix";
 import { PixStatus } from "../../../hooks/usePixStateMachine";
-import { checkoutStorage } from "../../../utils/checkoutStorage";
+import {
+  obterDadosFormularioCheckoutInicial,
+  useCheckoutPixViewController,
+} from "../../../hooks/useCheckoutPixViewController";
 
 /**
  * Propriedades para renderização da View de Checkout Mercado Pago.
@@ -65,12 +67,7 @@ export function CheckoutMercadoPagoView({
   onSuccess,
   setSnackbarOpen,
 }: CheckoutMercadoPagoViewProps) {
-  const formRestaurado = checkoutStorage.get().formData || {
-    nome: "",
-    telefone: "",
-    email: "",
-    documento: "",
-  };
+  const formRestaurado = obterDadosFormularioCheckoutInicial();
 
   const {
     register,
@@ -82,40 +79,19 @@ export function CheckoutMercadoPagoView({
     resolver: yupResolver(checkoutMercadoPagoSchema) as any,
     mode: "onChange",
     shouldUnregister: false,
-    defaultValues: {
-      nome: formRestaurado.nome || "",
-      telefone: formRestaurado.telefone || "",
-      email: formRestaurado.email || "",
-      documento: formRestaurado.documento || "",
-    },
+    defaultValues: formRestaurado,
   });
 
-  useEffect(() => {
-    const subscription = watch((value) => {
-      checkoutStorage.update({
-        formData: {
-          nome: value.nome || "",
-          telefone: value.telefone || "",
-          email: value.email || "",
-          documento: value.documento || "",
-        },
-      });
+  const { handleCopiarPix, handleCancelarPixExplicito } =
+    useCheckoutPixViewController({
+      watch,
+      incluirDocumento: true,
+      mensagemConfirmacaoCancelamento:
+        "Se você já enviou o código Pix do Mercado Pago ao comprador, cancelar agora invalidará o pagamento. Deseja realmente cancelar?",
+      copiarPix,
+      cancelarPix,
+      setSnackbarOpen,
     });
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
-  const handleCopiarPix = () => {
-    const copiado = copiarPix();
-    if (copiado) setSnackbarOpen(true);
-  };
-
-  const handleCancelarPixExplicito = () => {
-    const confirmar = window.confirm(
-      "Se você já enviou o código Pix do Mercado Pago ao comprador, cancelar agora invalidará o pagamento. Deseja realmente cancelar?",
-    );
-    if (!confirmar) return;
-    cancelarPix(false);
-  };
 
   const onSubmit = (dados: CheckoutMercadoPagoFormData) => {
     gerarCobranca(dados);

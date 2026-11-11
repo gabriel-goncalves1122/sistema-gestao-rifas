@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
+  Checkbox,
   IconButton,
   Paper,
   Stack,
@@ -16,27 +17,48 @@ import {
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
 import { surfaces } from "@/shared/tokens/surfaces";
+
 import { PixTransacao } from "../../../../types/pixTransacoes";
 import {
   formatarDataPix,
   formatarMoedaPix,
+  podeValidarPixTransacao,
 } from "../../../../utils/pixTransacoesUtils";
-import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
+import { PixOrigemChip } from "../shared/PixOrigemChip";
 import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
+import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
 
-interface PixTransacoesTableProps {
+/**
+ * Propriedades da tabela desktop de transações Pix.
+ */
+export interface PixTransacoesTableProps {
+  /** Lista de transações filtradas a exibir. */
   transacoes: PixTransacao[];
-  onAceitar: (id: string) => Promise<void>;
-  onNegar: (id: string, motivo: string) => Promise<void>;
+  /** Callback de aprovação individual. */
+  onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
+  /** Callback de recusa individual com justificativa. */
+  onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
+  /** Conjunto de IDs selecionados para ações em lote. */
+  selecionadosIds?: Set<string>;
+  /** Callback para alternar seleção de uma transação específica. */
+  onToggleSelecao?: (id: string) => void;
+  /** Callback para alternar seleção de todas as transações elegíveis da página. */
+  onToggleTodas?: (ids: string[]) => void;
 }
 
 /**
- * Tabela desktop de transações Pix com paginação nativa para evitar gargalos de DOM.
+ * Tabela desktop de transações Pix com paginação nativa, seleção múltipla e chip de origem.
+ *
+ * @param {PixTransacoesTableProps} props - Propriedades da tabela.
+ * @returns {JSX.Element} Tabela renderizada com modal Split-View de detalhes.
  */
 export function PixTransacoesTable({
   transacoes,
   onAceitar,
   onNegar,
+  selecionadosIds,
+  onToggleSelecao,
+  onToggleTodas,
 }: PixTransacoesTableProps) {
   const [transacaoDetalhada, setTransacaoDetalhada] =
     useState<PixTransacao | null>(null);
@@ -52,9 +74,27 @@ export function PixTransacoesTable({
     pagina * itensPorPagina + itensPorPagina,
   );
 
+  const idsElegiveisPagina = transacoesPaginadas
+    .filter(podeValidarPixTransacao)
+    .map((t) => t.id);
+
+  const qtdSelecionadasPagina = idsElegiveisPagina.filter((id) =>
+    selecionadosIds?.has(id),
+  ).length;
+
+  const todasSelecionadasPagina =
+    idsElegiveisPagina.length > 0 &&
+    qtdSelecionadasPagina === idsElegiveisPagina.length;
+
+  const selecaoParcialPagina =
+    qtdSelecionadasPagina > 0 &&
+    qtdSelecionadasPagina < idsElegiveisPagina.length;
+
+  const exibirCheckboxes = Boolean(onToggleSelecao);
+
   return (
     <>
-      <Paper elevation={0} sx={{ ...surfaces.paper, overflow: "hidden" }}>
+      <Paper elevation={0} sx={{ ...surfaces.card, overflow: "hidden" }}>
         <Table>
           <TableHead>
             <TableRow
@@ -66,6 +106,24 @@ export function PixTransacoesTable({
                 },
               }}
             >
+              {exibirCheckboxes && (
+                <TableCell padding="checkbox" sx={{ width: 48 }}>
+                  <Checkbox
+                    size="small"
+                    checked={todasSelecionadasPagina}
+                    indeterminate={selecaoParcialPagina}
+                    disabled={idsElegiveisPagina.length === 0 || !onToggleTodas}
+                    onChange={() => onToggleTodas?.(idsElegiveisPagina)}
+                    inputProps={{ "aria-label": "Selecionar todas" }}
+                    sx={{
+                      color: colors.verdeEscuro,
+                      "&.Mui-checked, &.MuiCheckbox-indeterminate": {
+                        color: colors.verdeEscuro,
+                      },
+                    }}
+                  />
+                </TableCell>
+              )}
               <TableCell sx={{ width: 54 }} />
               <TableCell>Data</TableCell>
               <TableCell>Pagador</TableCell>
@@ -82,11 +140,14 @@ export function PixTransacoesTable({
                 transacao.statusPagamento === "PAID"
                   ? transacao.valorPago
                   : transacao.valorBruto;
+              const elegivel = podeValidarPixTransacao(transacao);
+              const selecionada = Boolean(selecionadosIds?.has(transacao.id));
 
               return (
                 <TableRow
                   key={transacao.id}
                   hover
+                  selected={selecionada}
                   tabIndex={0}
                   data-testid={`pix-transacao-${transacao.id}`}
                   onClick={() => setTransacaoDetalhada(transacao)}
@@ -109,6 +170,29 @@ export function PixTransacoesTable({
                     },
                   }}
                 >
+                  {exibirCheckboxes && (
+                    <TableCell
+                      padding="checkbox"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Checkbox
+                        size="small"
+                        checked={selecionada}
+                        disabled={!elegivel}
+                        onChange={() => onToggleSelecao?.(transacao.id)}
+                        inputProps={{
+                          "aria-label": `Selecionar transação ${transacao.compradorNome || transacao.id}`,
+                        }}
+                        sx={{
+                          color: colors.verdeEscuro,
+                          "&.Mui-checked": {
+                            color: colors.verdeEscuro,
+                          },
+                        }}
+                      />
+                    </TableCell>
+                  )}
+
                   <TableCell>
                     <IconButton
                       aria-label={`Abrir detalhes da transação Pix ${transacao.compradorNome || transacao.id}`}
@@ -157,7 +241,7 @@ export function PixTransacoesTable({
                   </TableCell>
 
                   <TableCell align="right">
-                    <Stack alignItems="flex-end" spacing={0.75}>
+                    <Stack alignItems="flex-end" spacing={0.5}>
                       <Typography
                         sx={{
                           color:
@@ -169,6 +253,7 @@ export function PixTransacoesTable({
                       >
                         {formatarMoedaPix(valor)}
                       </Typography>
+                      <PixOrigemChip origem={transacao.origem} />
                     </Stack>
                   </TableCell>
                   <TableCell

@@ -1,116 +1,20 @@
-import { Box } from "@mui/material";
-
-import { EstatisticasAderido } from "../../EstatisticasAderido";
-import { AbaRecusadas } from "../../AbaRecusadas";
-import { CarrinhoFlutuante } from "../../CarrinhoFlutuante";
-import { AderidosSwipeTransition } from "../shared/AderidosSwipeTransition";
-import { PainelRifasPrincipal } from "../shared/PainelRifasPrincipal";
-import { painelAderidoStyles } from "../../styles/painelAderidoStyles";
-import type { GrupoRifasRecusadas, FiltroRifasAderido, RifaAderido, VisaoPainelAderido } from "../../types/painelAderido";
-import type { ContadoresRifas } from "../../utils/filtrosRifas";
+import {
+  MinhasRifasViewContent,
+  type MinhasRifasViewProps,
+} from "../shared/MinhasRifasViewContent";
 
 /**
  * Propriedades para renderização da visão Mobile do painel de rifas do aderido.
  */
-export interface MinhasRifasMobileViewProps {
-  visaoAtual: VisaoPainelAderido;
-  primeiroNome: string;
-  valorArrecadado: number;
-  contadoresRifas: ContadoresRifas;
-  notificacoesNaoLidas: number;
-  totalPendencias: number;
-  onAbrirNotificacoes: () => void;
-  onAbrirRecusadas: () => void;
-  onExportarRelatorio?: () => void;
-  exportandoRelatorio?: boolean;
-  filtro: FiltroRifasAderido;
-  onChangeFiltro: (filtro: FiltroRifasAderido) => void;
-  rifasFiltradas: RifaAderido[];
-  selecionadas: string[];
-  onToggleSelecao: (numero: string, status: string) => void;
-  onAbrirDetalhes: (rifa: RifaAderido) => void;
-  gruposRecusados: GrupoRifasRecusadas[];
-  onVoltar: () => void;
-  onAbrirCorrecao: (grupo: GrupoRifasRecusadas) => void;
-  onDesistirVenda?: (numerosRifas: string[]) => Promise<boolean | void> | void;
-  possuiSelecao: boolean;
-  valorTotalSelecionado: number;
-  onVenderClick: () => void;
-  onLimparSelecao?: () => void;
-}
+export type MinhasRifasMobileViewProps = MinhasRifasViewProps;
 
-export function MinhasRifasMobileView({
-  visaoAtual,
-  primeiroNome,
-  valorArrecadado,
-  contadoresRifas,
-  notificacoesNaoLidas,
-  totalPendencias,
-  onAbrirNotificacoes,
-  onAbrirRecusadas,
-  onExportarRelatorio,
-  exportandoRelatorio,
-  filtro,
-  onChangeFiltro,
-  rifasFiltradas,
-  selecionadas,
-  onToggleSelecao,
-  onAbrirDetalhes,
-  gruposRecusados,
-  onVoltar,
-  onAbrirCorrecao,
-  onDesistirVenda,
-  possuiSelecao,
-  valorTotalSelecionado,
-  onVenderClick,
-}: MinhasRifasMobileViewProps) {
-  return (
-    <AderidosSwipeTransition visaoAtual={visaoAtual}>
-      {visaoAtual === "recusadas" ? (
-        <Box sx={painelAderidoStyles.root}>
-          <AbaRecusadas
-            gruposRecusados={gruposRecusados}
-            onVoltar={onVoltar}
-            onAbrirCorrecao={onAbrirCorrecao}
-            onDesistirVenda={onDesistirVenda}
-          />
-        </Box>
-      ) : (
-        <Box sx={painelAderidoStyles.root}>
-          <EstatisticasAderido
-            primeiroNome={primeiroNome}
-            valorArrecadado={valorArrecadado}
-            totalRifas={contadoresRifas.todas}
-            rifasPagas={contadoresRifas.pago}
-            notificacoesNaoLidas={notificacoesNaoLidas}
-            totalPendencias={totalPendencias}
-            onAbrirNotificacoes={onAbrirNotificacoes}
-            onAbrirRecusadas={onAbrirRecusadas}
-            onExportarRelatorio={onExportarRelatorio}
-            exportandoRelatorio={exportandoRelatorio}
-          />
-
-          <PainelRifasPrincipal
-            filtro={filtro}
-            onChangeFiltro={onChangeFiltro}
-            rifasFiltradas={rifasFiltradas}
-            contadoresRifas={contadoresRifas}
-            selecionadas={selecionadas}
-            onToggleSelecao={onToggleSelecao}
-            onAbrirDetalhes={onAbrirDetalhes}
-          />
-
-          {possuiSelecao && (
-            <CarrinhoFlutuante
-              quantidade={selecionadas.length}
-              valorTotal={valorTotalSelecionado}
-              onPagarClick={onVenderClick}
-              onVenderClick={onVenderClick}
-              numerosSelecionados={selecionadas}
-            />
-          )}
-        </Box>
-      )}
-    </AderidosSwipeTransition>
-  );
+/**
+ * Wrapper mobile do painel de rifas do aderido, delegando a renderização
+ * estruturada ao componente compartilhado `MinhasRifasViewContent`.
+ *
+ * @param {MinhasRifasMobileViewProps} props - Estado e callbacks do painel.
+ * @returns {JSX.Element} Visão mobile renderizada.
+ */
+export function MinhasRifasMobileView(props: MinhasRifasMobileViewProps) {
+  return <MinhasRifasViewContent {...props} />;
 }

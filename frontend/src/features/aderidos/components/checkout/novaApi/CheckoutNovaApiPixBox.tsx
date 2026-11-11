@@ -3,29 +3,20 @@
 // ============================================================================
 import { useState } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import PixIcon from "@mui/icons-material/Pix";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Button, CircularProgress, Stack, Typography } from "@mui/material";
 
 import type { CheckoutPixCobranca } from "../../../types/checkoutPix";
 import type { PixStatus } from "../../../hooks/usePixStateMachine";
 import {
-  CheckoutPixConfirmed,
   CheckoutPixCopiaECola,
-  CheckoutPixEmpty,
-  CheckoutPixError,
-  CheckoutPixLoading,
   CheckoutQrCodeDisplay,
-} from "../CheckoutPixBoxStates";
+} from "../states/CheckoutPixPaymentControls";
+import {
+  CheckoutPixBoxShell,
+  obterQrCodeSrc,
+} from "../CheckoutPixBoxShell";
 import { CheckoutComprovanteUpload } from "../CheckoutComprovanteUpload";
 import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 import { colors } from "@/shared/tokens/colors";
@@ -59,20 +50,6 @@ interface CheckoutNovaApiPixBoxProps {
     arquivo: File | null,
     resultado: ResultadoValidacaoArquivo | null,
   ) => void;
-}
-
-/**
- * Extrai a fonte da imagem do QR Code a partir da cobrança.
- *
- * @param {CheckoutPixCobranca} cobranca - Objeto da cobrança.
- * @returns {string} URI da imagem Base64 ou URL HTTP.
- */
-function obterQrCodeSrc(cobranca: CheckoutPixCobranca): string {
-  if (cobranca.qrCodeImagemUrl) return cobranca.qrCodeImagemUrl;
-  if (cobranca.qrCodeBase64) {
-    return `data:image/png;base64,${cobranca.qrCodeBase64}`;
-  }
-  return "";
 }
 
 /**
@@ -115,195 +92,112 @@ export function CheckoutNovaApiPixBox({
   };
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: colors.branco,
-        border: `1px solid ${colors.borda}`,
-      }}
+    <CheckoutPixBoxShell
+      titulo="Chave Pix da Comissão (InfinitePay)"
+      cobranca={cobranca}
+      gerando={gerando}
+      ocupado={enviandoComprovante}
+      erro={erro}
+      pollingStatus={pollingStatus}
+      cancelando={cancelando}
+      permitirResetNoErro
+      onCancelarPix={onCancelarPix}
+      onResetPix={onResetPix}
+      onSuccess={onSuccess}
     >
-      {/* Header do Box */}
-      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.25 }}>
-        <PixIcon sx={{ color: colors.verdeEscuro }} />
-
-        <Box sx={{ minWidth: 0, flex: 1 }}>
+      <Stack spacing={1.75}>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="flex-start"
+          sx={{
+            p: 1.25,
+            borderRadius: 2,
+            bgcolor: colors.fundoSuave,
+            border: `1px solid ${colors.bordaDestaque}`,
+          }}
+        >
+          <InfoOutlinedIcon
+            fontSize="small"
+            sx={{ color: colors.verdeEscuro, mt: 0.2 }}
+          />
           <Typography
             sx={{
-              fontWeight: 900,
-              color: colors.pretoEsverdeado,
-              fontSize: "0.98rem",
-              lineHeight: 1.2,
+              fontSize: "0.82rem",
+              color: colors.cinzaTexto,
+              lineHeight: 1.4,
             }}
           >
-            Chave Pix da Comissão (InfinitePay)
+            Transfira pelo app do seu banco ou envie o Copia-e-Cola ao comprador.
+            Após o pagamento, anexe o comprovante abaixo para validação da comissão.
           </Typography>
-        </Box>
-
-        {!gerando && cobranca && pollingStatus !== "sucesso" && onCancelarPix && (
-          <IconButton
-            onClick={onCancelarPix}
-            disabled={cancelando || enviandoComprovante}
-            size="small"
-            sx={{ color: colors.erroForte }}
-            aria-label="Cancelar pagamento"
-            title="Cancelar cobrança Pix e liberar rifas"
-          >
-            {cancelando ? <CircularProgress size={18} color="inherit" /> : <CloseIcon />}
-          </IconButton>
-        )}
-      </Stack>
-
-      {/* Estado: Carregando geração */}
-      {gerando && <CheckoutPixLoading />}
-
-      {/* Estado: Erro */}
-      {!gerando && erro && (
-        <Box sx={{ mb: 1.5 }}>
-          <CheckoutPixError erro={erro} />
-          {onResetPix && (
-            <Button
-              onClick={onResetPix}
-              variant="outlined"
-              size="small"
-              sx={{ mt: 1, textTransform: "none", borderRadius: 2 }}
-            >
-              Tentar novamente
-            </Button>
-          )}
-        </Box>
-      )}
-
-      {/* Estado: Vazio */}
-      {!gerando && !erro && !cobranca && <CheckoutPixEmpty />}
-
-      {/* Estado: Sucesso */}
-      {!gerando && cobranca && pollingStatus === "sucesso" && (
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <CheckoutPixConfirmed />
-          {onSuccess && (
-            <Button
-              onClick={onSuccess}
-              variant="contained"
-              fullWidth
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 900,
-                bgcolor: colors.verdeForteEscuro,
-                color: colors.branco,
-                py: 1.25,
-                "&:hover": { bgcolor: colors.verdeEscuro },
-              }}
-            >
-              Concluir Venda
-            </Button>
-          )}
         </Stack>
-      )}
 
-      {/* Estado: Cobrança Ativa */}
-      {!gerando && cobranca && pollingStatus !== "sucesso" && (
-        <Stack spacing={1.75}>
-          {/* Instrução limpa e objetiva */}
-          <Stack
-            direction="row"
-            spacing={1}
-            alignItems="flex-start"
-            sx={{
-              p: 1.25,
-              borderRadius: 2,
-              bgcolor: colors.fundoSuave,
-              border: `1px solid ${colors.bordaDestaque}`,
-            }}
-          >
-            <InfoOutlinedIcon
-              fontSize="small"
-              sx={{ color: colors.verdeEscuro, mt: 0.2 }}
-            />
-            <Typography
-              sx={{
-                fontSize: "0.82rem",
-                color: colors.cinzaTexto,
-                lineHeight: 1.4,
-              }}
-            >
-              Transfira pelo app do seu banco ou envie o Copia-e-Cola ao comprador.
-              Após o pagamento, anexe o comprovante abaixo para validação da comissão.
-            </Typography>
-          </Stack>
+        <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
 
-          {/* QR Code */}
-          <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
+        <CheckoutPixCopiaECola codigo={cobranca?.copiaECola} />
 
-          {/* Copia e Cola */}
-          <CheckoutPixCopiaECola codigo={cobranca.copiaECola} />
+        <Button
+          type="button"
+          variant="outlined"
+          fullWidth
+          startIcon={<ContentCopyIcon />}
+          onClick={onCopiarPix}
+          sx={{
+            borderRadius: 2,
+            textTransform: "none",
+            fontWeight: 900,
+            color: colors.verdeEscuro,
+            borderColor: colors.bordaDestaque,
+            py: 1,
+            "&:hover": {
+              borderColor: colors.verdeEscuro,
+              bgcolor: colors.verdeClaro,
+            },
+          }}
+        >
+          Copiar Chave Pix Copia-e-Cola
+        </Button>
 
-          {/* Botão Copiar */}
+        <CheckoutComprovanteUpload
+          arquivoSelecionado={arquivoComprovante}
+          onArquivoValido={handleArquivoValido}
+          disabled={enviandoComprovante || cancelando}
+        />
+
+        {onConfirmarEnvio && (
           <Button
-            type="button"
-            variant="outlined"
+            onClick={handleSubmeterEnvio}
+            variant="contained"
             fullWidth
-            startIcon={<ContentCopyIcon />}
-            onClick={onCopiarPix}
+            disabled={enviandoComprovante || cancelando}
+            startIcon={
+              enviandoComprovante ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <CheckCircleIcon />
+              )
+            }
             sx={{
+              mt: 0.5,
+              py: 1.35,
               borderRadius: 2,
               textTransform: "none",
               fontWeight: 900,
-              color: colors.verdeEscuro,
-              borderColor: colors.bordaDestaque,
-              py: 1,
-              "&:hover": {
-                borderColor: colors.verdeEscuro,
-                bgcolor: colors.verdeClaro,
-              },
+              fontSize: "0.95rem",
+              bgcolor: colors.verdeForteEscuro,
+              color: colors.branco,
+              "&:hover": { bgcolor: colors.verdeEscuro },
             }}
           >
-            Copiar Chave Pix Copia-e-Cola
+            {enviandoComprovante
+              ? "Enviando comprovante..."
+              : arquivoComprovante
+                ? "Enviar Comprovante para Análise"
+                : "Confirmar Pagamento Realizado"}
           </Button>
-
-          {/* Upload de Comprovante */}
-          <CheckoutComprovanteUpload
-            arquivoSelecionado={arquivoComprovante}
-            onArquivoValido={handleArquivoValido}
-            disabled={enviandoComprovante || cancelando}
-          />
-
-          {/* Botão de Envio para Análise */}
-          {onConfirmarEnvio && (
-            <Button
-              onClick={handleSubmeterEnvio}
-              variant="contained"
-              fullWidth
-              disabled={enviandoComprovante || cancelando}
-              startIcon={
-                enviandoComprovante ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  <CheckCircleIcon />
-                )
-              }
-              sx={{
-                mt: 0.5,
-                py: 1.35,
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 900,
-                fontSize: "0.95rem",
-                bgcolor: colors.verdeForteEscuro,
-                color: colors.branco,
-                "&:hover": { bgcolor: colors.verdeEscuro },
-              }}
-            >
-              {enviandoComprovante
-                ? "Enviando comprovante..."
-                : arquivoComprovante
-                  ? "Enviar Comprovante para Análise"
-                  : "Confirmar Pagamento Realizado"}
-            </Button>
-          )}
-        </Stack>
-      )}
-    </Box>
+        )}
+      </Stack>
+    </CheckoutPixBoxShell>
   );
 }

@@ -7,9 +7,9 @@ import { colors } from "@/shared/tokens/colors";
 
 import { TesourariaSectionHeader } from "../../shared/TesourariaSectionHeader";
 import {
-  formatarInteiroDesempenho,
-  formatarMoedaDesempenho,
-} from "../../../utils/desempenhoFormatters";
+  formatarInteiro,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 import {
   AderidoRankingDesempenho,
   DesempenhoDados,
@@ -62,13 +62,13 @@ export function DesempenhoMobileView({
         <Box sx={{ gridColumn: "1 / -1" }}>
           <DesempenhoKpiCard
             titulo="Receita validada (Líquida)"
-            valor={formatarMoedaDesempenho(
+            valor={formatarMoeda(
               dados.resumoGeral.totalArrecadadoLiquido ??
                 dados.resumoGeral.totalArrecadado,
             )}
-            detalhe={`Bruto: ${formatarMoedaDesempenho(
+            detalhe={`Bruto: ${formatarMoeda(
               dados.resumoGeral.totalArrecadado,
-            )} • Pix: ${formatarMoedaDesempenho(
+            )} • Pix: ${formatarMoeda(
               dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
             )}`}
             icon={<AttachMoneyOutlinedIcon fontSize="small" />}
@@ -79,7 +79,7 @@ export function DesempenhoMobileView({
 
         <DesempenhoKpiCard
           titulo="Rifas vendidas"
-          valor={formatarInteiroDesempenho(dados.resumoGeral.rifasPagas)}
+          valor={formatarInteiro(dados.resumoGeral.rifasPagas)}
           detalhe={`${dados.resumoGeral.rifasPagasPix ?? 0} Pix • ${
             dados.resumoGeral.rifasPagasComprovante ?? 0
           } Comp.`}
@@ -89,7 +89,7 @@ export function DesempenhoMobileView({
 
         <DesempenhoKpiCard
           titulo="Aderidos ativos"
-          valor={formatarInteiroDesempenho(dados.resumoGeral.aderidosAtivos)}
+          valor={formatarInteiro(dados.resumoGeral.aderidosAtivos)}
           detalhe={`${dados.metas.bateramMeta} na meta`}
           icon={<GroupsOutlinedIcon fontSize="small" />}
           cor={colors.dourado}

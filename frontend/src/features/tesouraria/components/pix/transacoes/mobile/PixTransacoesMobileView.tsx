@@ -1,15 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
+import { usePaginacaoProgressiva } from "@/shared/hooks/usePaginacaoProgressiva";
 import { colors } from "@/shared/tokens/colors";
+
+import { usePixTransacoesSelecao } from "../../../../hooks/usePixTransacoesSelecao";
 import {
-  PixTransacoesFiltros as PixTransacoesFiltrosState,
+  ItemLoteValidacaoTransacao,
   PixTransacao,
+  PixTransacoesFiltros as PixTransacoesFiltrosState,
+  ResultadoLoteValidacaoTransacoes,
 } from "../../../../types/pixTransacoes";
-import {
-  pixPagamentoConfirmadoBanco,
-  podeValidarPixTransacao,
-} from "../../../../utils/pixTransacoesUtils";
+import { PixAcoesLoteBar } from "../shared/PixAcoesLoteBar";
 import { PixEmptyState } from "../shared/PixEmptyState";
 import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
 import { PixTransacoesFiltros } from "../shared/PixTransacoesFiltros";
@@ -17,18 +20,41 @@ import { PixTransacaoCard } from "./PixTransacaoCard";
 
 const ITENS_POR_LOTE_MOBILE = 20;
 
-interface PixTransacoesMobileViewProps {
+/**
+ * Propriedades da visão mobile de validação de transações Pix.
+ */
+export interface PixTransacoesMobileViewProps {
+  /** Estado atual dos filtros aplicados. */
   filtros: PixTransacoesFiltrosState;
+  /** Lista de transações filtrada para exibição. */
   transacoes: PixTransacao[];
+  /** Lista completa de transações para cálculo das contagens. */
   todasTransacoes?: PixTransacao[];
+  /** Callback para atualizar os filtros. */
   onChangeFiltros: (filtros: PixTransacoesFiltrosState) => void;
-  onAceitar: (id: string) => Promise<void>;
-  onNegar: (id: string, motivo: string) => Promise<void>;
+  /** Callback para aceitar uma transação. */
+  onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
+  /** Callback para recusar uma transação com justificativa. */
+  onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
+  /** Callback para aprovação em lote. */
+  onAceitarLote?: (
+    itens: ItemLoteValidacaoTransacao[],
+  ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback para recusa em lote com motivo. */
+  onNegarLote?: (
+    itens: ItemLoteValidacaoTransacao[],
+    motivo: string,
+  ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback opcional para abrir conciliação por extrato. */
   onAbrirConciliacao?: () => void;
 }
 
 /**
- * Visão mobile de transações Pix com renderização progressiva em lotes de 20 cartões.
+ * Visão mobile de transações Pix com renderização progressiva em lotes de 20 cartões,
+ * seleção múltipla e barra flutuante de ações em lote.
+ *
+ * @param {PixTransacoesMobileViewProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Visão mobile completa.
  */
 export function PixTransacoesMobileView({
   filtros,
@@ -37,56 +63,33 @@ export function PixTransacoesMobileView({
   onChangeFiltros,
   onAceitar,
   onNegar,
+  onAceitarLote,
+  onNegarLote,
   onAbrirConciliacao,
 }: PixTransacoesMobileViewProps) {
   const [transacaoSelecionada, setTransacaoSelecionada] =
     useState<PixTransacao | null>(null);
-  const [limiteVisivel, setLimiteVisivel] = useState(ITENS_POR_LOTE_MOBILE);
-  const sentinelaRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setLimiteVisivel(ITENS_POR_LOTE_MOBILE);
-  }, [transacoes]);
+  const {
+    selecionadosIds,
+    transacoesSelecionadas,
+    feedbackLote,
+    contagens,
+    handleToggleSelecao,
+    handleLimparSelecao,
+    handleConcluidoLote,
+    fecharFeedbackLote,
+  } = usePixTransacoesSelecao({ transacoes, todasTransacoes });
 
-  useEffect(() => {
-    const elemento = sentinelaRef.current;
-    if (!elemento || typeof IntersectionObserver === "undefined") return;
-    if (limiteVisivel >= transacoes.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setLimiteVisivel((atual) =>
-            Math.min(atual + ITENS_POR_LOTE_MOBILE, transacoes.length),
-          );
-        }
-      },
-      { rootMargin: "240px" },
-    );
-
-    observer.observe(elemento);
-    return () => observer.disconnect();
-  }, [transacoes.length, limiteVisivel]);
-
-  const fonte = todasTransacoes || transacoes;
-
-  const contagens = useMemo(() => {
-    return {
-      novas: fonte.filter(podeValidarPixTransacao).length,
-      aprovadas: fonte.filter((t) => t.statusValidacao === "aceita").length,
-      recusadas: fonte.filter((t) => t.statusValidacao === "negada").length,
-      aguardando_pagamento: fonte.filter(
-        (t) => !pixPagamentoConfirmadoBanco(t),
-      ).length,
-      todas: fonte.length,
-    };
-  }, [fonte]);
-
-  const transacoesVisiveis = transacoes.slice(0, limiteVisivel);
-  const restantes = transacoes.length - transacoesVisiveis.length;
+  const {
+    itensVisiveis: transacoesVisiveis,
+    restantes,
+    sentinelaRef,
+    carregarMais,
+  } = usePaginacaoProgressiva(transacoes, ITENS_POR_LOTE_MOBILE);
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ pb: transacoesSelecionadas.length > 0 ? 12 : 0 }}>
       <PixTransacoesFiltros
         filtros={filtros}
         onChangeFiltros={onChangeFiltros}
@@ -125,6 +128,8 @@ export function PixTransacoesMobileView({
                 transacao={transacao}
                 onAceitar={onAceitar}
                 onNegar={onNegar}
+                selecionada={selecionadosIds.has(transacao.id)}
+                onToggleSelecao={handleToggleSelecao}
               />
             </Box>
           ))}
@@ -134,11 +139,7 @@ export function PixTransacoesMobileView({
               <Button
                 variant="outlined"
                 fullWidth
-                onClick={() =>
-                  setLimiteVisivel((atual) =>
-                    Math.min(atual + ITENS_POR_LOTE_MOBILE, transacoes.length),
-                  )
-                }
+                onClick={carregarMais}
                 sx={{
                   borderRadius: 2,
                   fontWeight: 850,
@@ -160,6 +161,22 @@ export function PixTransacoesMobileView({
         onClose={() => setTransacaoSelecionada(null)}
         onAceitar={onAceitar}
         onNegar={onNegar}
+      />
+
+      <PixAcoesLoteBar
+        transacoesSelecionadas={transacoesSelecionadas}
+        onAceitarLote={onAceitarLote}
+        onNegarLote={onNegarLote}
+        onLimparSelecao={handleLimparSelecao}
+        onConcluido={handleConcluidoLote}
+      />
+
+      <FeedbackSnackbar
+        open={Boolean(feedbackLote)}
+        mensagem={feedbackLote?.mensagem}
+        severidade={feedbackLote?.tipo || "success"}
+        onClose={fecharFeedbackLote}
+        autoHideDuration={5000}
       />
     </Stack>
   );

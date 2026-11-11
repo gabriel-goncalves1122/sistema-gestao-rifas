@@ -1,8 +1,9 @@
 import {
   formatarDataCurta as formatarDataAuditoria,
   formatarMoeda as formatarMoedaAuditoria,
+  normalizarTexto,
   somenteNumeros,
-} from "./formatadores";
+} from "@/shared/utils/formatadores";
 import {
   TransacaoTesouraria,
   AuditoriaComprasFiltros,
@@ -13,7 +14,7 @@ import {
 } from "../types/auditoriaCompras";
 import { colors } from "@/shared/tokens/colors";
 
-export { formatarDataAuditoria, formatarMoedaAuditoria };
+export { formatarDataAuditoria, formatarMoedaAuditoria, normalizarTexto };
 
 export const STATUS_FILTROS_AUDITORIA_COMPRAS: Array<{
   label: string;
@@ -42,20 +43,6 @@ export const FILTROS_AUDITORIA_COMPRAS_VAZIOS: AuditoriaComprasFiltros = {
   dataInicio: "",
   dataFim: "",
 };
-
-/**
- * Normaliza uma string removendo acentuação gráfica (diacríticos) e convertendo para minúsculas.
- *
- * @param {string | null} [valor] - Texto de entrada.
- * @returns {string} Texto sem acentos e em minúsculas.
- */
-export function normalizarTexto(valor?: string | null): string {
-  return String(valor || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
 
 /**
  * Converte uma data em string ISO ou timestamp para o formato aceito por inputs HTML5 (`YYYY-MM-DD`).

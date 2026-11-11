@@ -1,13 +1,11 @@
-import { useMediaQuery, useTheme } from "@mui/material";
+import { useResponsiveLayout } from "@/shared/hooks/useResponsiveLayout";
 
+/**
+ * Hook de detecção responsiva da área de Prêmios.
+ * Delega para `useResponsiveLayout` mantendo compatibilidade com consumidores/testes locais.
+ *
+ * @returns {{ isMobile: boolean; isDesktop: boolean }} Flags booleanas complementares de viewport.
+ */
 export function usePremiosLayout() {
-  const theme = useTheme();
-
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const isDesktop = !isMobile;
-
-  return {
-    isMobile,
-    isDesktop,
-  };
+  return useResponsiveLayout();
 }

@@ -84,9 +84,14 @@ export function usePixTransacoes() {
     });
   }, [transacoes, filtros, debouncedBusca]);
 
+interface CachePixTransacoes {
+  transacoes: PixTransacao[];
+  resumo: PixTransacoesResumo | null;
+}
+
   const atualizarTransacaoLocal = useCallback(
     (transacaoId: string, atualizacao: Partial<PixTransacao>) => {
-      queryClient.setQueryData(["tesouraria", "pix"], (oldData: any) => {
+      queryClient.setQueryData<CachePixTransacoes>(["tesouraria", "pix"], (oldData) => {
         if (!oldData) return oldData;
         const novasTransacoes = oldData.transacoes.map((t: PixTransacao) =>
           t.id === transacaoId ? { ...t, ...atualizacao } : t,

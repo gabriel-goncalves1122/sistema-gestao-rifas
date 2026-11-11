@@ -4,6 +4,7 @@
 import { Box, Tab, Tabs } from "@mui/material";
 
 import { Contexto } from "@/views/pages/DashboardPage";
+import { gerarSlug } from "@/shared/utils/formatadores";
 import { DASHBOARD_HEADER_CONFIG } from "./dashboardHeaderConfig";
 import { dashboardHeaderStyles } from "./dashboardHeaderStyles";
 
@@ -21,13 +22,6 @@ export function DashboardContextTabs({
   onChangeAba,
 }: DashboardContextTabsProps) {
   const config = DASHBOARD_HEADER_CONFIG[contextoAtual];
-  const normalizarLabel = (label: string) =>
-    label
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
 
   return (
     <Box sx={dashboardHeaderStyles.tabsWrapper}>
@@ -44,9 +38,7 @@ export function DashboardContextTabs({
             label={tab.label}
             icon={tab.icon}
             iconPosition="start"
-            data-testid={`dashboard-tab-${contextoAtual}-${normalizarLabel(
-              tab.label,
-            )}`}
+            data-testid={`dashboard-tab-${contextoAtual}-${gerarSlug(tab.label)}`}
             value={index}
           />
         ))}

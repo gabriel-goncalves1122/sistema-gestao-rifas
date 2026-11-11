@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { extrairMensagemErro } from "@/shared/utils/errors";
 import { secretariaService } from "../services/secretariaService";
 import type {
   AderidoSecretaria,
@@ -106,9 +107,9 @@ export function useSecretariaController() {
           ? ` (Rifas #${resposta.faixaRifas.inicio} a #${resposta.faixaRifas.fim})`
           : "";
       mostrarNotificacao(`Aderido autorizado com sucesso!${faixaMsg}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       mostrarNotificacao(
-        error?.message || "Erro ao autorizar aderido",
+        extrairMensagemErro(error, "Erro ao autorizar aderido"),
         "error",
       );
       throw error;
@@ -133,9 +134,9 @@ export function useSecretariaController() {
         }
       }
       mostrarNotificacao("Dados atualizados com sucesso!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       mostrarNotificacao(
-        error?.message || "Erro ao atualizar aderido",
+        extrairMensagemErro(error, "Erro ao atualizar aderido"),
         "error",
       );
       throw error;

@@ -1,32 +1,21 @@
 // ============================================================================
 // ARQUIVO: frontend/src/features/aderidos/components/checkout/mercadopago/CheckoutMercadoPagoPixBox.tsx
 // ============================================================================
-import CloseIcon from "@mui/icons-material/Close";
-import PixIcon from "@mui/icons-material/Pix";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Stack } from "@mui/material";
 
 import type { CheckoutPixCobranca } from "../../../types/checkoutPix";
 import type { PixStatus } from "../../../hooks/usePixStateMachine";
+import { CheckoutPixPollingNotice } from "../states/CheckoutPixFeedbackStates";
 import {
   CheckoutPixActions,
-  CheckoutPixCanceledNotice,
-  CheckoutPixConfirmed,
   CheckoutPixCopiaECola,
-  CheckoutPixEmpty,
-  CheckoutPixError,
-  CheckoutPixExpiredNotice,
-  CheckoutPixLoading,
-  CheckoutPixPollingNotice,
   CheckoutQrCodeDisplay,
-} from "../CheckoutPixBoxStates";
-import { colors } from "@/shared/tokens/colors";
+} from "../states/CheckoutPixPaymentControls";
+import {
+  CheckoutPixBoxShell,
+  CheckoutPixTerminalNotice,
+  obterQrCodeSrc,
+} from "../CheckoutPixBoxShell";
 
 /**
  * Propriedades do componente CheckoutMercadoPagoPixBox.
@@ -55,20 +44,6 @@ interface CheckoutMercadoPagoPixBoxProps {
 }
 
 /**
- * Extrai a fonte da imagem do QR Code a partir da cobrança.
- *
- * @param {CheckoutPixCobranca} cobranca - Objeto da cobrança.
- * @returns {string} URI da imagem Base64 ou URL HTTP.
- */
-function obterQrCodeSrc(cobranca: CheckoutPixCobranca): string {
-  if (cobranca.qrCodeImagemUrl) return cobranca.qrCodeImagemUrl;
-  if (cobranca.qrCodeBase64) {
-    return `data:image/png;base64,${cobranca.qrCodeBase64}`;
-  }
-  return "";
-}
-
-/**
  * Painel Pix para o Gateway Mercado Pago.
  * Implementa confirmação em tempo real via webhook / listener Firestore, com contagem
  * regressiva de expiração e sem necessidade de upload de comprovante.
@@ -90,131 +65,40 @@ export function CheckoutMercadoPagoPixBox({
   const qrCodeSrc = cobranca ? obterQrCodeSrc(cobranca) : "";
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: colors.branco,
-        border: `1px solid ${colors.borda}`,
-      }}
+    <CheckoutPixBoxShell
+      titulo="Pix Dinâmico Automático (Mercado Pago)"
+      cobranca={cobranca}
+      gerando={gerando}
+      erro={erro}
+      pollingStatus={pollingStatus}
+      cancelando={cancelando}
+      onCancelarPix={onCancelarPix}
+      onResetPix={onResetPix}
+      onSuccess={onSuccess}
     >
-      {/* Header do Box */}
-      <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1.25 }}>
-        <PixIcon sx={{ color: colors.verdeEscuro }} />
+      <Stack spacing={1.5}>
+        {cobranca && pollingStatus === "aguardando_pagamento" && (
+          <>
+            <CheckoutPixPollingNotice />
+            <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
+            <CheckoutPixCopiaECola codigo={cobranca.copiaECola} />
+            <CheckoutPixActions
+              cobranca={cobranca}
+              cancelando={cancelando}
+              onCopiarPix={onCopiarPix}
+              onCancelarPix={onCancelarPix}
+              onExpirarPix={onExpirarPix}
+            />
+          </>
+        )}
 
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            sx={{
-              fontWeight: 900,
-              color: colors.pretoEsverdeado,
-              fontSize: "0.98rem",
-              lineHeight: 1.2,
-            }}
-          >
-            Pix Dinâmico Automático (Mercado Pago)
-          </Typography>
-        </Box>
-
-        {!gerando && cobranca && pollingStatus !== "sucesso" && onCancelarPix && (
-          <IconButton
-            onClick={onCancelarPix}
-            disabled={cancelando}
-            size="small"
-            sx={{ color: colors.erroForte }}
-            aria-label="Cancelar pagamento"
-            title="Cancelar cobrança Pix e liberar rifas"
-          >
-            {cancelando ? <CircularProgress size={18} color="inherit" /> : <CloseIcon />}
-          </IconButton>
+        {(pollingStatus === "cancelado" || pollingStatus === "expirado") && (
+          <CheckoutPixTerminalNotice
+            status={pollingStatus}
+            onResetPix={onResetPix}
+          />
         )}
       </Stack>
-
-      {/* Estado: Carregando */}
-      {gerando && <CheckoutPixLoading />}
-
-      {/* Estado: Erro */}
-      {!gerando && erro && (
-        <Box sx={{ mb: 1.5 }}>
-          <CheckoutPixError erro={erro} />
-        </Box>
-      )}
-
-      {/* Estado: Vazio */}
-      {!gerando && !erro && !cobranca && <CheckoutPixEmpty />}
-
-      {/* Estado: Sucesso */}
-      {!gerando && cobranca && pollingStatus === "sucesso" && (
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          <CheckoutPixConfirmed />
-          {onSuccess && (
-            <Button
-              onClick={onSuccess}
-              variant="contained"
-              fullWidth
-              sx={{
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 900,
-                bgcolor: colors.verdeForteEscuro,
-                color: colors.branco,
-                py: 1.25,
-                "&:hover": { bgcolor: colors.verdeEscuro },
-              }}
-            >
-              Concluir Venda
-            </Button>
-          )}
-        </Stack>
-      )}
-
-      {/* Estado: Aguardando Pagamento */}
-      {!gerando && cobranca && pollingStatus !== "sucesso" && (
-        <Stack spacing={1.5}>
-          {pollingStatus === "aguardando_pagamento" && (
-            <>
-              <CheckoutPixPollingNotice />
-              <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
-              <CheckoutPixCopiaECola codigo={cobranca.copiaECola} />
-              <CheckoutPixActions
-                cobranca={cobranca}
-                cancelando={cancelando}
-                onCopiarPix={onCopiarPix}
-                onCancelarPix={onCancelarPix}
-                onExpirarPix={onExpirarPix}
-              />
-            </>
-          )}
-
-          {(pollingStatus === "cancelado" || pollingStatus === "expirado") && (
-            <Stack spacing={1.5} alignItems="center" sx={{ mt: 1 }}>
-              {pollingStatus === "expirado" ? (
-                <CheckoutPixExpiredNotice />
-              ) : (
-                <CheckoutPixCanceledNotice />
-              )}
-
-              {onResetPix && (
-                <Button
-                  onClick={onResetPix}
-                  variant="contained"
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 900,
-                    bgcolor: colors.verdeEscuro,
-                    color: colors.branco,
-                    px: 3,
-                    py: 1.25,
-                    "&:hover": { bgcolor: colors.verdeEscuroHover },
-                  }}
-                >
-                  Tentar novamente
-                </Button>
-              )}
-            </Stack>
-          )}
-        </Stack>
-      )}
-    </Box>
+    </CheckoutPixBoxShell>
   );
 }

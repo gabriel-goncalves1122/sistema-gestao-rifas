@@ -13,6 +13,7 @@
 // ============================================================================
 import { useCallback, useMemo, useState } from "react";
 
+import { extrairMensagemErro } from "@/shared/utils/errors";
 import {
   DadosCorrecaoRecusa,
   FiltroRifasAderido,
@@ -198,16 +199,17 @@ export function usePainelAderidoController() {
         mensagem: "Relatório de vendas exportado com sucesso!",
         tipo: "success",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         "[usePainelAderidoController] Erro ao exportar relatório:",
         error,
       );
       setFeedbackRelatorio({
         open: true,
-        mensagem:
-          error?.message ||
+        mensagem: extrairMensagemErro(
+          error,
           "Não foi possível exportar o relatório de vendas. Tente novamente.",
+        ),
         tipo: "error",
       });
     } finally {

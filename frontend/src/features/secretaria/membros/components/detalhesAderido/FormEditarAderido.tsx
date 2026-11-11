@@ -30,6 +30,7 @@ import {
 } from "../../utils/formatadoresSecretaria";
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
+import { SectionTitle } from "@/shared/components/SectionTitle";
 
 interface FormEditarAderidoProps {
   aderido: AderidoSecretaria;
@@ -55,19 +56,6 @@ function obterLabelStatus(status?: string) {
   if (status === "inativo") return "Inativo";
 
   return "Pendente";
-}
-
-function SectionTitle({ children }: { children: string }) {
-  return (
-    <Typography
-      variant="subtitle2"
-      color="primary.dark"
-      fontWeight={900}
-      sx={{ letterSpacing: "0.01em" }}
-    >
-      {children}
-    </Typography>
-  );
 }
 
 const chipSx = {

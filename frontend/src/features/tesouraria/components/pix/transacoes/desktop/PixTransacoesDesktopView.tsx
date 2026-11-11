@@ -1,28 +1,54 @@
-import { useMemo } from "react";
 import { Box } from "@mui/material";
 
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
+import { usePixTransacoesSelecao } from "../../../../hooks/usePixTransacoesSelecao";
 import {
-  PixTransacoesFiltros as PixTransacoesFiltrosState,
+  ItemLoteValidacaoTransacao,
   PixTransacao,
+  PixTransacoesFiltros as PixTransacoesFiltrosState,
+  ResultadoLoteValidacaoTransacoes,
 } from "../../../../types/pixTransacoes";
-import {
-  pixPagamentoConfirmadoBanco,
-  podeValidarPixTransacao,
-} from "../../../../utils/pixTransacoesUtils";
+import { PixAcoesLoteBar } from "../shared/PixAcoesLoteBar";
 import { PixEmptyState } from "../shared/PixEmptyState";
 import { PixTransacoesFiltros } from "../shared/PixTransacoesFiltros";
 import { PixTransacoesTable } from "./PixTransacoesTable";
 
-interface PixTransacoesDesktopViewProps {
+/**
+ * Propriedades da visão desktop de validação de transações Pix.
+ */
+export interface PixTransacoesDesktopViewProps {
+  /** Estado atual dos filtros aplicados. */
   filtros: PixTransacoesFiltrosState;
+  /** Lista de transações já filtrada para exibição. */
   transacoes: PixTransacao[];
+  /** Lista completa de transações para cálculo das contagens dos chips. */
   todasTransacoes?: PixTransacao[];
+  /** Callback para atualizar os filtros. */
   onChangeFiltros: (filtros: PixTransacoesFiltrosState) => void;
-  onAceitar: (id: string) => Promise<void>;
-  onNegar: (id: string, motivo: string) => Promise<void>;
+  /** Callback de aprovação individual. */
+  onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
+  /** Callback de recusa individual com motivo. */
+  onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
+  /** Callback de aprovação em lote. */
+  onAceitarLote?: (
+    itens: ItemLoteValidacaoTransacao[],
+  ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback de recusa em lote com motivo. */
+  onNegarLote?: (
+    itens: ItemLoteValidacaoTransacao[],
+    motivo: string,
+  ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback opcional para abrir diálogo de conciliação por extrato. */
   onAbrirConciliacao?: () => void;
 }
 
+/**
+ * Visão desktop da aba Validar Transações da Tesouraria, integrando filtros,
+ * tabela com seleção múltipla e barra flutuante de validação em lote.
+ *
+ * @param {PixTransacoesDesktopViewProps} props - Propriedades da visão desktop.
+ * @returns {JSX.Element} Interface desktop completa.
+ */
 export function PixTransacoesDesktopView({
   filtros,
   transacoes,
@@ -30,24 +56,24 @@ export function PixTransacoesDesktopView({
   onChangeFiltros,
   onAceitar,
   onNegar,
+  onAceitarLote,
+  onNegarLote,
   onAbrirConciliacao,
 }: PixTransacoesDesktopViewProps) {
-  const fonte = todasTransacoes || transacoes;
-
-  const contagens = useMemo(() => {
-    return {
-      novas: fonte.filter(podeValidarPixTransacao).length,
-      aprovadas: fonte.filter((t) => t.statusValidacao === "aceita").length,
-      recusadas: fonte.filter((t) => t.statusValidacao === "negada").length,
-      aguardando_pagamento: fonte.filter(
-        (t) => !pixPagamentoConfirmadoBanco(t),
-      ).length,
-      todas: fonte.length,
-    };
-  }, [fonte]);
+  const {
+    selecionadosIds,
+    transacoesSelecionadas,
+    feedbackLote,
+    contagens,
+    handleToggleSelecao,
+    handleToggleTodas,
+    handleLimparSelecao,
+    handleConcluidoLote,
+    fecharFeedbackLote,
+  } = usePixTransacoesSelecao({ transacoes, todasTransacoes });
 
   return (
-    <Box>
+    <Box sx={{ pb: transacoesSelecionadas.length > 0 ? 10 : 0 }}>
       <PixTransacoesFiltros
         filtros={filtros}
         onChangeFiltros={onChangeFiltros}
@@ -63,8 +89,27 @@ export function PixTransacoesDesktopView({
           transacoes={transacoes}
           onAceitar={onAceitar}
           onNegar={onNegar}
+          selecionadosIds={selecionadosIds}
+          onToggleSelecao={handleToggleSelecao}
+          onToggleTodas={handleToggleTodas}
         />
       )}
+
+      <PixAcoesLoteBar
+        transacoesSelecionadas={transacoesSelecionadas}
+        onAceitarLote={onAceitarLote}
+        onNegarLote={onNegarLote}
+        onLimparSelecao={handleLimparSelecao}
+        onConcluido={handleConcluidoLote}
+      />
+
+      <FeedbackSnackbar
+        open={Boolean(feedbackLote)}
+        mensagem={feedbackLote?.mensagem}
+        severidade={feedbackLote?.tipo || "success"}
+        onClose={fecharFeedbackLote}
+        autoHideDuration={5000}
+      />
     </Box>
   );
 }

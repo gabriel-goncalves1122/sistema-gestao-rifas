@@ -9,23 +9,9 @@ import {
   formatarDataCurta,
   formatarMoeda,
   formatarTelefone,
+  gerarSlug,
 } from "@/shared/utils/formatadores";
 import { RelatorioVendasAderido } from "../types/painelAderido";
-
-/**
- * Cria um slug seguro a partir do nome para uso no nome do arquivo gerado.
- *
- * @param {string} texto - Nome ou texto original.
- * @returns {string} String sanitizada e hifenizada.
- */
-function gerarSlug(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 /**
  * Mapeia o identificador do canal de venda para uma string amigável de exibição.

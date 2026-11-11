@@ -11,9 +11,9 @@ import {
 import { Box } from "@mui/material";
 
 import {
-  formatarMoedaDesempenho,
-  formatarValorEixoDesempenho,
-} from "../../../utils/desempenhoFormatters";
+  formatarMoeda,
+  formatarValorEixo,
+} from "@/shared/utils/formatadores";
 import { ReceitaPorDiaDesempenho } from "../../../types/desempenho";
 import { DesempenhoEmptyState } from "./DesempenhoEmptyState";
 
@@ -69,16 +69,16 @@ export function ReceitaAreaChart({
             minTickGap={compact ? 14 : 22}
           />
           <YAxis
-            tickFormatter={formatarValorEixoDesempenho}
+            tickFormatter={formatarValorEixo}
             tick={{ fill: "#526760", fontSize: compact ? 10 : 12 }}
             axisLine={false}
             tickLine={false}
             width={compact ? 64 : 82}
           />
           <Tooltip
-            formatter={(value: any, name: any) => [
-              formatarMoedaDesempenho(Number(value || 0)),
-              String(name || "Receita"),
+            formatter={(value, name) => [
+              formatarMoeda(Number(value ?? 0)),
+              String(name ?? "Receita"),
             ]}
             labelStyle={{ color: "#021B16", fontWeight: 800 }}
             contentStyle={{

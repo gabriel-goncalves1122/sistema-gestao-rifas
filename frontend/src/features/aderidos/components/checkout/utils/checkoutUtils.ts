@@ -4,32 +4,32 @@
 // Utilitarios de formatacao e calculo usados pelos componentes de checkout.
 // ============================================================================
 import { VALOR_RIFA } from "../../../utils/constants";
-import { formatarTelefone } from "@/shared/utils/formatadores";
+import { formatarCpf } from "@/shared/utils/formatadores";
 
 export { formatarTelefone as aplicarMascaraTelefone } from "@/shared/utils/formatadores";
 
+/**
+ * Calcula o valor total monetário de uma seleção de rifas com base no preço unitário configurado.
+ *
+ * @param {string[]} numerosRifas - Lista de números de rifas selecionados.
+ * @returns {number} Valor total da compra em reais.
+ */
 export function calcularValorTotalRifas(numerosRifas: string[]) {
   return numerosRifas.length * VALOR_RIFA;
 }
 
+/**
+ * Aplica máscara progressiva de CPF (até 11 dígitos) ou CNPJ (12 a 14 dígitos).
+ * Delega a formatação de CPF para `@/shared/utils/formatadores` evitando duplicação.
+ *
+ * @param {string} valor - String bruta contendo dígitos de CPF ou CNPJ.
+ * @returns {string} Documento formatado com pontuação parcial ou completa.
+ */
 export function aplicarMascaraCpfCnpj(valor: string) {
   const apenasNumeros = valor.replace(/\D/g, "").slice(0, 14);
 
   if (apenasNumeros.length <= 11) {
-    if (apenasNumeros.length <= 3) return apenasNumeros;
-    if (apenasNumeros.length <= 6) {
-      return `${apenasNumeros.slice(0, 3)}.${apenasNumeros.slice(3)}`;
-    }
-    if (apenasNumeros.length <= 9) {
-      return `${apenasNumeros.slice(0, 3)}.${apenasNumeros.slice(
-        3,
-        6,
-      )}.${apenasNumeros.slice(6)}`;
-    }
-    return `${apenasNumeros.slice(0, 3)}.${apenasNumeros.slice(
-      3,
-      6,
-    )}.${apenasNumeros.slice(6, 9)}-${apenasNumeros.slice(9, 11)}`;
+    return formatarCpf(apenasNumeros);
   } else {
     // CNPJ: 99.999.999/9999-99
     if (apenasNumeros.length <= 12) {

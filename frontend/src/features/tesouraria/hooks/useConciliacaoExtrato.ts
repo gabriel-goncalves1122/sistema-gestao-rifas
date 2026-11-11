@@ -5,6 +5,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 
+import { extrairMensagemErro } from "@/shared/utils/errors";
 import { conciliacaoExtratoService } from "../services/conciliacaoExtratoService";
 import {
   ItemAprovacaoLotePayload,
@@ -66,8 +67,13 @@ export function useConciliacaoExtrato(onSucessoAprovacao?: () => Promise<void> |
         }
       });
       setSelecionados(preSelecionados);
-    } catch (err: any) {
-      setErro(err?.message || "Falha ao processar o arquivo de extrato bancário.");
+    } catch (err: unknown) {
+      setErro(
+        extrairMensagemErro(
+          err,
+          "Falha ao processar o arquivo de extrato bancário.",
+        ),
+      );
     } finally {
       setAnalisando(false);
     }
@@ -138,8 +144,8 @@ export function useConciliacaoExtrato(onSucessoAprovacao?: () => Promise<void> |
       }
 
       return true;
-    } catch (err: any) {
-      setErro(err?.message || "Erro ao aprovar lote de conciliação.");
+    } catch (err: unknown) {
+      setErro(extrairMensagemErro(err, "Erro ao aprovar lote de conciliação."));
       return false;
     } finally {
       setAprovando(false);

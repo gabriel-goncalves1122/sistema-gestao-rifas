@@ -15,7 +15,7 @@ import {
 import { FormEvent, useEffect, useState } from "react";
 
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
-import { formatarTelefone } from "../../../utils/formatadores";
+import { formatarTelefone } from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";

@@ -53,8 +53,8 @@ const secretariaMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/features/premios/hooks/usePremiosLayout", () => ({
-  usePremiosLayout: vi.fn(() => ({ isMobile: false, isDesktop: true })),
+vi.mock("@/shared/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: vi.fn(() => ({ isMobile: false, isDesktop: true })),
 }));
 
 vi.mock("@/features/secretaria/membros/hooks/useSecretariaController", () => ({

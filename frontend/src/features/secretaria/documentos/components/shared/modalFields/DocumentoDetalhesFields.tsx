@@ -1,7 +1,7 @@
 import { Stack, TextField } from "@mui/material";
 import { components } from "@/shared/tokens/components";
 import type { DocumentoFormData, TipoDocumentoCadastro } from "../../../types/documentosSecretariaTypes";
-import { SectionTitle } from "./SectionTitle";
+import { SectionTitle } from "@/shared/components/SectionTitle";
 
 export function DocumentoDetalhesFields({
   form,

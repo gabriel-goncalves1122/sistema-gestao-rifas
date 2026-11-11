@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
 import { Box, Button, Stack } from "@mui/material";
 
+import { usePaginacaoProgressiva } from "@/shared/hooks/usePaginacaoProgressiva";
 import { colors } from "@/shared/tokens/colors";
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 import { AuditoriaCompraCard } from "./AuditoriaCompraCard";
@@ -49,35 +49,12 @@ export function AuditoriaComprasCardList({
   onNegar,
   processandoAcaoId,
 }: AuditoriaComprasCardListProps) {
-  const [limiteVisivel, setLimiteVisivel] = useState(ITENS_POR_LOTE_MOBILE);
-  const sentinelaRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setLimiteVisivel(ITENS_POR_LOTE_MOBILE);
-  }, [compras]);
-
-  useEffect(() => {
-    const elemento = sentinelaRef.current;
-    if (!elemento || typeof IntersectionObserver === "undefined") return;
-    if (limiteVisivel >= compras.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setLimiteVisivel((atual) =>
-            Math.min(atual + ITENS_POR_LOTE_MOBILE, compras.length),
-          );
-        }
-      },
-      { rootMargin: "240px" },
-    );
-
-    observer.observe(elemento);
-    return () => observer.disconnect();
-  }, [compras.length, limiteVisivel]);
-
-  const comprasVisiveis = compras.slice(0, limiteVisivel);
-  const restantes = compras.length - comprasVisiveis.length;
+  const {
+    itensVisiveis: comprasVisiveis,
+    restantes,
+    sentinelaRef,
+    carregarMais,
+  } = usePaginacaoProgressiva(compras, ITENS_POR_LOTE_MOBILE);
 
   return (
     <Stack spacing={1.25} sx={{ display: { xs: "flex", md: "none" } }}>
@@ -104,11 +81,7 @@ export function AuditoriaComprasCardList({
           <Button
             variant="outlined"
             fullWidth
-            onClick={() =>
-              setLimiteVisivel((atual) =>
-                Math.min(atual + ITENS_POR_LOTE_MOBILE, compras.length),
-              )
-            }
+            onClick={carregarMais}
             sx={{
               borderRadius: 2,
               fontWeight: 850,

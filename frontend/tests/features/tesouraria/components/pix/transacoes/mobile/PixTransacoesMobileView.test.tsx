@@ -11,6 +11,8 @@ describe("Componente: PixTransacoesMobileView", () => {
         filtros={{ status: "todas", busca: "" }}
         transacoes={pixTransacoesMock}
         onChangeFiltros={vi.fn()}
+        onAceitar={vi.fn()}
+        onNegar={vi.fn()}
       />,
     );
 
@@ -26,6 +28,8 @@ describe("Componente: PixTransacoesMobileView", () => {
         filtros={{ status: "todas", busca: "" }}
         transacoes={[]}
         onChangeFiltros={vi.fn()}
+        onAceitar={vi.fn()}
+        onNegar={vi.fn()}
       />,
     );
 

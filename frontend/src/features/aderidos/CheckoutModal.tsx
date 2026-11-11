@@ -2,16 +2,16 @@
 // ARQUIVO: frontend/src/features/aderidos/CheckoutModal.tsx
 // ============================================================================
 import {
-  Alert,
   Button,
   Dialog,
   DialogContent,
-  Snackbar,
   Stack,
 } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import FlashOnIcon from "@mui/icons-material/FlashOn";
 import { useEffect, useRef, useState } from "react";
+
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 
 import { CheckoutModalHeader } from "./components/checkout/CheckoutModalHeader";
 import { CheckoutResumoVenda } from "./components/checkout/CheckoutResumoVenda";
@@ -84,19 +84,27 @@ function CheckoutModalContent({
     abortarGeracaoPendente,
   } = usePixStateMachine({ numerosRifas, sessaoCheckoutId, invalidarDadosPainel });
 
-  const prevOpen = useRef(open);
+  const prevOpen = useRef(false);
 
   useEffect(() => {
     if (open && !prevOpen.current) {
       const cobrancaAtual = checkoutStorage.get().cobrancaPix;
       const temMesmasRifas =
-        cobrancaAtual &&
-        JSON.stringify([...cobrancaAtual.numerosRifas].sort()) ===
+        Boolean(cobrancaAtual?.numerosRifas?.length) &&
+        JSON.stringify([...(cobrancaAtual?.numerosRifas || [])].sort()) ===
           JSON.stringify([...numerosRifas].sort());
+      const naoExpirou =
+        !cobrancaAtual?.expiraEm ||
+        new Date(cobrancaAtual.expiraEm).getTime() > Date.now();
 
-      if (cobrancaAtual && cobrancaAtual.status === "aguardando_pagamento" && temMesmasRifas) {
-        // Retoma o fluxo silenciosamente
-      } else {
+      if (
+        cobrancaAtual &&
+        cobrancaAtual.status === "aguardando_pagamento" &&
+        temMesmasRifas &&
+        naoExpirou
+      ) {
+        // Retoma o fluxo silenciosamente quando a cobrança ativa corresponde às mesmas rifas
+      } else if (cobrancaAtual) {
         resetarFluxoPix();
       }
     }
@@ -125,9 +133,15 @@ function CheckoutModalContent({
     onClose();
   };
 
-  const numerosRifasEfetivos = cobrancaPix?.numerosRifas?.length
-    ? cobrancaPix.numerosRifas
-    : numerosRifas;
+  const temMesmasRifasNaCobranca =
+    Boolean(cobrancaPix?.numerosRifas?.length) &&
+    JSON.stringify([...(cobrancaPix?.numerosRifas || [])].sort()) ===
+      JSON.stringify([...numerosRifas].sort());
+
+  const numerosRifasEfetivos =
+    temMesmasRifasNaCobranca && cobrancaPix
+      ? cobrancaPix.numerosRifas
+      : numerosRifas;
 
   return (
     <>
@@ -247,26 +261,13 @@ function CheckoutModalContent({
         </Stack>
       </DialogContent>
 
-      <Snackbar
+      <FeedbackSnackbar
         open={snackbarOpen}
+        mensagem="Pix copia-e-cola copiado."
+        severidade="success"
         autoHideDuration={2200}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{
-          vertical: "bottom",
-          horizontal: "center",
-        }}
-      >
-        <Alert
-          severity="success"
-          variant="filled"
-          sx={{
-            borderRadius: 2,
-            fontWeight: 800,
-          }}
-        >
-          Pix copia-e-cola copiado.
-        </Alert>
-      </Snackbar>
+      />
     </>
   );
 }

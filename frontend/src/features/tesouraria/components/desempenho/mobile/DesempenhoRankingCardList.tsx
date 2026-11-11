@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import ArrowForwardIosRoundedIcon from "@mui/icons-material/ArrowForwardIosRounded";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import {
@@ -6,17 +5,19 @@ import {
   Button,
   ButtonBase,
   Chip,
-  LinearProgress,
   Paper,
   Stack,
   Typography,
 } from "@mui/material";
 
+import { usePaginacaoProgressiva } from "@/shared/hooks/usePaginacaoProgressiva";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { AderidoRankingDesempenho } from "../../../types/desempenho";
 import { META_RIFAS_ADERIDO } from "../../../utils/constants";
-import { formatarMoedaDesempenho } from "../../../utils/desempenhoFormatters";
+import { formatarMoeda } from "@/shared/utils/formatadores";
+import { calcularDadosExibicaoItemRanking } from "../../../utils/desempenhoRankingUtils";
+import { RankingMetaProgress } from "../shared/RankingMetaProgress";
 
 const ITENS_POR_LOTE_MOBILE = 20;
 
@@ -42,32 +43,12 @@ export interface DesempenhoRankingCardListProps<
 export function DesempenhoRankingCardList<
   T extends AderidoRankingDesempenho = AderidoRankingDesempenho,
 >({ ranking, onSelecionarAderido }: DesempenhoRankingCardListProps<T>) {
-  const [limiteVisivel, setLimiteVisivel] = useState(ITENS_POR_LOTE_MOBILE);
-  const sentinelaRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setLimiteVisivel(ITENS_POR_LOTE_MOBILE);
-  }, [ranking]);
-
-  useEffect(() => {
-    const elemento = sentinelaRef.current;
-    if (!elemento || typeof IntersectionObserver === "undefined") return;
-    if (limiteVisivel >= ranking.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setLimiteVisivel((atual) =>
-            Math.min(atual + ITENS_POR_LOTE_MOBILE, ranking.length),
-          );
-        }
-      },
-      { rootMargin: "240px" },
-    );
-
-    observer.observe(elemento);
-    return () => observer.disconnect();
-  }, [ranking.length, limiteVisivel]);
+  const {
+    itensVisiveis: rankingVisivel,
+    restantes,
+    sentinelaRef,
+    carregarMais,
+  } = usePaginacaoProgressiva(ranking, ITENS_POR_LOTE_MOBILE);
 
   if (ranking.length === 0) {
     return (
@@ -82,28 +63,11 @@ export function DesempenhoRankingCardList<
     );
   }
 
-  const rankingVisivel = ranking.slice(0, limiteVisivel);
-  const restantes = ranking.length - rankingVisivel.length;
-
   return (
     <Stack spacing={1.5}>
       {rankingVisivel.map((item) => {
-        const ehTop3 = item.posicao <= 3;
-        const corPosicao =
-          item.posicao === 1
-            ? "#D4AF37"
-            : item.posicao === 2
-              ? "#9E9E9E"
-              : item.posicao === 3
-                ? "#CD7F32"
-                : colors.cinzaTexto;
-
-        const cpfExibicao =
-          (item as { cpfLabel?: string }).cpfLabel || item.cpf || "-";
-        const rifasVendidas = item.rifasVendidas ?? 0;
-        const rifasRestantes =
-          (item as { rifasRestantes?: number }).rifasRestantes ??
-          Math.max(META_RIFAS_ADERIDO - rifasVendidas, 0);
+        const { ehTop3, corPosicao, cpfExibicao, rifasVendidas, rifasRestantes } =
+          calcularDadosExibicaoItemRanking(item, META_RIFAS_ADERIDO);
 
         return (
           <Paper
@@ -185,7 +149,7 @@ export function DesempenhoRankingCardList<
                     fontSize: "1rem",
                   }}
                 >
-                  {formatarMoedaDesempenho(
+                  {formatarMoeda(
                     item.arrecadadoLiquido ?? item.arrecadado,
                   )}
                 </Typography>
@@ -317,51 +281,11 @@ export function DesempenhoRankingCardList<
               </Box>
             </Box>
 
-            <Box>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  mb: 0.4,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: colors.cinzaTexto,
-                  }}
-                >
-                  Meta: {item.percentualMeta}%
-                </Typography>
-                {item.bateuMeta && (
-                  <Typography
-                    sx={{
-                      fontSize: "0.7rem",
-                      fontWeight: 800,
-                      color: colors.verdeForte,
-                    }}
-                  >
-                    ✓ Meta Atingida
-                  </Typography>
-                )}
-              </Box>
-              <LinearProgress
-                variant="determinate"
-                value={Math.min(item.percentualMeta, 100)}
-                sx={{
-                  height: 5,
-                  borderRadius: 2.5,
-                  bgcolor: "rgba(2, 27, 22, 0.08)",
-                  "& .MuiLinearProgress-bar": {
-                    bgcolor: item.bateuMeta
-                      ? colors.verdeForte
-                      : colors.cinzaTexto,
-                    borderRadius: 2.5,
-                  },
-                }}
-              />
-            </Box>
+            <RankingMetaProgress
+              percentualMeta={item.percentualMeta}
+              bateuMeta={item.bateuMeta}
+              variante="card"
+            />
           </Paper>
         );
       })}
@@ -371,11 +295,7 @@ export function DesempenhoRankingCardList<
           <Button
             variant="outlined"
             fullWidth
-            onClick={() =>
-              setLimiteVisivel((atual) =>
-                Math.min(atual + ITENS_POR_LOTE_MOBILE, ranking.length),
-              )
-            }
+            onClick={carregarMais}
             sx={{
               borderRadius: 2,
               fontWeight: 850,

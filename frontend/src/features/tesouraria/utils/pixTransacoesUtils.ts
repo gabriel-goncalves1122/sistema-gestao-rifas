@@ -3,7 +3,7 @@ import {
   formatarData as formatarDataPix,
   formatarMoeda as formatarMoedaPix,
   somenteNumeros,
-} from "./formatadores";
+} from "@/shared/utils/formatadores";
 import {
   PixTransacao,
   PixTransacoesFiltros,

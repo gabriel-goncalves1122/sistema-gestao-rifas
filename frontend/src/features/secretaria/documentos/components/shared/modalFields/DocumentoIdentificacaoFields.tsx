@@ -3,7 +3,7 @@ import { components } from "@/shared/tokens/components";
 import { AREAS_DOCUMENTOS_COMISSAO } from "../../../constants/documentosAreas";
 import { TIPOS_DOCUMENTOS_COMISSAO } from "../../../constants/documentosTipos";
 import type { DocumentoFormData, TipoDocumentoComissao } from "../../../types/documentosSecretariaTypes";
-import { SectionTitle } from "./SectionTitle";
+import { SectionTitle } from "@/shared/components/SectionTitle";
 
 export function DocumentoIdentificacaoFields({
   form,

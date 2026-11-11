@@ -1,5 +1,6 @@
-import { Alert, Box, CircularProgress, Snackbar } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { ModalImagemPix } from "@/shared/components/ModalImagemPix";
 
 import { AuditoriaComprasTable } from "../components/auditoriaCompras/desktop/AuditoriaComprasTable";
@@ -132,41 +133,21 @@ export function AuditoriaComprasPage() {
       <ModalImagemPix url={comprovanteUrl} onClose={fecharComprovante} />
 
       {/* Modal de Conciliação Automática por Extrato Bancário */}
-      <Snackbar
+      <FeedbackSnackbar
         open={Boolean(feedbackEmailComprovante)}
+        mensagem={feedbackEmailComprovante?.mensagem}
+        severidade={feedbackEmailComprovante?.tipo}
         autoHideDuration={3600}
         onClose={fecharFeedbackEmailComprovante}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        {feedbackEmailComprovante ? (
-          <Alert
-            severity={feedbackEmailComprovante.tipo}
-            variant="filled"
-            onClose={fecharFeedbackEmailComprovante}
-            sx={{ borderRadius: 2, fontWeight: 850 }}
-          >
-            {feedbackEmailComprovante.mensagem}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      />
 
-      <Snackbar
+      <FeedbackSnackbar
         open={Boolean(feedbackAcao)}
+        mensagem={feedbackAcao?.mensagem}
+        severidade={feedbackAcao?.tipo}
         autoHideDuration={3600}
         onClose={fecharFeedbackAcao}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        {feedbackAcao ? (
-          <Alert
-            severity={feedbackAcao.tipo}
-            variant="filled"
-            onClose={fecharFeedbackAcao}
-            sx={{ borderRadius: 2, fontWeight: 850 }}
-          >
-            {feedbackAcao.mensagem}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      />
     </Box>
   );
 }

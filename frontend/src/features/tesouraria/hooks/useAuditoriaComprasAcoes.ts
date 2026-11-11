@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { auditoriaComprasService } from "../services/auditoriaComprasService";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
+import { extrairMensagemErro } from "@/shared/utils/errors";
 import { sanitizarDadosCliente } from "@/shared/utils/sanitizadores";
 import { normalizarTexto } from "../utils/auditoriaComprasUtils";
 
@@ -53,9 +54,9 @@ export function useAuditoriaComprasAcoes(
         await carregarHistorico();
 
         return true;
-      } catch (error: any) {
+      } catch (error: unknown) {
         setErroEdicao(
-          error?.message || "Erro ao salvar dados do comprador."
+          extrairMensagemErro(error, "Erro ao salvar dados do comprador.")
         );
         return false;
       } finally {
@@ -104,11 +105,13 @@ export function useAuditoriaComprasAcoes(
       });
 
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       setFeedbackEmailComprovante({
         tipo: "error",
-        mensagem:
-          error?.message || "Erro ao reenviar e-mail de comprovante.",
+        mensagem: extrairMensagemErro(
+          error,
+          "Erro ao reenviar e-mail de comprovante."
+        ),
       });
 
       return false;
@@ -125,8 +128,11 @@ export function useAuditoriaComprasAcoes(
       setFeedbackAcao({ tipo: "success", mensagem: "Compra aceita com sucesso!" });
       await carregarHistorico();
       return true;
-    } catch (error: any) {
-      setFeedbackAcao({ tipo: "error", mensagem: error?.message || "Erro ao aceitar compra." });
+    } catch (error: unknown) {
+      setFeedbackAcao({
+        tipo: "error",
+        mensagem: extrairMensagemErro(error, "Erro ao aceitar compra."),
+      });
       return false;
     } finally {
       setProcessandoAcaoId(null);
@@ -141,8 +147,11 @@ export function useAuditoriaComprasAcoes(
       setFeedbackAcao({ tipo: "success", mensagem: "Compra recusada com sucesso!" });
       await carregarHistorico();
       return true;
-    } catch (error: any) {
-      setFeedbackAcao({ tipo: "error", mensagem: error?.message || "Erro ao recusar compra." });
+    } catch (error: unknown) {
+      setFeedbackAcao({
+        tipo: "error",
+        mensagem: extrairMensagemErro(error, "Erro ao recusar compra."),
+      });
       return false;
     } finally {
       setProcessandoAcaoId(null);

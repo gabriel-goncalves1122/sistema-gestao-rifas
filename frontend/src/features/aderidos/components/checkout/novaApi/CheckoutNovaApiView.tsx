@@ -3,7 +3,6 @@
 // ============================================================================
 import { Box, Stack } from "@mui/material";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import {
@@ -15,7 +14,10 @@ import { CheckoutNovaApiPixBox } from "./CheckoutNovaApiPixBox";
 import { CheckoutSubmitButton } from "../CheckoutSubmitButton";
 import { CheckoutPixCobranca } from "../../../types/checkoutPix";
 import { PixStatus } from "../../../hooks/usePixStateMachine";
-import { checkoutStorage } from "../../../utils/checkoutStorage";
+import {
+  obterDadosFormularioCheckoutInicial,
+  useCheckoutPixViewController,
+} from "../../../hooks/useCheckoutPixViewController";
 import { ResultadoValidacaoArquivo } from "@/shared/utils/validadorComprovante";
 
 /**
@@ -73,11 +75,7 @@ export function CheckoutNovaApiView({
   confirmarEnvioComprovante,
   setSnackbarOpen,
 }: CheckoutNovaApiViewProps) {
-  const formRestaurado = checkoutStorage.get().formData || {
-    nome: "",
-    telefone: "",
-    email: "",
-  };
+  const formRestaurado = obterDadosFormularioCheckoutInicial();
 
   const {
     register,
@@ -90,44 +88,22 @@ export function CheckoutNovaApiView({
     mode: "onChange",
     shouldUnregister: false,
     defaultValues: {
-      nome: formRestaurado.nome || "",
-      telefone: formRestaurado.telefone || "",
-      email: formRestaurado.email || "",
+      nome: formRestaurado.nome,
+      telefone: formRestaurado.telefone,
+      email: formRestaurado.email,
     },
   });
 
-  useEffect(() => {
-    const subscription = watch((value) => {
-      const current = checkoutStorage.get().formData || {
-        nome: "",
-        telefone: "",
-        email: "",
-        documento: "",
-      };
-      checkoutStorage.update({
-        formData: {
-          ...current,
-          nome: value.nome || "",
-          telefone: value.telefone || "",
-          email: value.email || "",
-        },
-      });
+  const { handleCopiarPix, handleCancelarPixExplicito } =
+    useCheckoutPixViewController({
+      watch,
+      incluirDocumento: false,
+      mensagemConfirmacaoCancelamento:
+        "Se você já enviou a chave Pix para o comprador, cancelar agora liberará as rifas. Deseja realmente cancelar?",
+      copiarPix,
+      cancelarPix,
+      setSnackbarOpen,
     });
-    return () => subscription.unsubscribe();
-  }, [watch]);
-
-  const handleCopiarPix = () => {
-    const copiado = copiarPix();
-    if (copiado) setSnackbarOpen(true);
-  };
-
-  const handleCancelarPixExplicito = () => {
-    const confirmar = window.confirm(
-      "Se você já enviou a chave Pix para o comprador, cancelar agora liberará as rifas. Deseja realmente cancelar?",
-    );
-    if (!confirmar) return;
-    cancelarPix(false);
-  };
 
   const handleConfirmarEnvio = (
     arquivo: File | null,

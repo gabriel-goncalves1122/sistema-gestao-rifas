@@ -1,54 +1,33 @@
-// ============================================================================
-// ARQUIVO: frontend/tests/features/rifas/utils/checkoutUtils.test.ts
-// ============================================================================
 import { describe, expect, it } from "vitest";
 
 import {
   aplicarMascaraCpfCnpj,
   aplicarMascaraTelefone,
   calcularValorTotalRifas,
-  formatarExpiracaoPix,
 } from "@/features/aderidos/components/checkout/utils/checkoutUtils";
+import { VALOR_RIFA } from "@/features/aderidos/utils/constants";
 
 describe("Utils: checkoutUtils", () => {
-  it("Deve calcular o valor total das rifas considerando R$ 10,00 por rifa", () => {
+  it("calculates total value proportionally to selected tickets", () => {
     expect(calcularValorTotalRifas([])).toBe(0);
-    expect(calcularValorTotalRifas(["001"])).toBe(10);
-    expect(calcularValorTotalRifas(["001", "002", "003"])).toBe(30);
+    expect(calcularValorTotalRifas(["001", "002", "003"])).toBe(3 * VALOR_RIFA);
   });
 
-  it("Deve aplicar máscara para telefone celular com 11 dígitos", () => {
-    expect(aplicarMascaraTelefone("11987654321")).toBe("(11) 98765-4321");
-  });
+  it("applies progressive CPF mask up to 11 digits and CNPJ mask for 12-14 digits", () => {
+    expect(aplicarMascaraCpfCnpj("")).toBe("");
+    expect(aplicarMascaraCpfCnpj("123")).toBe("123");
+    expect(aplicarMascaraCpfCnpj("123456")).toBe("123.456");
+    expect(aplicarMascaraCpfCnpj("123456789")).toBe("123.456.789");
+    expect(aplicarMascaraCpfCnpj("12345678901")).toBe("123.456.789-01");
 
-  it("Deve aplicar máscara progressiva para telefone incompleto", () => {
-    expect(aplicarMascaraTelefone("35")).toBe("35");
-    expect(aplicarMascaraTelefone("359")).toBe("(35) 9");
-    expect(aplicarMascaraTelefone("3599999")).toBe("(35) 99999");
-  });
-
-  it("Deve remover caracteres não numéricos antes de aplicar a máscara", () => {
-    expect(aplicarMascaraTelefone("(35) 99999-8888")).toBe("(35) 99999-8888");
-    expect(aplicarMascaraTelefone("35abc99999xx8888")).toBe("(35) 99999-8888");
-  });
-
-  it("Deve limitar o telefone ao tamanho máximo da máscara", () => {
-    expect(aplicarMascaraTelefone("119876543219999")).toBe("(11) 98765-4321");
-  });
-
-  it("Deve aplicar máscara de CPF e CNPJ", () => {
-    expect(aplicarMascaraCpfCnpj("12345678909")).toBe("123.456.789-09");
-    expect(aplicarMascaraCpfCnpj("123abc456")).toBe("123.456");
-  });
-
-  it("Deve formatar a expiração do pagamento via Pix", () => {
-    expect(formatarExpiracaoPix("2026-06-07T18:00:00.000-03:00")).toContain(
-      "07/06/2026",
+    expect(aplicarMascaraCpfCnpj("123456780001")).toBe("12.345.678/0001");
+    expect(aplicarMascaraCpfCnpj("12345678000199")).toBe("12.345.678/0001-99");
+    expect(aplicarMascaraCpfCnpj("12.345.678/0001-9988")).toBe(
+      "12.345.678/0001-99",
     );
   });
 
-  it("Deve tratar expiração ausente ou inválida", () => {
-    expect(formatarExpiracaoPix()).toBe("Expiração não informada");
-    expect(formatarExpiracaoPix("data-invalida")).toBe("Expiração inválida");
+  it("re-exports aplicarMascaraTelefone consistently with shared formatter", () => {
+    expect(aplicarMascaraTelefone("35999998888")).toBe("(35) 99999-8888");
   });
 });

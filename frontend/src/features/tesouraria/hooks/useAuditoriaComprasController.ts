@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { baixarCsv } from "@/shared/utils/arquivosBrowser";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
   calcularContagensAuditoria,
@@ -100,20 +101,10 @@ export function useAuditoriaComprasController() {
   const baixarCSV = useCallback(() => {
     if (comprasFiltradas.length === 0) return;
 
-    const blob = new Blob(
-      ["\uFEFF" + criarCsvAuditoriaCompras(comprasFiltradas)],
-      {
-        type: "text/csv;charset=utf-8;",
-      },
+    baixarCsv(
+      criarCsvAuditoriaCompras(comprasFiltradas),
+      `Auditoria_Compras_${new Date().toISOString().split("T")[0]}.csv`,
     );
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Auditoria_Compras_${new Date()
-      .toISOString()
-      .split("T")[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   }, [comprasFiltradas]);
 
   const abrirComprovante = useCallback((compra: TransacaoTesouraria) => {

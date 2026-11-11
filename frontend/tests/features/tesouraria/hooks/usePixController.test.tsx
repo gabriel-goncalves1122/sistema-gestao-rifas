@@ -34,14 +34,13 @@ describe("Hook-controller: usePixController", () => {
       filtros: { status: "todas", busca: "" },
       carregando: false,
       sincronizando: false,
-      validandoPixPorId: {},
-      erroValidacaoPixPorId: {},
       setFiltros,
       carregarDados: vi.fn(),
       sincronizarBanco,
       aceitarTransacao: aceitarPixTransacao,
       negarTransacao: negarPixTransacao,
-      limparErroValidacaoPix: vi.fn(),
+      aceitarTransacoesEmLote: vi.fn(),
+      negarTransacoesEmLote: vi.fn(),
     });
   });
 

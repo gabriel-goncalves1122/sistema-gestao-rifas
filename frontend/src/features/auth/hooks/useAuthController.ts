@@ -22,6 +22,32 @@ export interface UsuarioFormatura extends User {
 }
 
 /**
+ * Estrutura mínima esperada nos documentos/caches de usuário lidos pelo controlador de autenticação.
+ */
+interface DadosUsuarioNormalizaveis {
+  nome?: unknown;
+  Nome?: unknown;
+  displayName?: unknown;
+  cargo?: unknown;
+  role?: unknown;
+}
+
+/**
+ * Extrai código e mensagem padronizados de uma exceção capturada sem recorrer a `any`.
+ *
+ * @param {unknown} erro - Erro lançado pelo Firebase Auth ou serviços internos.
+ * @returns {{ code?: string; message?: string }} Metadados textuais seguros do erro.
+ */
+function extrairDetalhesErro(erro: unknown): { code?: string; message?: string } {
+  if (typeof erro !== "object" || erro === null) return {};
+  const registro = erro as Record<string, unknown>;
+  return {
+    code: typeof registro.code === "string" ? registro.code : undefined,
+    message: typeof registro.message === "string" ? registro.message : undefined,
+  };
+}
+
+/**
  * Mapeia códigos de erro do Firebase Auth em mensagens amigáveis em português para recuperação de senha.
  *
  * @param {string} [codigo] - Código de erro retornado pelo Firebase Auth.
@@ -38,28 +64,29 @@ function obterMensagemErroRecuperacao(codigo?: string) {
 /**
  * Traduz exceções e códigos de erro de criação de conta em mensagens amigáveis.
  *
- * @param {any} erro - Objeto de erro capturado no bloco catch.
+ * @param {unknown} erro - Objeto de erro capturado no bloco catch.
  * @returns {string} Mensagem tratada para exibição em formulário.
  */
-function obterMensagemErroRegistro(erro: any) {
-  if (erro.message && erro.message.includes("elegível")) {
+function obterMensagemErroRegistro(erro: unknown) {
+  const { code, message } = extrairDetalhesErro(erro);
+  if (message && message.includes("elegível")) {
     return "E-mail não encontrado na base oficial. Use o e-mail exato da Keeper.";
   }
 
-  if (erro.code === "auth/email-already-in-use") {
+  if (code === "auth/email-already-in-use") {
     return "Este e-mail já possui uma senha. Faça login na tela inicial.";
   }
 
-  return erro.message || "Erro ao criar conta. Verifique os dados.";
+  return message || "Erro ao criar conta. Verifique os dados.";
 }
 
 /**
  * Extrai o nome do usuário suportando campos com grafias legadas (`Nome`, `nome`, `displayName`).
  *
- * @param {any} dadosUsuario - Dicionário de dados do usuário.
+ * @param {DadosUsuarioNormalizaveis | null | undefined} dadosUsuario - Dicionário de dados do usuário.
  * @returns {string} Nome sanitizado.
  */
-function normalizarNomeUsuario(dadosUsuario: any) {
+function normalizarNomeUsuario(dadosUsuario?: DadosUsuarioNormalizaveis | null) {
   // Mantém compatibilidade com documentos novos e possíveis registros antigos.
   return String(
     dadosUsuario?.nome || dadosUsuario?.Nome || dadosUsuario?.displayName || "",
@@ -69,10 +96,12 @@ function normalizarNomeUsuario(dadosUsuario: any) {
 /**
  * Extrai o cargo do usuário ou atribui o padrão "aderido" se ausente.
  *
- * @param {any} dadosUsuario - Dados do documento de usuário.
+ * @param {DadosUsuarioNormalizaveis | null | undefined} dadosUsuario - Dados do documento de usuário.
  * @returns {CargoComissao} Cargo válido.
  */
-function normalizarCargoUsuario(dadosUsuario: any): CargoComissao {
+function normalizarCargoUsuario(
+  dadosUsuario?: DadosUsuarioNormalizaveis | null,
+): CargoComissao {
   return (
     (dadosUsuario?.cargo as CargoComissao) ||
     (dadosUsuario?.role as CargoComissao) ||
@@ -273,12 +302,12 @@ export function useAuthController() {
     try {
       await authService.enviarRecuperacaoSenha(emailToReset);
       return true;
-    } catch (erro: any) {
+    } catch (erro: unknown) {
       if (import.meta.env.DEV) {
         console.error("[Auth] Erro na recuperação de senha:", erro);
       }
 
-      setError(obterMensagemErroRecuperacao(erro.code));
+      setError(obterMensagemErroRecuperacao(extrairDetalhesErro(erro).code));
       return false;
     } finally {
       setLoading(false);
@@ -296,7 +325,7 @@ export function useAuthController() {
 
     try {
       return await authService.registrarUsuario(nome, email, senha, cpf);
-    } catch (erro: any) {
+    } catch (erro: unknown) {
       if (import.meta.env.DEV) {
         console.error("[Auth] Erro no cadastro:", erro);
       }

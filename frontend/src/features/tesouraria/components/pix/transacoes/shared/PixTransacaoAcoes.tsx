@@ -1,8 +1,20 @@
 import { useState } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { Button, IconButton, CircularProgress, Stack, Dialog, DialogTitle, DialogContent, DialogActions, Typography, TextField } from "@mui/material";
+import {
+  Button,
+  IconButton,
+  CircularProgress,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  TextField,
+} from "@mui/material";
 
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { colors } from "@/shared/tokens/colors";
 import { PixTransacao } from "../../../../types/pixTransacoes";
 import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesUtils";
@@ -19,6 +31,7 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<"aceitar" | "negar" | null>(null);
   const [modalNegarOpen, setModalNegarOpen] = useState(false);
   const [motivoNegar, setMotivoNegar] = useState("");
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
 
   if (!podeValidarPixTransacao(transacao)) {
     return null;
@@ -27,11 +40,14 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
   const handleAceitar = async (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setAcaoEmAndamento("aceitar");
+    setErroAcao(null);
     try {
       await onAceitar(transacao.id, transacao.chaveAcao);
       onConcluido?.();
     } catch (error) {
-      // erro já tratado no hook/service
+      setErroAcao(
+        error instanceof Error ? error.message : "Erro ao aceitar transação.",
+      );
     } finally {
       setAcaoEmAndamento(null);
     }
@@ -48,11 +64,14 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
     
     setAcaoEmAndamento("negar");
     setModalNegarOpen(false);
+    setErroAcao(null);
     try {
       await onNegar(transacao.id, motivoNegar, transacao.chaveAcao);
       onConcluido?.();
     } catch (error) {
-      // erro já tratado
+      setErroAcao(
+        error instanceof Error ? error.message : "Erro ao negar transação.",
+      );
     } finally {
       setAcaoEmAndamento(null);
       setMotivoNegar("");
@@ -68,7 +87,7 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
               size="small"
               disabled={acaoEmAndamento !== null}
               onClick={handleAbrirNegar}
-              sx={{ color: colors.alertaTexto, bgcolor: colors.alertaFundo, "&:hover": { bgcolor: colors.alertaBorda } }}
+              sx={{ color: colors.alertaTexto, bgcolor: colors.alertaFundo, "&:hover": { bgcolor: colors.erroSuave } }}
             >
               {acaoEmAndamento === "negar" ? <CircularProgress size={16} color="inherit" /> : <CancelIcon fontSize="small" />}
             </IconButton>
@@ -93,7 +112,7 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
                 color: colors.alertaTexto,
                 boxShadow: "none",
                 "&:hover": {
-                  bgcolor: colors.alertaBorda,
+                  bgcolor: colors.erroSuave,
                   boxShadow: "none",
                 },
               }}
@@ -152,6 +171,14 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
           </Button>
         </DialogActions>
       </Dialog>
+
+      <FeedbackSnackbar
+        open={Boolean(erroAcao)}
+        mensagem={erroAcao}
+        severidade="error"
+        autoHideDuration={6000}
+        onClose={() => setErroAcao(null)}
+      />
     </>
   );
 }

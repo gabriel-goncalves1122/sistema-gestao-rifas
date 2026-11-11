@@ -1,6 +1,8 @@
 import { startTransition, useCallback } from "react";
-import { Alert, Box, CircularProgress, Snackbar } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { AnimatePresence, motion } from "framer-motion";
+
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 
 import { ConciliacaoExtratoDialog } from "../components/pix/transacoes/shared/ConciliacaoExtratoDialog";
 import { PixTransacoesDesktopView } from "../components/pix/transacoes/desktop/PixTransacoesDesktopView";
@@ -121,21 +123,13 @@ export function TesourariaPage({ variante = "desktop" }: TesourariaPageProps) {
         valorTotalSelecionado={conciliacao.valorTotalSelecionado}
       />
 
-      <Snackbar
+      <FeedbackSnackbar
         open={Boolean(conciliacao.feedbackSucesso)}
+        mensagem={conciliacao.feedbackSucesso}
+        severidade="success"
         autoHideDuration={6000}
         onClose={conciliacao.fecharFeedbackSucesso}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={conciliacao.fecharFeedbackSucesso}
-          severity="success"
-          variant="filled"
-          sx={{ borderRadius: 2, fontWeight: 850 }}
-        >
-          {conciliacao.feedbackSucesso}
-        </Alert>
-      </Snackbar>
+      />
     </Box>
   );
 }

@@ -9,6 +9,32 @@ export function somenteNumeros(valor?: string | null) {
 }
 
 /**
+ * Remove acentuação gráfica (diacríticos) e converte o texto para minúsculas sem espaços nas pontas.
+ *
+ * @param {string | null} [valor] - Texto bruto a ser normalizado.
+ * @returns {string} Texto normalizado sem acentos e em minúsculas.
+ */
+export function normalizarTexto(valor?: string | null): string {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Converte uma string qualquer em slug seguro para nomes de arquivo e atributos de teste.
+ *
+ * @param {string | null} [valor] - Texto de origem.
+ * @returns {string} String hifenizada contendo apenas caracteres alfanuméricos minúsculos.
+ */
+export function gerarSlug(valor?: string | null): string {
+  return normalizarTexto(valor)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
  * Formata uma string de CPF progressivamente para exibição ou máscara de entrada (`000.000.000-00`).
  *
  * @param {string | null} [valor] - Dígitos ou CPF parcial/completo.
@@ -98,4 +124,28 @@ export function formatarTelefone(valor?: string | null): string {
     2,
     7,
   )}-${apenasNumeros.slice(7)}`;
+}
+
+/**
+ * Formata um número inteiro ou quantitativo usando separadores de milhar brasileiros.
+ *
+ * @param {number | null} [valor] - Valor numérico a formatar (valores não finitos resultam em `0`).
+ * @returns {string} String numérica formatada segundo `pt-BR`.
+ */
+export function formatarInteiro(valor?: number | null): string {
+  const valorSeguro = Number.isFinite(valor) ? Number(valor) : 0;
+  return valorSeguro.toLocaleString("pt-BR");
+}
+
+/**
+ * Formata valores monetários compactos para rótulos de eixos em gráficos (`R$ 5 mil` ou `R$ 500`).
+ *
+ * @param {number} valor - Valor monetário numérico do tick do eixo.
+ * @returns {string} Rótulo compacto formatado.
+ */
+export function formatarValorEixo(valor: number): string {
+  if (valor >= 1000) {
+    return `R$ ${Math.round(valor / 1000)} mil`;
+  }
+  return `R$ ${valor}`;
 }

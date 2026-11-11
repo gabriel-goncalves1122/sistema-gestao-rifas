@@ -1,7 +1,8 @@
-import { Alert, Box, Snackbar } from "@mui/material";
+import { Box } from "@mui/material";
 
 import { NotificacoesSidebar } from "@/shared/components/NotificacoesSidebar";
-import { usePremiosLayout } from "../premios/hooks/usePremiosLayout";
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
+import { useResponsiveLayout } from "@/shared/hooks/useResponsiveLayout";
 
 import { CheckoutModal } from "./CheckoutModal";
 import { ModalCorrecaoRecusa } from "./ModalCorrecaoRecusa";
@@ -16,7 +17,7 @@ import { painelAderidoStyles } from "./styles/painelAderidoStyles";
 
 export function MinhasRifasTab() {
   const painel = usePainelAderidoController();
-  const { isMobile } = usePremiosLayout();
+  const { isMobile } = useResponsiveLayout();
 
   const ViewComponent = isMobile ? MinhasRifasMobileView : MinhasRifasDesktopView;
 
@@ -103,21 +104,12 @@ export function MinhasRifasTab() {
           }}
         />
 
-        <Snackbar
+        <FeedbackSnackbar
           open={Boolean(painel.feedbackRelatorio?.open)}
-          autoHideDuration={4000}
+          mensagem={painel.feedbackRelatorio?.mensagem}
+          severidade={painel.feedbackRelatorio?.tipo || "success"}
           onClose={painel.fecharFeedbackRelatorio}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert
-            onClose={painel.fecharFeedbackRelatorio}
-            severity={painel.feedbackRelatorio?.tipo || "success"}
-            variant="filled"
-            sx={{ width: "100%", borderRadius: 2 }}
-          >
-            {painel.feedbackRelatorio?.mensagem || ""}
-          </Alert>
-        </Snackbar>
+        />
       </Box>
     </Box>
   );

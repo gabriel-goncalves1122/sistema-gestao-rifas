@@ -5,7 +5,6 @@ import {
   Box,
   ButtonBase,
   Chip,
-  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -21,7 +20,9 @@ import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { AderidoRankingDesempenho } from "../../../types/desempenho";
 import { META_RIFAS_ADERIDO } from "../../../utils/constants";
-import { formatarMoedaDesempenho } from "../../../utils/desempenhoFormatters";
+import { formatarMoeda } from "@/shared/utils/formatadores";
+import { calcularDadosExibicaoItemRanking } from "../../../utils/desempenhoRankingUtils";
+import { RankingMetaProgress } from "../shared/RankingMetaProgress";
 
 /**
  * Propriedades para renderização da tabela de ranking de aderidos em desktop.
@@ -101,35 +102,22 @@ export function DesempenhoRankingTable<
                 Arrecadado (Líq)
               </TableCell>
               <TableCell sx={{ fontWeight: 900, minWidth: 160 }}>
-                Meta ({formatarMoedaDesempenho(1200)})
+                Meta ({formatarMoeda(1200)})
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rankingPaginado.map((item) => {
-              const ehTop3 = item.posicao <= 3;
-              const corPosicao =
-                item.posicao === 1
-                  ? "#D4AF37"
-                  : item.posicao === 2
-                    ? "#9E9E9E"
-                    : item.posicao === 3
-                      ? "#CD7F32"
-                      : colors.cinzaTexto;
-
-              const cpfExibicao =
-                (item as { cpfLabel?: string }).cpfLabel || item.cpf || "-";
-              const rifasVendidas = item.rifasVendidas ?? 0;
-              const rifasRestantes =
-                (item as { rifasRestantes?: number }).rifasRestantes ??
-                Math.max(META_RIFAS_ADERIDO - rifasVendidas, 0);
-              const temSplitValores =
-                item.valorPix !== undefined ||
-                item.valorComprovante !== undefined;
-              const valorLiquido = item.arrecadadoLiquido ?? item.arrecadado;
-              const temDiferencaBrutoLiquido =
-                item.arrecadadoLiquido !== undefined &&
-                item.arrecadadoLiquido !== item.arrecadado;
+              const {
+                ehTop3,
+                corPosicao,
+                cpfExibicao,
+                rifasVendidas,
+                rifasRestantes,
+                temSplitValores,
+                valorLiquido,
+                temDiferencaBrutoLiquido,
+              } = calcularDadosExibicaoItemRanking(item, META_RIFAS_ADERIDO);
 
               return (
                 <TableRow
@@ -317,13 +305,13 @@ export function DesempenhoRankingTable<
                         color: colors.pretoEsverdeado,
                       }}
                     >
-                      {formatarMoedaDesempenho(valorLiquido)}
+                      {formatarMoeda(valorLiquido)}
                     </Typography>
                     {temDiferencaBrutoLiquido && (
                       <Typography
                         sx={{ color: colors.cinzaTexto, fontSize: "0.72rem" }}
                       >
-                        Bruto: {formatarMoedaDesempenho(item.arrecadado)}
+                        Bruto: {formatarMoeda(item.arrecadado)}
                       </Typography>
                     )}
                     {temSplitValores && (
@@ -334,61 +322,19 @@ export function DesempenhoRankingTable<
                           fontStyle: "italic",
                         }}
                       >
-                        Pix: {formatarMoedaDesempenho(item.valorPix || 0)} •
+                        Pix: {formatarMoeda(item.valorPix || 0)} •
                         Comp:{" "}
-                        {formatarMoedaDesempenho(item.valorComprovante || 0)}
+                        {formatarMoeda(item.valorComprovante || 0)}
                       </Typography>
                     )}
                   </TableCell>
 
                   <TableCell>
-                    <Box sx={{ minWidth: 130 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          mb: 0.5,
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: "0.75rem",
-                            fontWeight: 800,
-                            color: item.bateuMeta
-                              ? colors.verdeForte
-                              : colors.cinzaTexto,
-                          }}
-                        >
-                          {item.percentualMeta}% da meta
-                        </Typography>
-                        {item.bateuMeta && (
-                          <Typography
-                            sx={{
-                              fontSize: "0.7rem",
-                              fontWeight: 900,
-                              color: colors.verdeForte,
-                            }}
-                          >
-                            ✓ Atingida
-                          </Typography>
-                        )}
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={Math.min(item.percentualMeta, 100)}
-                        sx={{
-                          height: 6,
-                          borderRadius: 3,
-                          bgcolor: "rgba(2, 27, 22, 0.08)",
-                          "& .MuiLinearProgress-bar": {
-                            bgcolor: item.bateuMeta
-                              ? colors.verdeForte
-                              : colors.cinzaTexto,
-                            borderRadius: 3,
-                          },
-                        }}
-                      />
-                    </Box>
+                    <RankingMetaProgress
+                      percentualMeta={item.percentualMeta}
+                      bateuMeta={item.bateuMeta}
+                      variante="table"
+                    />
                   </TableCell>
                 </TableRow>
               );

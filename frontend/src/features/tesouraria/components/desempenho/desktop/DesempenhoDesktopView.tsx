@@ -8,9 +8,9 @@ import { colors } from "@/shared/tokens/colors";
 
 import { TesourariaSectionHeader } from "../../shared/TesourariaSectionHeader";
 import {
-  formatarInteiroDesempenho,
-  formatarMoedaDesempenho,
-} from "../../../utils/desempenhoFormatters";
+  formatarInteiro,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 import {
   AderidoRankingDesempenho,
   DesempenhoDados,
@@ -61,15 +61,15 @@ export function DesempenhoDesktopView({
       <Box sx={{ mb: 2.75 }}>
         <DesempenhoKpiCard
           titulo="Receita validada (Líquida)"
-          valor={formatarMoedaDesempenho(
+          valor={formatarMoeda(
             dados.resumoGeral.totalArrecadadoLiquido ??
               dados.resumoGeral.totalArrecadado,
           )}
-          detalhe={`Bruto: ${formatarMoedaDesempenho(
+          detalhe={`Bruto: ${formatarMoeda(
             dados.resumoGeral.totalArrecadado,
-          )} • Pix: ${formatarMoedaDesempenho(
+          )} • Pix: ${formatarMoeda(
             dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
-          )} • Comprovantes: ${formatarMoedaDesempenho(
+          )} • Comprovantes: ${formatarMoeda(
             dados.resumoGeral.valorArrecadadoComprovante ?? 0,
           )}`}
           icon={<AttachMoneyOutlinedIcon fontSize="small" />}
@@ -95,7 +95,7 @@ export function DesempenhoDesktopView({
       >
         <DesempenhoKpiCard
           titulo="Rifas vendidas"
-          valor={`${formatarInteiroDesempenho(
+          valor={`${formatarInteiro(
             dados.resumoGeral.rifasPagas,
           )} rifas`}
           detalhe={`${dados.resumoGeral.rifasPagasPix ?? 0} Pix • ${
@@ -106,10 +106,10 @@ export function DesempenhoDesktopView({
         />
         <DesempenhoKpiCard
           titulo="Aderidos ativos"
-          valor={`${formatarInteiroDesempenho(
+          valor={`${formatarInteiro(
             dados.resumoGeral.aderidosAtivos,
           )} alunos`}
-          detalhe={`${formatarInteiroDesempenho(
+          detalhe={`${formatarInteiro(
             dados.metas.bateramMeta,
           )} na meta individual`}
           icon={<GroupsOutlinedIcon fontSize="small" />}
@@ -118,9 +118,9 @@ export function DesempenhoDesktopView({
         <DesempenhoKpiCard
           titulo="Meta atingida"
           valor={`${percentualMeta}%`}
-          detalhe={`${formatarInteiroDesempenho(
+          detalhe={`${formatarInteiro(
             dados.metas.bateramMeta,
-          )} de ${formatarInteiroDesempenho(dados.metas.total)} formandos`}
+          )} de ${formatarInteiro(dados.metas.total)} formandos`}
           icon={<TaskAltOutlinedIcon fontSize="small" />}
           cor={colors.verdeEscuro}
         />

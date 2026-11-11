@@ -1,44 +1,33 @@
 import { type ChangeEvent, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
-  TextField,
-  Typography,
 } from "@mui/material";
-import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
-import { AREAS_DOCUMENTOS_COMISSAO } from "../../constants/documentosAreas";
-import {
-  TIPOS_CADASTRO_DOCUMENTO,
-  TIPOS_DOCUMENTOS_COMISSAO,
-} from "../../constants/documentosTipos";
+import { TIPOS_CADASTRO_DOCUMENTO } from "../../constants/documentosTipos";
 import {
   arquivoAceitoParaTipo,
   criarDocumentoFormInicial,
   documentoParaFormData,
-  formatarTamanhoArquivo,
   inferirMimeTypeDocumento,
 } from "../../utils/documentosSecretariaUtils";
 import type {
   DocumentoComissao,
   DocumentoFormData,
   TipoDocumentoCadastro,
-  TipoDocumentoComissao,
 } from "../../types/documentosSecretariaTypes";
+import { DocumentoArquivoFields } from "./modalFields/DocumentoArquivoFields";
+import { DocumentoDetalhesFields } from "./modalFields/DocumentoDetalhesFields";
+import { DocumentoIdentificacaoFields } from "./modalFields/DocumentoIdentificacaoFields";
 
 const LIMITE_DOCUMENTO_BYTES = 25 * 1024 * 1024;
 
@@ -49,17 +38,6 @@ interface ModalDocumentoSecretariaProps {
   documento: DocumentoComissao | null;
   onClose: () => void;
   onSalvar: (dados: DocumentoFormData) => Promise<void>;
-}
-
-function SectionTitle({ children }: { children: string }) {
-  return (
-    <Typography
-      variant="subtitle2"
-      sx={{ color: colors.verdeEscuro, fontWeight: 900 }}
-    >
-      {children}
-    </Typography>
-  );
 }
 
 export function ModalDocumentoSecretaria({
@@ -198,185 +176,26 @@ export function ModalDocumentoSecretaria({
       <DialogContent sx={{ p: 3, bgcolor: colors.branco }}>
         <Stack spacing={2.25}>
           {erroEnvio && <Alert severity="error">{erroEnvio}</Alert>}
-          <Stack spacing={1.5}>
-            <SectionTitle>Identificação</SectionTitle>
-            <TextField
-              label="Título"
-              value={form.titulo}
-              onChange={(event) => handleChange("titulo", event.target.value)}
-              required
-              fullWidth
-              size="small"
-              sx={components.formField}
-            />
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <FormControl fullWidth size="small" sx={components.selectField}>
-                <InputLabel id="documento-area-form-label">Área</InputLabel>
-                <Select
-                  labelId="documento-area-form-label"
-                  label="Área"
-                  value={form.area}
-                  onChange={(event) =>
-                    handleChange("area", event.target.value as DocumentoFormData["area"])
-                  }
-                >
-                  {AREAS_DOCUMENTOS_COMISSAO.map((area) => (
-                    <MenuItem key={area} value={area}>
-                      {area}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth size="small" sx={components.selectField}>
-                <InputLabel id="documento-tipo-form-label">Tipo</InputLabel>
-                <Select
-                  labelId="documento-tipo-form-label"
-                  label="Tipo"
-                  value={form.tipo}
-                  onChange={(event) =>
-                    handleChange("tipo", event.target.value as TipoDocumentoComissao)
-                  }
-                >
-                  {TIPOS_DOCUMENTOS_COMISSAO.map((tipo) => (
-                    <MenuItem key={tipo.value} value={tipo.value}>
-                      {tipo.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Stack>
-          </Stack>
+          <DocumentoIdentificacaoFields form={form} handleChange={handleChange} />
 
           <Divider />
 
-          <Stack spacing={1.5}>
-            <SectionTitle>Arquivo</SectionTitle>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: `1.5px dashed ${colors.borda}`,
-                bgcolor: "#F6F8F7",
-              }}
-            >
-              <Stack spacing={1.25} alignItems="flex-start">
-                <Button
-                  component="label"
-                  variant="outlined"
-                  startIcon={<CloudUploadOutlinedIcon />}
-                  disabled={saving}
-                  sx={{ borderRadius: 2, fontWeight: 850 }}
-                >
-                  {form.nomeArquivo ? "Trocar arquivo" : "Selecionar arquivo"}
-                  <input
-                    hidden
-                    type="file"
-                    accept={accept}
-                    onChange={handleArquivoChange}
-                    data-testid="documento-upload-input"
-                  />
-                </Button>
-
-                {form.nomeArquivo ? (
-                  <Typography sx={{ color: colors.pretoEsverdeado, fontWeight: 800 }}>
-                    {form.nomeArquivo} · {formatarTamanhoArquivo(form.tamanhoBytes)}
-                  </Typography>
-                ) : (
-                  <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.86rem" }}>
-                    Escolha um arquivo {TIPOS_CADASTRO_DOCUMENTO[tipoCadastro].label}.
-                  </Typography>
-                )}
-
-                {erroArquivo && (
-                  <Alert severity="warning" sx={{ width: "100%", borderRadius: 2 }}>
-                    {erroArquivo}
-                  </Alert>
-                )}
-              </Stack>
-            </Box>
-          </Stack>
+          <DocumentoArquivoFields
+            form={form}
+            tipoCadastro={tipoCadastro}
+            saving={saving}
+            erroArquivo={erroArquivo}
+            accept={accept}
+            handleArquivoChange={handleArquivoChange}
+          />
 
           <Divider />
 
-          <Stack spacing={1.5}>
-            <SectionTitle>Detalhes</SectionTitle>
-            {tipoCadastro === "pdf" && (
-              <>
-                <TextField
-                  label="Data do documento"
-                  type="date"
-                  value={form.dataDocumento}
-                  onChange={(event) =>
-                    handleChange("dataDocumento", event.target.value)
-                  }
-                  InputLabelProps={{ shrink: true }}
-                  size="small"
-                  sx={components.formField}
-                />
-                <TextField
-                  label="Descrição"
-                  value={form.descricao}
-                  onChange={(event) =>
-                    handleChange("descricao", event.target.value)
-                  }
-                  multiline
-                  minRows={2}
-                  size="small"
-                  sx={components.formField}
-                />
-              </>
-            )}
-
-            {tipoCadastro === "planilha" && (
-              <>
-                <TextField
-                  label="Período de referência"
-                  value={form.periodoReferencia}
-                  onChange={(event) =>
-                    handleChange("periodoReferencia", event.target.value)
-                  }
-                  size="small"
-                  sx={components.formField}
-                />
-                <TextField
-                  label="Descrição"
-                  value={form.descricao}
-                  onChange={(event) =>
-                    handleChange("descricao", event.target.value)
-                  }
-                  multiline
-                  minRows={2}
-                  size="small"
-                  sx={components.formField}
-                />
-              </>
-            )}
-
-            {tipoCadastro === "imagem" && (
-              <>
-                <TextField
-                  label="Texto alternativo"
-                  value={form.textoAlternativo}
-                  onChange={(event) =>
-                    handleChange("textoAlternativo", event.target.value)
-                  }
-                  size="small"
-                  sx={components.formField}
-                />
-                <TextField
-                  label="Crédito da imagem"
-                  value={form.creditoImagem}
-                  onChange={(event) =>
-                    handleChange("creditoImagem", event.target.value)
-                  }
-                  size="small"
-                  sx={components.formField}
-                />
-              </>
-            )}
-          </Stack>
+          <DocumentoDetalhesFields
+            form={form}
+            tipoCadastro={tipoCadastro}
+            handleChange={handleChange}
+          />
         </Stack>
       </DialogContent>
 

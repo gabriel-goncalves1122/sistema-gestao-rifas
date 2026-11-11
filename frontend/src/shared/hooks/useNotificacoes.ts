@@ -1,24 +1,15 @@
-import { fetchAPI } from "@/shared/services/api";
+import { notificacoesService } from "@/shared/services/notificacoesService";
 
 /**
  * Hook utilitário para consumo e leitura de notificações do usuário logado via API REST.
+ * Delega as chamadas HTTP ao `notificacoesService` compartilhado.
  *
- * @returns {{ buscarNotificacoes: () => Promise<any[]>; marcarNotificacoesLidas: (ids: string[]) => Promise<void> }}
+ * @returns {{ buscarNotificacoes: () => Promise<unknown[]>; marcarNotificacoesLidas: (ids: string[]) => Promise<void> }}
  *          Funções de busca e marcação em lote.
  */
 export function useNotificacoes() {
-  const buscarNotificacoes = async () => {
-    try {
-      const result = await fetchAPI("/notificacoes");
-      return result.notificacoes || [];
-    } catch (error) {
-      return [];
-    }
+  return {
+    buscarNotificacoes: notificacoesService.buscarNotificacoes,
+    marcarNotificacoesLidas: notificacoesService.marcarNotificacoesLidas,
   };
-
-  const marcarNotificacoesLidas = async (ids: string[]) => {
-    await fetchAPI("/notificacoes/ler", "PUT", { ids });
-  };
-
-  return { buscarNotificacoes, marcarNotificacoesLidas };
 }

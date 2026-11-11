@@ -5,20 +5,8 @@ import type {
   TipoDocumentoCadastro,
   TipoPreviewDocumento,
 } from "../types/documentosSecretariaTypes";
+import { normalizarTexto } from "@/shared/utils/formatadores";
 import { TIPOS_CADASTRO_DOCUMENTO } from "../constants/documentosTipos";
-
-/**
- * Remove acentuação e converte texto para minúsculas para busca textual insensível a maiúsculas/acentos.
- *
- * @param {string} valor - String bruta.
- * @returns {string} String normalizada sem diacríticos e sem espaços extras.
- */
-const normalizarTexto = (valor: string) =>
-  valor
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
 
 /**
  * Filtra a lista de documentos da secretaria por área administrativa e termo de busca textual.

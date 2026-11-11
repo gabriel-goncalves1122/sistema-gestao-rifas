@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, Snackbar, Alert } from "@mui/material";
+import { Box } from "@mui/material";
 
-import { usePremiosLayout } from "../../premios/hooks/usePremiosLayout";
+import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
+import { useResponsiveLayout } from "@/shared/hooks/useResponsiveLayout";
 import { useSecretariaController } from "./hooks/useSecretariaController";
 import { useSecretariaSort } from "./hooks/useSecretariaSort";
 import { useSecretariaKeyboard } from "./hooks/useSecretariaKeyboard";
@@ -20,7 +21,7 @@ import { layout } from "../styles/layout";
 import type { SecretariaTipoUsuarioTab } from "./types/secretariaLocalTypes";
 
 export function MembrosSecretariaView() {
-  const { isMobile } = usePremiosLayout();
+  const { isMobile } = useResponsiveLayout();
 
   const {
     aderidos,
@@ -136,21 +137,12 @@ export function MembrosSecretariaView() {
         onConfirm={adicionarAderidoIndividual}
       />
 
-      <Snackbar
+      <FeedbackSnackbar
         open={notificacao.open}
-        autoHideDuration={4000}
+        mensagem={notificacao.mensagem}
+        severidade={notificacao.severidade}
         onClose={fecharNotificacao}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={fecharNotificacao}
-          severity={notificacao.severidade}
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
-          {notificacao.mensagem}
-        </Alert>
-      </Snackbar>
+      />
     </Box>
   );
 }

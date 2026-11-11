@@ -22,7 +22,7 @@ interface UseTesourariaPixControllerParams {
  * @returns {Object} Estados da página, listas filtradas, aderidos e callbacks de ação.
  */
 export function usePixController({
-  variante = "desktop",
+  variante: _variante = "desktop",
 }: UseTesourariaPixControllerParams = {}) {
   const [abaAtual, setAbaAtual] = useState<AbaPix>("visao-geral");
 
@@ -33,8 +33,6 @@ export function usePixController({
     transacoesFiltradas,
     carregando,
     sincronizando,
-    validandoPixPorId,
-    erroValidacaoPixPorId,
     setFiltros,
     carregarDados,
     sincronizarBanco,
@@ -61,8 +59,6 @@ export function usePixController({
       transacoes: transacoesFiltradas,
       todasTransacoes: transacoes,
       onChangeFiltros: setFiltros,
-      validandoPixPorId,
-      erroValidacaoPixPorId,
       onAceitar: aceitarTransacao,
       onNegar: negarTransacao,
       onAceitarLote: aceitarTransacoesEmLote,
@@ -73,7 +69,6 @@ export function usePixController({
       aceitarTransacao,
       aceitarTransacoesEmLote,
       conciliacao.abrirDialog,
-      erroValidacaoPixPorId,
       filtros,
       negarTransacao,
       negarTransacoesEmLote,
@@ -81,7 +76,6 @@ export function usePixController({
       setFiltros,
       transacoes,
       transacoesFiltradas,
-      validandoPixPorId,
     ],
   );
 
@@ -95,8 +89,6 @@ export function usePixController({
     aderidosServidor,
     carregando,
     sincronizando,
-    validandoPixPorId,
-    erroValidacaoPixPorId,
     pixProps,
     conciliacao,
     setAbaAtual,
