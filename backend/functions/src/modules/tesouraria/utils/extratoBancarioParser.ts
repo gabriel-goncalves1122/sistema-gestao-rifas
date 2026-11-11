@@ -120,6 +120,21 @@ export function parsearExtratoCsv(conteudoCsv: string): LinhaExtratoBancario[] {
     // Filtra apenas recebimentos (valores positivos > 0)
     if (valor <= 0) return;
 
+    // Filtra transações canceladas, recusadas, negadas ou estornadas (comum em extratos de adquirentes)
+    const statusChave = Object.keys(linha).find((k) =>
+      /status|situacao|situação/i.test(k)
+    );
+    const statusTexto = statusChave
+      ? String(linha[statusChave] || "").trim().toLowerCase()
+      : "";
+
+    if (
+      statusTexto &&
+      /negad|recusad|cancelad|falh|estorn/i.test(statusTexto)
+    ) {
+      return;
+    }
+
     // Busca colunas de data
     const dataChave = Object.keys(linha).find((k) =>
       /data|date|horario|criado/i.test(k)

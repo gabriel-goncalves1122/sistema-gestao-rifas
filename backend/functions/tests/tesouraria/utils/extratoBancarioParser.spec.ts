@@ -74,6 +74,20 @@ describe("extratoBancarioParser", () => {
       expect(transacoes[0].nomePagador).toBe("JOAO DA SILVA");
       expect(transacoes[0].txid).toBe("RIFA1234567890AB");
     });
+
+    it("deve ignorar transações com status Negada ou Cancelada (InfinitePay oficial)", () => {
+      const csv = `Data e hora,Meio - Meio,Identificador,Status,Valor (R$),Origem - Nome
+11/11/2026 10:15,Pix,RIFA0000200003,Aprovada,"20,00",Mariana Souza Ribeiro
+11/11/2026 10:30,Crédito,000000,Negada,"150,00",Tentativa Negada
+11/11/2026 10:35,Pix,RIFA0000400006,Aprovada,"30,00",Carlos Eduardo Silva
+`;
+      const transacoes = parsearExtratoCsv(csv);
+      expect(transacoes).toHaveLength(2);
+      expect(transacoes[0].txid).toBe("RIFA0000200003");
+      expect(transacoes[0].valor).toBe(20);
+      expect(transacoes[1].txid).toBe("RIFA0000400006");
+      expect(transacoes[1].valor).toBe(30);
+    });
   });
 
   describe("parsearExtratoOfx", () => {
