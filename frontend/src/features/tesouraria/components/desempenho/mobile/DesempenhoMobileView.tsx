@@ -61,16 +61,29 @@ export function DesempenhoMobileView({
       >
         <Box sx={{ gridColumn: "1 / -1" }}>
           <DesempenhoKpiCard
-            titulo="Receita validada (Líquida)"
+            titulo="Receita validada"
             valor={formatarMoeda(
               dados.resumoGeral.totalArrecadadoLiquido ??
                 dados.resumoGeral.totalArrecadado,
             )}
-            detalhe={`Bruto: ${formatarMoeda(
-              dados.resumoGeral.totalArrecadado,
-            )} • Pix: ${formatarMoeda(
-              dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
-            )}`}
+            detalhe={
+              Math.abs(
+                (dados.resumoGeral.totalArrecadado ?? 0) -
+                  (dados.resumoGeral.totalArrecadadoLiquido ??
+                    dados.resumoGeral.totalArrecadado ??
+                    0),
+              ) > 0.009
+                ? `Bruto: ${formatarMoeda(
+                    dados.resumoGeral.totalArrecadado,
+                  )} • Pix: ${formatarMoeda(
+                    dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
+                  )}`
+                : `Pix: ${formatarMoeda(
+                    dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
+                  )} • Comp.: ${formatarMoeda(
+                    dados.resumoGeral.valorArrecadadoComprovante ?? 0,
+                  )}`
+            }
             icon={<AttachMoneyOutlinedIcon fontSize="small" />}
             cor={colors.verdeEscuro}
             destaque
@@ -97,7 +110,7 @@ export function DesempenhoMobileView({
       </Box>
 
       <Stack spacing={1.65}>
-        <DesempenhoChartCard titulo="Arrecadação diária (Pix vs Comp.)" compacto>
+        <DesempenhoChartCard titulo="Arrecadação diária" compacto>
           <ReceitaAreaChart data={dados.receitaPorDia} compact />
         </DesempenhoChartCard>
 

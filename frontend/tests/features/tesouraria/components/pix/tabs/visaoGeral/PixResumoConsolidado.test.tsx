@@ -31,7 +31,7 @@ describe("Componente: PixResumoConsolidado", () => {
     expect(
       screen.getByText("TOTAL GERAL CONSOLIDADO"),
     ).toBeInTheDocument();
-    expect(screen.getByText("PIX AUTOMATIZADO")).toBeInTheDocument();
+    expect(screen.getByText("PIX DIRETO (INFINITEPAY)")).toBeInTheDocument();
     expect(screen.getByText("COMPROVANTES MANUAIS")).toBeInTheDocument();
 
     expect(screen.getByText("R$ 299,00")).toBeInTheDocument();

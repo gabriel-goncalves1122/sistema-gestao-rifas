@@ -33,6 +33,10 @@ export function PixResumoConsolidado({
   isMobile = false,
 }: PixResumoConsolidadoProps) {
   const ind = obterIndicadoresConsolidados(resumo);
+  const temDiferencaTaxaTotal =
+    Math.abs(ind.totalGeral.recebidoBruto - ind.totalGeral.recebidoLiquido) > 0.009;
+  const temDiferencaTaxaPix =
+    Math.abs(ind.pix.recebidoBruto - ind.pix.recebidoLiquido) > 0.009;
 
   return (
     <Box sx={{ mb: { xs: 2, sm: 3 } }}>
@@ -50,11 +54,11 @@ export function PixResumoConsolidado({
             fontWeight: 900,
           }}
         >
-          Consolidação de Canais de Entrada
+          Resumo Financeiro Consolidado
         </Typography>
         <Chip
           size="small"
-          label="Pix Gateway + Comprovantes"
+          label="Pix Direto + Comprovantes"
           sx={{
             bgcolor: colors.verdeClaro,
             color: colors.verdeEscuro,
@@ -118,7 +122,9 @@ export function PixResumoConsolidado({
           </Typography>
 
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mt: 0.25 }}>
-            Valor bruto: {formatarMoeda(ind.totalGeral.recebidoBruto)}
+            {temDiferencaTaxaTotal
+              ? `Bruto: ${formatarMoeda(ind.totalGeral.recebidoBruto)} (inclui taxa histórica de gateway)`
+              : `${ind.totalGeral.transacoesPagas} compras confirmadas • 100% integral`}
           </Typography>
 
           <Box
@@ -163,7 +169,7 @@ export function PixResumoConsolidado({
         >
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography sx={{ ...typography.label, color: colors.verdeForte, fontWeight: 900 }}>
-              PIX AUTOMATIZADO
+              PIX DIRETO (INFINITEPAY)
             </Typography>
             <PixIcon sx={{ color: colors.verdeForte, fontSize: 22 }} />
           </Stack>
@@ -181,7 +187,9 @@ export function PixResumoConsolidado({
           </Typography>
 
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mt: 0.25 }}>
-            Bruto: {formatarMoeda(ind.pix.recebidoBruto)} (taxa de 1% deduzida)
+            {temDiferencaTaxaPix
+              ? `Bruto: ${formatarMoeda(ind.pix.recebidoBruto)} (taxa histórica de 1% no legado MP)`
+              : "Entrada direta na conta (sem taxa)"}
           </Typography>
 
           <Box

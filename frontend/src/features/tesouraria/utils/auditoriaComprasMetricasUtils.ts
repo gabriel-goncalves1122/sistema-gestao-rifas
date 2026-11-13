@@ -54,6 +54,7 @@ export function calcularContagensAuditoria(
 
 /**
  * Computa as contagens e valores consolidados (brutos e líquidos) para os cards de resumo da auditoria.
+ * Executa em passada única linear O(N) para máxima eficiência de processamento e memória.
  *
  * @param {TransacaoTesouraria[]} compras - Lista de compras auditadas.
  * @returns {ResumoAuditoriaCompras} Quantitativos e totais financeiros.
@@ -61,31 +62,34 @@ export function calcularContagensAuditoria(
 export function calcularResumoAuditoria(
   compras: TransacaoTesouraria[],
 ): ResumoAuditoriaCompras {
-  const totalRifas = compras.reduce(
-    (acc, compra) => acc + compra.bilhetes.length,
-    0,
-  );
-  const valorTotal = compras.reduce(
-    (acc, compra) => acc + (compra.valorTotal || 0),
-    0,
-  );
-  const valorLiquido = compras.reduce(
-    (acc, compra) => acc + (compra.valorLiquido ?? compra.valorTotal ?? 0),
-    0,
-  );
-  const pagas = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "pago",
-  ).length;
-  const pendentes = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "pendente",
-  ).length;
-  const recusadas = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "recusado",
-  ).length;
+  let totalRifas = 0;
+  let valorTotal = 0;
+  let valorLiquido = 0;
+  let pagas = 0;
+  let pendentes = 0;
+  let recusadas = 0;
+  let comprasPix = 0;
 
-  const comprasPix = compras.filter(
-    (compra) => (compra.origem || "").toUpperCase() === "PIX",
-  ).length;
+  for (let i = 0; i < compras.length; i++) {
+    const compra = compras[i];
+    totalRifas += compra.bilhetes ? compra.bilhetes.length : 0;
+    valorTotal += compra.valorTotal || 0;
+    valorLiquido += compra.valorLiquido ?? compra.valorTotal ?? 0;
+
+    const status = normalizarTexto(compra.status);
+    if (status === "pago") {
+      pagas += 1;
+    } else if (status === "pendente") {
+      pendentes += 1;
+    } else if (status === "recusado") {
+      recusadas += 1;
+    }
+
+    if ((compra.origem || "").toUpperCase() === "PIX") {
+      comprasPix += 1;
+    }
+  }
+
   const comprasComprovante = compras.length - comprasPix;
 
   return {

@@ -1,6 +1,7 @@
 import { fetchAPI } from "@/shared/services/api";
 
 import {
+  AnaliseOcrDTO,
   ItemLoteValidacaoTransacao,
   PixTransacoesResumo,
   PixTransacao,
@@ -143,5 +144,29 @@ export const pixTransacoesService = {
       "POST",
       { transacoes: itens, motivo },
     );
+  },
+
+  /**
+   * Dispara a reanálise síncrona de OCR de um comprovante no backend.
+   *
+   * @param {string} transacaoId - Identificador da transação na Tesouraria.
+   * @returns {Promise<AnaliseOcrDTO | null>} Resultado atualizado da análise OCR.
+   */
+  async reanalisarOcr(transacaoId: string): Promise<AnaliseOcrDTO | null> {
+    const resposta = await fetchAPI(
+      `/tesouraria/transacoes-bancarias/${transacaoId}/reanalisar-ocr`,
+      "POST",
+      {},
+    );
+
+    if (
+      resposta &&
+      typeof resposta === "object" &&
+      "analiseOcr" in resposta
+    ) {
+      return (resposta as { analiseOcr?: AnaliseOcrDTO | null }).analiseOcr ?? null;
+    }
+
+    return null;
   },
 };

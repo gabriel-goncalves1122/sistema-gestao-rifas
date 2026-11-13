@@ -5,6 +5,7 @@ import { useDebounce } from "@/shared/hooks/useDebounce";
 
 import { pixTransacoesService } from "../services/pixTransacoesService";
 import {
+  AnaliseOcrDTO,
   ItemLoteValidacaoTransacao,
   PixTransacoesFiltros,
   PixTransacoesResumo,
@@ -24,6 +25,7 @@ function resumoPossuiDados(resumo: PixTransacoesResumo | null) {
 export function usePixTransacoes() {
   const queryClient = useQueryClient();
   const [sincronizando, setSincronizando] = useState(false);
+  const [reanalisandoOcrId, setReanalisandoOcrId] = useState<string | null>(null);
   const [filtros, setFiltros] = useState<PixTransacoesFiltros>({
     status: "novas",
     busca: "",
@@ -32,22 +34,23 @@ export function usePixTransacoes() {
   const { data, isLoading: carregando } = useQuery({
     queryKey: ["tesouraria", "pix"],
     queryFn: async () => {
-      const [resultadoTransacoes, resultadoResumo] = await Promise.allSettled([
-        pixTransacoesService.buscarTransacoes(),
-        pixTransacoesService.buscarResumo(),
-      ]);
+      // 1. Busca as transações principais da Tesouraria
+      const transacoes = await pixTransacoesService.buscarTransacoes();
 
-      const transacoes =
-        resultadoTransacoes.status === "fulfilled"
-          ? resultadoTransacoes.value
-          : [];
-      const resumo =
-        resultadoResumo.status === "fulfilled" ? resultadoResumo.value : null;
+      // 2. Tenta recuperar resumo agregado via endpoint dedicado ou deriva localmente sem quebrar o fluxo
+      let resumo: PixTransacoesResumo | null = null;
+      try {
+        resumo = await pixTransacoesService.buscarResumo();
+      } catch {
+        resumo = null;
+      }
 
       return { transacoes, resumo };
     },
-    staleTime: 30_000,
-    refetchOnMount: "always",
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const transacoes = data?.transacoes || [];
@@ -201,6 +204,26 @@ interface CachePixTransacoes {
     [queryClient, atualizarTransacaoLocal],
   );
 
+  const reanalisarOcr = useCallback(
+    async (transacaoId: string): Promise<AnaliseOcrDTO | null> => {
+      setReanalisandoOcrId(transacaoId);
+      try {
+        const analiseAtualizada = await pixTransacoesService.reanalisarOcr(transacaoId);
+        if (analiseAtualizada) {
+          atualizarTransacaoLocal(transacaoId, { analiseOcr: analiseAtualizada });
+        }
+        await queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] });
+        return analiseAtualizada;
+      } catch (error) {
+        console.error("Erro ao reanalisar OCR da transação:", error);
+        throw error;
+      } finally {
+        setReanalisandoOcrId(null);
+      }
+    },
+    [queryClient, atualizarTransacaoLocal],
+  );
+
   return {
     transacoes,
     transacoesFiltradas,
@@ -208,6 +231,7 @@ interface CachePixTransacoes {
     filtros,
     carregando,
     sincronizando,
+    reanalisandoOcrId,
 
     setFiltros,
     carregarDados,
@@ -216,5 +240,6 @@ interface CachePixTransacoes {
     negarTransacao,
     aceitarTransacoesEmLote,
     negarTransacoesEmLote,
+    reanalisarOcr,
   };
 }

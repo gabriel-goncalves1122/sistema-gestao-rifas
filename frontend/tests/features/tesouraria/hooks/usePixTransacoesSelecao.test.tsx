@@ -48,7 +48,7 @@ describe("Hook: usePixTransacoesSelecao", () => {
       novas: 2,
       aprovadas: 1,
       recusadas: 0,
-      aguardando_pagamento: 2,
+      aguardando_pagamento: 1,
       todas: 4,
     });
 

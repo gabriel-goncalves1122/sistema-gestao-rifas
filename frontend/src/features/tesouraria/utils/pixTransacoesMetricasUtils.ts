@@ -92,14 +92,11 @@ export function obterIndicadoresConsolidados(
   resumo: PixTransacoesResumo,
 ): IndicadoresConsolidadosTesouraria {
   const pixRecebidoLiquido = resumo.pixRecebidoLiquido ?? resumo.totalRecebido ?? 0;
-  const pixRecebidoBruto =
-    resumo.pixRecebidoBruto ??
-    (pixRecebidoLiquido > 0 ? Number((pixRecebidoLiquido / 0.99).toFixed(2)) : 0);
+  const pixRecebidoBruto = resumo.pixRecebidoBruto ?? pixRecebidoLiquido;
   const pixValorAguardandoBruto =
     resumo.pixValorAguardandoBruto ?? resumo.totalPendente ?? 0;
   const pixValorAguardandoLiquido =
-    resumo.pixValorAguardandoLiquido ??
-    Number((pixValorAguardandoBruto * 0.99).toFixed(2));
+    resumo.pixValorAguardandoLiquido ?? pixValorAguardandoBruto;
 
   const comprovantesTransacoesPagas = resumo.comprovantesTransacoesPagas ?? 0;
   const comprovantesRifasPagas = resumo.comprovantesRifasPagas ?? 0;
@@ -176,8 +173,40 @@ function contarRifasTransacao(transacao: PixTransacao): number {
 }
 
 /**
+ * Calcula o valor líquido de uma transação Pix aplicando taxa de 1% apenas para cobranças
+ * históricas do gateway Mercado Pago (`MERCADOPAGO_API`), mantendo Pix Direto (`EMV_OFFLINE`)
+ * e Comprovantes em 100% do valor integral.
+ *
+ * @param {PixTransacao} transacao - Transação avaliada.
+ * @param {number} valor - Valor bruto de referência.
+ * @returns {number} Valor líquido arredondado em duas casas decimais.
+ */
+function calcularValorLiquidoTransacao(transacao: PixTransacao, valor: number): number {
+  const bruto = Number.isFinite(Number(valor)) ? Number(valor) : 0;
+
+  if (transacao.provedor === "MERCADOPAGO_API") {
+    return Math.round(bruto * 0.99 * 100) / 100;
+  }
+
+  if (transacao.provedor === "EMV_OFFLINE" || transacao.provedor === "COMPROVANTE_PURO") {
+    return Math.round(bruto * 100) / 100;
+  }
+
+  const ehLegadoMercadoPago =
+    transacao.origem !== "COMPROVANTE" &&
+    !transacao.comprovanteUrl &&
+    Boolean(transacao.pixOrderId) &&
+    !String(transacao.pixOrderId || "").startsWith("RIFA");
+
+  return ehLegadoMercadoPago
+    ? Math.round(bruto * 0.99 * 100) / 100
+    : Math.round(bruto * 100) / 100;
+}
+
+/**
  * Calcula os totais monetários e contagens resumidas para exibição nos cards do dashboard da Tesouraria Pix.
- * Desconta taxa bancária de 1% (fator 0.99) sobre o valor total recebido.
+ * Aplica taxa bancária de 1% apenas às cobranças do gateway Mercado Pago,
+ * mantendo Pix Direto (InfinitePay / EMV Offline) e Comprovantes com valor integral.
  *
  * @param {PixTransacao[]} transacoes - Lista consolidada de transações.
  * @returns {PixTransacoesResumo} Métricas financeiras e de volume de vendas.
@@ -185,45 +214,49 @@ function contarRifasTransacao(transacao: PixTransacao): number {
 export function calcularResumoPixTransacoes(
   transacoes: PixTransacao[],
 ): PixTransacoesResumo {
-  const pagas = transacoes.filter((transacao) =>
-    ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento),
-  );
-  const aguardando = transacoes.filter((transacao) =>
-    ["WAITING", "IN_ANALYSIS"].includes(transacao.statusPagamento),
-  );
-  const canceladas = transacoes.filter((transacao) =>
-    ["CANCELED", "DECLINED"].includes(transacao.statusPagamento),
-  );
-  const erros = transacoes.filter(
-    (transacao) => transacao.statusPagamento === "ERROR",
-  );
+  let quantidadePagas = 0;
+  let quantidadeAguardando = 0;
+  let quantidadeCanceladas = 0;
+  let quantidadeErros = 0;
 
-  const pixRecebidoBruto = pagas.reduce(
-    (acc, transacao) => acc + (transacao.valorPago || transacao.valorBruto),
-    0,
-  );
-  const totalRecebido = Number(
-    pagas.reduce((acc, transacao) => acc + transacao.valorPago * 0.99, 0).toFixed(2),
-  );
-  const totalPendente = aguardando.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
-  const pixValorAguardandoLiquido = Number((totalPendente * 0.99).toFixed(2));
-  const totalCancelado = canceladas.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
-  const totalErros = erros.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
+  let pixRecebidoBruto = 0;
+  let totalRecebido = 0;
+  let totalPendente = 0;
+  let pixValorAguardandoLiquido = 0;
+  let totalCancelado = 0;
+  let totalErros = 0;
 
-  const pixRifasPagas = pagas.reduce((acc, t) => acc + contarRifasTransacao(t), 0);
-  const pixRifasAguardando = aguardando.reduce(
-    (acc, t) => acc + contarRifasTransacao(t),
-    0,
-  );
+  let pixRifasPagas = 0;
+  let pixRifasAguardando = 0;
+
+  for (let i = 0; i < transacoes.length; i++) {
+    const t = transacoes[i];
+    const status = t.statusPagamento;
+    const rifasCount = contarRifasTransacao(t);
+    const valorBruto = t.valorBruto || 0;
+    const valorBasePago = t.valorPago || valorBruto;
+
+    if (status === "PAID" || status === "AUTHORIZED") {
+      quantidadePagas += 1;
+      pixRecebidoBruto += valorBasePago;
+      totalRecebido += calcularValorLiquidoTransacao(t, valorBasePago);
+      pixRifasPagas += rifasCount;
+    } else if (status === "WAITING" || status === "IN_ANALYSIS") {
+      quantidadeAguardando += 1;
+      totalPendente += valorBruto;
+      pixValorAguardandoLiquido += calcularValorLiquidoTransacao(t, valorBruto);
+      pixRifasAguardando += rifasCount;
+    } else if (status === "CANCELED" || status === "DECLINED") {
+      quantidadeCanceladas += 1;
+      totalCancelado += valorBruto;
+    } else if (status === "ERROR") {
+      quantidadeErros += 1;
+      totalErros += valorBruto;
+    }
+  }
+
+  totalRecebido = Number(totalRecebido.toFixed(2));
+  pixValorAguardandoLiquido = Number(pixValorAguardandoLiquido.toFixed(2));
 
   return {
     ...RESUMO_PIX_TRANSACOES_VAZIO,
@@ -231,29 +264,31 @@ export function calcularResumoPixTransacoes(
     totalPendente,
     totalCancelado,
     totalErros,
-    quantidadePagas: pagas.length,
-    quantidadeAguardando: aguardando.length,
-    quantidadeCanceladas: canceladas.length,
-    quantidadeErros: erros.length,
+    quantidadePagas,
+    quantidadeAguardando,
+    quantidadeCanceladas,
+    quantidadeErros,
     totalTransacoes: transacoes.length,
     ticketMedio:
-      pagas.length > 0 ? Number((totalRecebido / pagas.length).toFixed(2)) : 0,
+      quantidadePagas > 0
+        ? Number((totalRecebido / quantidadePagas).toFixed(2))
+        : 0,
 
     // Indicadores Pix
     pixRifasPagas,
     pixRecebidoBruto,
     pixRecebidoLiquido: totalRecebido,
-    pixTransacoesAguardando: aguardando.length,
+    pixTransacoesAguardando: quantidadeAguardando,
     pixRifasAguardando,
     pixValorAguardandoBruto: totalPendente,
     pixValorAguardandoLiquido,
 
     // Total Geral (no fallback local são equivalentes ao Pix isolado)
-    totalGeralTransacoesPagas: pagas.length,
+    totalGeralTransacoesPagas: quantidadePagas,
     totalGeralRifasPagas: pixRifasPagas,
     totalGeralRecebidoBruto: pixRecebidoBruto,
     totalGeralRecebidoLiquido: totalRecebido,
-    totalGeralTransacoesPendentes: aguardando.length,
+    totalGeralTransacoesPendentes: quantidadeAguardando,
     totalGeralRifasPendentes: pixRifasAguardando,
     totalGeralValorPendenteBruto: totalPendente,
   };

@@ -245,6 +245,37 @@ export function adaptarAderidosDoRelatorio(
   aderidosServidor: AderidoMetricaDesempenho[],
   transacoes: PixTransacao[],
 ): PixAderidoResumo[] {
+  // Indexação em passada única O(T) para evitar loops O(A x T)
+  const transacoesPorVendedorId = new Map<string, PixTransacao[]>();
+  const transacoesPorCpf = new Map<string, PixTransacao[]>();
+  const transacoesPorNome = new Map<string, PixTransacao[]>();
+
+  for (let i = 0; i < transacoes.length; i++) {
+    const t = transacoes[i];
+    const aderido = t.aderido;
+    if (!aderido) continue;
+
+    if (aderido.id) {
+      const lista = transacoesPorVendedorId.get(aderido.id) || [];
+      lista.push(t);
+      transacoesPorVendedorId.set(aderido.id, lista);
+    }
+
+    const cpfLimpo = somenteNumeros(aderido.cpf);
+    if (cpfLimpo) {
+      const lista = transacoesPorCpf.get(cpfLimpo) || [];
+      lista.push(t);
+      transacoesPorCpf.set(cpfLimpo, lista);
+    }
+
+    if (aderido.nome) {
+      const nomeChave = aderido.nome.trim().toLowerCase();
+      const lista = transacoesPorNome.get(nomeChave) || [];
+      lista.push(t);
+      transacoesPorNome.set(nomeChave, lista);
+    }
+  }
+
   const ordenados = [...aderidosServidor].sort((a, b) => {
     const valorA = a.arrecadadoLiquido ?? a.valorTotal ?? a.arrecadado ?? 0;
     const valorB = b.arrecadadoLiquido ?? b.valorTotal ?? b.arrecadado ?? 0;
@@ -269,23 +300,30 @@ export function adaptarAderidosDoRelatorio(
       transacoesServidorConvertidas.map((t) => t.id),
     );
 
-    const transacoesLocaisExtras: PixTransacaoComOrigem[] = transacoes
-      .filter((t) => {
-        if (idsExistentes.has(t.id)) return false;
-        if (vendedorId && t.aderido?.id === vendedorId) return true;
-        if (cpfLimpo && somenteNumeros(t.aderido?.cpf) === cpfLimpo) return true;
-        if (
-          t.aderido?.nome &&
-          t.aderido.nome.toLowerCase() === nome.toLowerCase()
-        ) {
-          return true;
-        }
-        return false;
-      })
-      .map((t) => ({
-        ...t,
-        origem: "PIX" as const,
-      }));
+    // Consulta O(1) nos mapas indexados
+    const candidatos: PixTransacao[] = [];
+    if (vendedorId && transacoesPorVendedorId.has(vendedorId)) {
+      candidatos.push(...transacoesPorVendedorId.get(vendedorId)!);
+    } else if (cpfLimpo && transacoesPorCpf.has(cpfLimpo)) {
+      candidatos.push(...transacoesPorCpf.get(cpfLimpo)!);
+    } else {
+      const nomeChave = nome.trim().toLowerCase();
+      if (transacoesPorNome.has(nomeChave)) {
+        candidatos.push(...transacoesPorNome.get(nomeChave)!);
+      }
+    }
+
+    const transacoesLocaisExtras: PixTransacaoComOrigem[] = [];
+    for (let j = 0; j < candidatos.length; j++) {
+      const c = candidatos[j];
+      if (!idsExistentes.has(c.id)) {
+        idsExistentes.add(c.id);
+        transacoesLocaisExtras.push({
+          ...c,
+          origem: "PIX",
+        });
+      }
+    }
 
     const transacoesDoVendedor = [
       ...transacoesServidorConvertidas,

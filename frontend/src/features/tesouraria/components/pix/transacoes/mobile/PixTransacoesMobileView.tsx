@@ -7,6 +7,7 @@ import { colors } from "@/shared/tokens/colors";
 
 import { usePixTransacoesSelecao } from "../../../../hooks/usePixTransacoesSelecao";
 import {
+  AnaliseOcrDTO,
   ItemLoteValidacaoTransacao,
   PixTransacao,
   PixTransacoesFiltros as PixTransacoesFiltrosState,
@@ -45,6 +46,10 @@ export interface PixTransacoesMobileViewProps {
     itens: ItemLoteValidacaoTransacao[],
     motivo: string,
   ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback opcional para reanalisar OCR de um comprovante. */
+  onReanalisarOcr?: (id: string) => Promise<AnaliseOcrDTO | null>;
+  /** Identificador da transação atualmente em reanálise OCR. */
+  reanalisandoOcrId?: string | null;
   /** Callback opcional para abrir conciliação por extrato. */
   onAbrirConciliacao?: () => void;
 }
@@ -65,10 +70,15 @@ export function PixTransacoesMobileView({
   onNegar,
   onAceitarLote,
   onNegarLote,
+  onReanalisarOcr,
+  reanalisandoOcrId,
   onAbrirConciliacao,
 }: PixTransacoesMobileViewProps) {
   const [transacaoSelecionada, setTransacaoSelecionada] =
     useState<PixTransacao | null>(null);
+  const transacaoSelecionadaAtiva = transacaoSelecionada
+    ? (transacoes.find((t) => t.id === transacaoSelecionada.id) ?? transacaoSelecionada)
+    : null;
 
   const {
     selecionadosIds,
@@ -157,10 +167,15 @@ export function PixTransacoesMobileView({
       )}
 
       <PixTransacaoDetalhesDialog
-        transacao={transacaoSelecionada}
+        transacao={transacaoSelecionadaAtiva}
         onClose={() => setTransacaoSelecionada(null)}
         onAceitar={onAceitar}
         onNegar={onNegar}
+        onReanalisarOcr={onReanalisarOcr}
+        reanalisandoOcr={
+          Boolean(transacaoSelecionadaAtiva) &&
+          reanalisandoOcrId === transacaoSelecionadaAtiva?.id
+        }
       />
 
       <PixAcoesLoteBar

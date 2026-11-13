@@ -1,32 +1,23 @@
-import { useEffect, useState } from "react";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useCallback, useEffect, useState } from "react";
 import {
   Checkbox,
-  IconButton,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TablePagination,
   TableRow,
-  Typography,
 } from "@mui/material";
-import {
-  formatarData,
-  formatarMoeda,
-} from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
 import { surfaces } from "@/shared/tokens/surfaces";
 
-import { PixTransacao } from "../../../../types/pixTransacoes";
+import { AnaliseOcrDTO, PixTransacao } from "../../../../types/pixTransacoes";
 import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesStatusUtils";
-import { PixOrigemChip } from "../shared/PixOrigemChip";
-import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
+import { PixTransacaoTableRow } from "./PixTransacaoTableRow";
 
 /**
  * Propriedades da tabela desktop de transações Pix.
@@ -38,6 +29,10 @@ export interface PixTransacoesTableProps {
   onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
   /** Callback de recusa individual com justificativa. */
   onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
+  /** Callback opcional para reanalisar OCR de um comprovante. */
+  onReanalisarOcr?: (id: string) => Promise<AnaliseOcrDTO | null>;
+  /** Identificador da transação atualmente em reanálise OCR. */
+  reanalisandoOcrId?: string | null;
   /** Conjunto de IDs selecionados para ações em lote. */
   selecionadosIds?: Set<string>;
   /** Callback para alternar seleção de uma transação específica. */
@@ -56,14 +51,23 @@ export function PixTransacoesTable({
   transacoes,
   onAceitar,
   onNegar,
+  onReanalisarOcr,
+  reanalisandoOcrId,
   selecionadosIds,
   onToggleSelecao,
   onToggleTodas,
 }: PixTransacoesTableProps) {
   const [transacaoDetalhada, setTransacaoDetalhada] =
     useState<PixTransacao | null>(null);
+  const transacaoDetalhadaAtiva = transacaoDetalhada
+    ? (transacoes.find((t) => t.id === transacaoDetalhada.id) ?? transacaoDetalhada)
+    : null;
   const [pagina, setPagina] = useState(0);
   const [itensPorPagina, setItensPorPagina] = useState(25);
+
+  const handleFecharDetalhes = useCallback(() => {
+    setTransacaoDetalhada(null);
+  }, []);
 
   useEffect(() => {
     setPagina(0);
@@ -135,141 +139,18 @@ export function PixTransacoesTable({
           </TableHead>
 
           <TableBody>
-            {transacoesPaginadas.map((transacao) => {
-              const valor =
-                transacao.statusPagamento === "PAID"
-                  ? transacao.valorPago
-                  : transacao.valorBruto;
-              const elegivel = podeValidarPixTransacao(transacao);
-              const selecionada = Boolean(selecionadosIds?.has(transacao.id));
-
-              return (
-                <TableRow
-                  key={transacao.id}
-                  hover
-                  selected={selecionada}
-                  tabIndex={0}
-                  data-testid={`pix-transacao-${transacao.id}`}
-                  onClick={() => setTransacaoDetalhada(transacao)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setTransacaoDetalhada(transacao);
-                    }
-                  }}
-                  sx={{
-                    cursor: "pointer",
-                    transition: "background-color 160ms ease",
-                    ...components.linhaTabela,
-                    "&:hover": {
-                      bgcolor: colors.fundoSuave,
-                    },
-                    "&:focus-visible": {
-                      outline: `2px solid ${colors.verdeEscuro}`,
-                      outlineOffset: -2,
-                    },
-                  }}
-                >
-                  {exibirCheckboxes && (
-                    <TableCell
-                      padding="checkbox"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <Checkbox
-                        size="small"
-                        checked={selecionada}
-                        disabled={!elegivel}
-                        onChange={() => onToggleSelecao?.(transacao.id)}
-                        inputProps={{
-                          "aria-label": `Selecionar transação ${transacao.compradorNome || transacao.id}`,
-                        }}
-                        sx={{
-                          color: colors.verdeEscuro,
-                          "&.Mui-checked": {
-                            color: colors.verdeEscuro,
-                          },
-                        }}
-                      />
-                    </TableCell>
-                  )}
-
-                  <TableCell>
-                    <IconButton
-                      aria-label={`Abrir detalhes da transação Pix ${transacao.compradorNome || transacao.id}`}
-                      size="small"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setTransacaoDetalhada(transacao);
-                      }}
-                      sx={{
-                        borderRadius: 2,
-                        color: colors.verdeEscuro,
-                        bgcolor: colors.verdeClaro,
-                        "&:hover": {
-                          bgcolor: colors.verdeHover,
-                        },
-                      }}
-                    >
-                      <ExpandMoreIcon
-                        sx={{
-                          transform: "rotate(-90deg)",
-                          fontSize: 20,
-                        }}
-                      />
-                    </IconButton>
-                  </TableCell>
-
-                  <TableCell sx={{ color: colors.cinzaTexto, fontWeight: 700 }}>
-                    {formatarData(
-                      transacao.dataPagamento || transacao.dataCriacao,
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    <Typography
-                      sx={{ color: colors.pretoEsverdeado, fontWeight: 850 }}
-                    >
-                      {transacao.compradorNome || "Pagador não informado"}
-                    </Typography>
-                    <Typography
-                      sx={{ color: colors.cinzaTexto, fontSize: "0.82rem" }}
-                    >
-                      {transacao.compradorEmail ||
-                        transacao.aderido?.nome ||
-                        "Sem e-mail informado"}
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell align="right">
-                    <Stack alignItems="flex-end" spacing={0.5}>
-                      <Typography
-                        sx={{
-                          color:
-                            transacao.statusPagamento === "PAID"
-                              ? colors.verdeEscuro
-                              : colors.alertaTexto,
-                          fontWeight: 950,
-                        }}
-                      >
-                        {formatarMoeda(valor)}
-                      </Typography>
-                      <PixOrigemChip origem={transacao.origem} />
-                    </Stack>
-                  </TableCell>
-                  <TableCell
-                    align="center"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <PixTransacaoAcoes
-                      transacao={transacao}
-                      compact
-                      onAceitar={onAceitar}
-                      onNegar={onNegar}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {transacoesPaginadas.map((transacao) => (
+              <PixTransacaoTableRow
+                key={transacao.id}
+                transacao={transacao}
+                exibirCheckboxes={exibirCheckboxes}
+                selecionada={Boolean(selecionadosIds?.has(transacao.id))}
+                onSelecionarDetalhes={setTransacaoDetalhada}
+                onToggleSelecao={onToggleSelecao}
+                onAceitar={onAceitar}
+                onNegar={onNegar}
+              />
+            ))}
           </TableBody>
         </Table>
 
@@ -297,10 +178,15 @@ export function PixTransacoesTable({
       </Paper>
 
       <PixTransacaoDetalhesDialog
-        transacao={transacaoDetalhada}
-        onClose={() => setTransacaoDetalhada(null)}
+        transacao={transacaoDetalhadaAtiva}
+        onClose={handleFecharDetalhes}
         onAceitar={onAceitar}
         onNegar={onNegar}
+        onReanalisarOcr={onReanalisarOcr}
+        reanalisandoOcr={
+          Boolean(transacaoDetalhadaAtiva) &&
+          reanalisandoOcrId === transacaoDetalhadaAtiva?.id
+        }
       />
     </>
   );

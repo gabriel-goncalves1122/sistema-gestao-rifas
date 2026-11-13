@@ -3,6 +3,7 @@ import { Box } from "@mui/material";
 import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { usePixTransacoesSelecao } from "../../../../hooks/usePixTransacoesSelecao";
 import {
+  AnaliseOcrDTO,
   ItemLoteValidacaoTransacao,
   PixTransacao,
   PixTransacoesFiltros as PixTransacoesFiltrosState,
@@ -38,6 +39,10 @@ export interface PixTransacoesDesktopViewProps {
     itens: ItemLoteValidacaoTransacao[],
     motivo: string,
   ) => Promise<ResultadoLoteValidacaoTransacoes>;
+  /** Callback opcional para reanalisar OCR de um comprovante. */
+  onReanalisarOcr?: (id: string) => Promise<AnaliseOcrDTO | null>;
+  /** Identificador da transação atualmente em reanálise OCR. */
+  reanalisandoOcrId?: string | null;
   /** Callback opcional para abrir diálogo de conciliação por extrato. */
   onAbrirConciliacao?: () => void;
 }
@@ -58,6 +63,8 @@ export function PixTransacoesDesktopView({
   onNegar,
   onAceitarLote,
   onNegarLote,
+  onReanalisarOcr,
+  reanalisandoOcrId,
   onAbrirConciliacao,
 }: PixTransacoesDesktopViewProps) {
   const {
@@ -89,6 +96,8 @@ export function PixTransacoesDesktopView({
           transacoes={transacoes}
           onAceitar={onAceitar}
           onNegar={onNegar}
+          onReanalisarOcr={onReanalisarOcr}
+          reanalisandoOcrId={reanalisandoOcrId}
           selecionadosIds={selecionadosIds}
           onToggleSelecao={handleToggleSelecao}
           onToggleTodas={handleToggleTodas}

@@ -12,6 +12,7 @@ import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixTransacao } from "../../../../types/pixTransacoes";
 import { formatarRifasPix } from "../../../../utils/pixTransacoesFiltrosUtils";
 import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesStatusUtils";
+import { PixAnaliseOcrChip } from "../shared/PixAnaliseOcrChip";
 import { PixOrigemChip } from "../shared/PixOrigemChip";
 import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 
@@ -137,7 +138,13 @@ export const PixTransacaoCard = memo(function PixTransacaoCard({
               >
                 {formatarMoeda(valor)}
               </Typography>
-              <PixOrigemChip origem={transacao.origem} />
+              <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                <PixAnaliseOcrChip
+                  analiseOcr={transacao.analiseOcr}
+                  temComprovante={Boolean(transacao.comprovanteUrl)}
+                />
+                <PixOrigemChip origem={transacao.origem} />
+              </Stack>
             </Stack>
           </Stack>
         </Box>

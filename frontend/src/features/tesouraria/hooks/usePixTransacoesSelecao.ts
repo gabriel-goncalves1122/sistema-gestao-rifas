@@ -170,7 +170,9 @@ export function usePixTransacoesSelecao({
       aprovadas: fonte.filter((t) => t.statusValidacao === "aceita").length,
       recusadas: fonte.filter((t) => t.statusValidacao === "negada").length,
       aguardando_pagamento: fonte.filter(
-        (t) => !pixPagamentoConfirmadoBanco(t),
+        (t) =>
+          !podeValidarPixTransacao(t) &&
+          !["aceita", "negada"].includes(t.statusValidacao || ""),
       ).length,
       todas: fonte.length,
     }),

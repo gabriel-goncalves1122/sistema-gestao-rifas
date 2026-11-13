@@ -15,9 +15,10 @@ import { typographyScale as typography } from "@/shared/tokens/typography";
 
 import { useTesourariaLayout } from "../../../../hooks/useTesourariaLayout";
 import { layout } from "../../../../styles/layout";
-import { PixTransacao } from "../../../../types/pixTransacoes";
+import { AnaliseOcrDTO, PixTransacao } from "../../../../types/pixTransacoes";
 import { formatarRifasPix } from "../../../../utils/pixTransacoesFiltrosUtils";
 import { obterLabelStatusPagamento } from "../../../../utils/pixTransacoesStatusUtils";
+import { PixAnaliseOcrDetalhesSection } from "./PixAnaliseOcrDetalhesSection";
 import { PixOrigemChip } from "./PixOrigemChip";
 import { PixTransacaoAcoes } from "./PixTransacaoAcoes";
 
@@ -33,6 +34,10 @@ export interface PixTransacaoDetalhesDialogProps {
   onAceitar: (id: string, chaveAcao?: string) => Promise<void>;
   /** Callback para negar individualmente a transação com justificativa. */
   onNegar: (id: string, motivo: string, chaveAcao?: string) => Promise<void>;
+  /** Callback opcional para disparar reanálise manual do OCR do comprovante. */
+  onReanalisarOcr?: (id: string) => Promise<AnaliseOcrDTO | null>;
+  /** Indica se esta transação está em processamento de reanálise OCR. */
+  reanalisandoOcr?: boolean;
 }
 
 const cartaoDetalheSx = {
@@ -81,6 +86,8 @@ export function PixTransacaoDetalhesDialog({
   onClose,
   onAceitar,
   onNegar,
+  onReanalisarOcr,
+  reanalisandoOcr = false,
 }: PixTransacaoDetalhesDialogProps) {
   const { isMobile } = useTesourariaLayout();
   if (!transacao) return null;
@@ -135,6 +142,12 @@ export function PixTransacaoDetalhesDialog({
           <CampoDetalhe label="Observação" valor={transacao.observacao} />
         )}
       </Box>
+
+      <PixAnaliseOcrDetalhesSection
+        transacao={transacao}
+        onReanalisarOcr={onReanalisarOcr}
+        reanalisando={reanalisandoOcr}
+      />
     </Stack>
   );
 

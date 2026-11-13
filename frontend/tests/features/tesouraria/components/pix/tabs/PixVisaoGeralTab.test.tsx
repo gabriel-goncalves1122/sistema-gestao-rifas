@@ -55,7 +55,7 @@ describe("Aba: PixVisaoGeralTab", () => {
     );
 
     expect(screen.getByText("TOTAL GERAL CONSOLIDADO")).toBeInTheDocument();
-    expect(screen.getByText("PIX AUTOMATIZADO")).toBeInTheDocument();
+    expect(screen.getByText("PIX DIRETO (INFINITEPAY)")).toBeInTheDocument();
     expect(screen.getByText("COMPROVANTES MANUAIS")).toBeInTheDocument();
     expect(screen.getByText("Recebimentos ao longo do tempo")).toBeInTheDocument();
     expect(
@@ -76,7 +76,7 @@ describe("Aba: PixVisaoGeralTab", () => {
     );
 
     expect(screen.getByText("TOTAL GERAL CONSOLIDADO")).toBeInTheDocument();
-    expect(screen.getByText("PIX AUTOMATIZADO")).toBeInTheDocument();
+    expect(screen.getByText("PIX DIRETO (INFINITEPAY)")).toBeInTheDocument();
     expect(screen.getByText("COMPROVANTES MANUAIS")).toBeInTheDocument();
     expect(screen.getByText("Recebimentos ao longo do tempo")).toBeInTheDocument();
     expect(

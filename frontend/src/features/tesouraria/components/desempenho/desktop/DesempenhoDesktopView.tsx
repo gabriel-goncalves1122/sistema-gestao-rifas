@@ -60,18 +60,31 @@ export function DesempenhoDesktopView({
 
       <Box sx={{ mb: 2.75 }}>
         <DesempenhoKpiCard
-          titulo="Receita validada (Líquida)"
+          titulo="Receita validada"
           valor={formatarMoeda(
             dados.resumoGeral.totalArrecadadoLiquido ??
               dados.resumoGeral.totalArrecadado,
           )}
-          detalhe={`Bruto: ${formatarMoeda(
-            dados.resumoGeral.totalArrecadado,
-          )} • Pix: ${formatarMoeda(
-            dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
-          )} • Comprovantes: ${formatarMoeda(
-            dados.resumoGeral.valorArrecadadoComprovante ?? 0,
-          )}`}
+          detalhe={
+            Math.abs(
+              (dados.resumoGeral.totalArrecadado ?? 0) -
+                (dados.resumoGeral.totalArrecadadoLiquido ??
+                  dados.resumoGeral.totalArrecadado ??
+                  0),
+            ) > 0.009
+              ? `Bruto: ${formatarMoeda(
+                  dados.resumoGeral.totalArrecadado,
+                )} • Pix: ${formatarMoeda(
+                  dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
+                )} • Comprovantes: ${formatarMoeda(
+                  dados.resumoGeral.valorArrecadadoComprovante ?? 0,
+                )}`
+              : `Pix: ${formatarMoeda(
+                  dados.resumoGeral.valorArrecadadoPixLiquido ?? 0,
+                )} • Comprovantes: ${formatarMoeda(
+                  dados.resumoGeral.valorArrecadadoComprovante ?? 0,
+                )}`
+          }
           icon={<AttachMoneyOutlinedIcon fontSize="small" />}
           cor={colors.verdeEscuro}
           destaque
@@ -79,8 +92,8 @@ export function DesempenhoDesktopView({
       </Box>
 
       <DesempenhoChartCard
-        titulo="Arrecadação validada por dia (Pix vs Comprovante)"
-        subtitulo="Receita diária confirmada com distinção entre Pix automatizado e comprovantes manuais."
+        titulo="Arrecadação validada por dia"
+        subtitulo="Evolução diária da receita confirmada da comissão."
       >
         <ReceitaAreaChart data={dados.receitaPorDia} />
       </DesempenhoChartCard>

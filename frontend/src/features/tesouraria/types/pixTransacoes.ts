@@ -14,6 +14,50 @@ export type StatusValidacaoUI =
   | "sem_confirmacao_bancaria"
   | "pendente_validacao";
 
+export type VeredictoCorrelacaoOcr =
+  | "CORRELACAO_FORTE"
+  | "CORRELACAO_PARCIAL"
+  | "DIVERGENTE"
+  | "SUSPEITO"
+  | "ILEGIVEL";
+
+export type CodigoAlertaOcr =
+  | "AGENDAMENTO_DETECTADO"
+  | "STATUS_CANCELADO_OU_RECUSADO"
+  | "E2E_DUPLICADO"
+  | "VALOR_DIVERGENTE"
+  | "VALOR_NAO_ENCONTRADO"
+  | "TXID_NAO_ENCONTRADO"
+  | "TXID_DE_OUTRO_PEDIDO"
+  | "RECEBEDOR_DIVERGENTE"
+  | "COMPROVANTE_ANTERIOR_AO_PEDIDO"
+  | "TEXTO_INSUFICIENTE";
+
+/**
+ * DTO `camelCase` da análise OCR e correlação do comprovante Pix retornado pela API.
+ */
+export interface AnaliseOcrDTO {
+  statusExecucao: "CONCLUIDO" | "ERRO";
+  veredicto: VeredictoCorrelacaoOcr | null;
+  score: number | null;
+  txidBate: boolean | null;
+  valorBate: boolean | null;
+  recebedorBate: boolean | null;
+  e2eUnico: boolean | null;
+  bancoDetectado: string | null;
+  txidLido: string | null;
+  e2eIdDetectado: string | null;
+  valorLidoCentavos: number | null;
+  dataTransacaoIso: string | null;
+  recebedorDetectado: string | null;
+  cnpjRecebedorDetectado: string | null;
+  alertas: CodigoAlertaOcr[];
+  motivos: string[];
+  tempoMs: number;
+  analisadoEm: string;
+  erroMensagem?: string | null;
+}
+
 export interface AderidoResumoTransacao {
   id?: string;
   nome: string;
@@ -67,6 +111,7 @@ export interface PixTransacao {
   origem?: "PIX" | "COMPROVANTE";
   comprovanteUrl?: string | null;
   chaveAcao?: string;
+  analiseOcr?: AnaliseOcrDTO | null;
 }
 
 export interface ItemLoteValidacaoTransacao {
