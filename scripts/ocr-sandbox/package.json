@@ -1,0 +1,26 @@
+{
+  "name": "ocr-sandbox",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sandbox isolado para benchmarking e validacao de OCR e correlacao de comprovantes Pix.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "benchmark": "tsx src/cli/rodarBenchmark.ts",
+    "analyze": "tsx src/cli/analisarArquivo.ts",
+    "coletar:producao": "tsx src/cli/coletarAmostrasProducao.ts"
+  },
+  "dependencies": {
+    "pdf-parse": "^2.4.5",
+    "sharp": "^0.33.5",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.5"
+  }
+}

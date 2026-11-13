@@ -120,3 +120,10 @@ backend/functions/src/scripts/*.csv
 # ----------------------------------------------------------------------------
 .agents/
 .codex/
+
+# ----------------------------------------------------------------------------
+# 10. SANDBOX ISOLADO DE OCR (AMOSTRAS E RELATORIOS LOCAIS)
+# ----------------------------------------------------------------------------
+scripts/ocr-sandbox/amostras/
+scripts/ocr-sandbox/relatorios/
+scripts/ocr-sandbox/*.traineddata
