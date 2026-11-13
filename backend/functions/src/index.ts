@@ -191,3 +191,7 @@ export { onCreateUserSetClaims } from "./modules/auth/authTriggers";
 // ============================================================================
 
 export { limparPixExpirados } from "./modules/tesouraria/tesourariaCrons";
+export {
+  analisarComprovanteOcrTrigger,
+  analisarComprovanteBilheteDiretoOcrTrigger,
+} from "./modules/tesouraria/ocr/ocrTriggers";
