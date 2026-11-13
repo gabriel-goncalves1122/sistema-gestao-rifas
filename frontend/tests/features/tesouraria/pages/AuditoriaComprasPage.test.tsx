@@ -129,38 +129,44 @@ describe("Página <AuditoriaComprasPage />", () => {
       screen.getByText(/sem alterar vínculos da venda/i),
     ).toBeInTheDocument();
     expect(screen.getByText("Compras Auditadas")).toBeInTheDocument();
+    expect(screen.getByText("1 compras")).toBeInTheDocument();
+    expect(screen.getByText("2 rifas")).toBeInTheDocument();
     expect(
-      screen.getByText(/2 compra\(s\) encontrada\(s\) • 3 rifa\(s\)/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/compra\(s\) encontrada\(s\)/i),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
+    expect(screen.queryByText("João Lima")).not.toBeInTheDocument();
     expect(screen.getAllByText(/\(35\) 99999-0000/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/ID: comprador_maria/i)).not.toBeInTheDocument();
     expect(screen.getAllByText("001").length).toBeGreaterThan(0);
     expect(screen.getAllByText("002").length).toBeGreaterThan(0);
 
-    // Apenas a compra pendente (João Lima) deve exibir o botão 'Recusar compra', protegendo a compra já paga (Maria Souza)
+    // Tela de auditoria é histórico: não exibe botões de recusar/aceitar compra, apenas menu de ações
     expect(
-      screen.getAllByRole("button", { name: /recusar compra/i }),
-    ).toHaveLength(1);
+      screen.queryByRole("button", { name: /recusar compra/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /mais ações/i }).length,
+    ).toBeGreaterThan(0);
   });
 
-  it("Deve filtrar por busca de bilhete ou comprador e por status", async () => {
+  it("Deve filtrar por busca de bilhete ou comprador e não exibir chips de filtro", async () => {
     renderPage();
 
     const busca = await screen.findByPlaceholderText(
       /buscar por nome do comprador ou nº da rifa/i,
     );
 
+    // Chips de status não devem existir (tela exclusiva de compras pagas)
+    expect(screen.queryByText("Pendentes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recusadas")).not.toBeInTheDocument();
+
+    fireEvent.change(busca, { target: { value: "001" } });
+    expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
+
     fireEvent.change(busca, { target: { value: "003" } });
-
-    expect(screen.getAllByText("João Lima").length).toBeGreaterThan(0);
     expect(screen.queryByText("Maria Souza")).not.toBeInTheDocument();
-
-    fireEvent.change(busca, { target: { value: "" } });
-    fireEvent.click(screen.getByText("Pendentes"));
-
-    expect(screen.getAllByText("João Lima").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Maria Souza")).not.toBeInTheDocument();
+    expect(screen.getByText("Nenhuma compra encontrada")).toBeInTheDocument();
   });
 
   it("Deve mostrar estado vazio e desabilitar exportação CSV quando não houver resultados", async () => {
@@ -189,8 +195,8 @@ describe("Página <AuditoriaComprasPage />", () => {
     expect(
       screen.getByRole("button", { name: /exportar csv/i }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("João Lima").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Maria Souza").length).toBeGreaterThan(0);
+    expect(screen.queryByText("João Lima")).not.toBeInTheDocument();
     expect(screen.queryByText("Sem comprovante")).not.toBeInTheDocument();
   });
 
@@ -199,9 +205,16 @@ describe("Página <AuditoriaComprasPage />", () => {
 
     await screen.findByText("Auditoria de compras");
 
-    fireEvent.click(screen.getAllByRole("button", { name: /ver detalhes/i })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: /mais ações/i })[0]);
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: /ver detalhes da compra/i }),
+    );
     expect(screen.getByText("Detalhes da compra")).toBeInTheDocument();
     expect(screen.queryByText("Campos bloqueados")).not.toBeInTheDocument();
+    expect(screen.getByText("***.222.333-**")).toBeInTheDocument();
+    expect(screen.queryByText("11122233344")).not.toBeInTheDocument();
+    expect(screen.getByText("ma***@teste.com")).toBeInTheDocument();
+    expect(screen.getByText("(35) 99999-0000")).toBeInTheDocument();
 
     detalhes.unmount();
 
@@ -269,6 +282,43 @@ describe("Página <AuditoriaComprasPage />", () => {
   }, 15000);
 
   it("Deve reenviar e-mail de comprovante apenas para compra paga com e-mail", async () => {
+    vi.mocked(
+      auditoriaComprasService.buscarHistoricoDetalhado,
+    ).mockResolvedValueOnce([
+      {
+        id: "comprador_maria",
+        vendedorId: "aderido_ana",
+        vendedorNome: "Ana Vendedora",
+        vendedorCpf: "11122233344",
+        compradorId: "comprador_maria",
+        compradorNome: "Maria Souza",
+        compradorEmail: "maria@teste.com",
+        compradorTelefone: "35999990000",
+        dataReserva: "2026-05-01T10:00:00.000-03:00",
+        dataPagamento: "2026-05-02T10:00:00.000-03:00",
+        status: "pago",
+        comprovanteUrl: "https://storage.mock/comprovante-maria.png",
+        bilhetes: ["001", "002"],
+        valorTotal: 20,
+      },
+      {
+        id: "comprador_carlos",
+        vendedorId: "aderido_bruno",
+        vendedorNome: "Bruno Vendedor",
+        vendedorCpf: "55566677788",
+        compradorId: "comprador_carlos",
+        compradorNome: "Carlos Sem Email",
+        compradorEmail: "",
+        compradorTelefone: "35988887777",
+        dataReserva: "2026-05-10T10:00:00.000-03:00",
+        dataPagamento: "2026-05-10T11:00:00.000-03:00",
+        status: "pago",
+        comprovanteUrl: null,
+        bilhetes: ["004"],
+        valorTotal: 10,
+      },
+    ]);
+
     let resolverEnvio: (valor: any) => void = () => {};
     vi.mocked(
       auditoriaComprasService.reenviarEmailComprovante,
@@ -282,27 +332,33 @@ describe("Página <AuditoriaComprasPage />", () => {
 
     await screen.findByText("Auditoria de compras");
 
-    const botoesEmail = screen.getAllByRole("button", {
+    const botoesMaisAcoes = screen.getAllByRole("button", {
+      name: /mais ações/i,
+    });
+    expect(botoesMaisAcoes.length).toBeGreaterThanOrEqual(2);
+
+    // Compra pendente (João Lima - segundo item) deve ter reenvio de e-mail desabilitado no menu
+    fireEvent.click(botoesMaisAcoes[1]);
+    const itemDesabilitado = await screen.findByRole("menuitem", {
       name: /reenviar e-mail/i,
     });
-    const botaoHabilitado = botoesEmail.find(
-      (botao) => !botao.hasAttribute("disabled"),
-    );
-    const botoesDesabilitados = botoesEmail.filter((botao) =>
-      botao.hasAttribute("disabled"),
-    );
+    expect(itemDesabilitado).toHaveAttribute("aria-disabled", "true");
+    fireEvent.keyDown(itemDesabilitado, { key: "Escape" });
 
-    expect(botaoHabilitado).toBeDefined();
-    expect(botoesDesabilitados.length).toBeGreaterThan(0);
+    // Compra paga com e-mail (Maria Souza - primeiro item) deve permitir reenvio
+    fireEvent.click(botoesMaisAcoes[0]);
+    const itemHabilitado = await screen.findByRole("menuitem", {
+      name: /reenviar e-mail/i,
+    });
+    expect(itemHabilitado).not.toHaveAttribute("aria-disabled", "true");
 
-    fireEvent.click(botaoHabilitado!);
+    fireEvent.click(itemHabilitado);
 
     await waitFor(() => {
-      expect(botaoHabilitado).toBeDisabled();
+      expect(
+        auditoriaComprasService.reenviarEmailComprovante,
+      ).toHaveBeenCalledWith("comprador_maria");
     });
-    expect(
-      auditoriaComprasService.reenviarEmailComprovante,
-    ).toHaveBeenCalledWith("comprador_maria");
 
     resolverEnvio({
       sucesso: true,

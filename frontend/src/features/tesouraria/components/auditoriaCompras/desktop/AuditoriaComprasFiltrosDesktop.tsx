@@ -4,7 +4,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Button,
-  Divider,
   IconButton,
   InputAdornment,
   Paper,
@@ -16,25 +15,18 @@ import {
 import { colors } from "@/shared/tokens/colors";
 
 import { AuditoriaComprasFiltrosProps } from "../shared/auditoriaComprasFiltrosTypes";
-import {
-  AuditoriaFiltroStatusChips,
-  AuditoriaFiltroOrigemChips,
-  AuditoriaFiltroCorrecaoChip,
-} from "../shared/AuditoriaFiltrosUtils";
 
 /**
- * Painel de filtros para a auditoria de compras no ambiente Desktop.
- * Focado em busca por nome do comprador ou número da rifa, chips de status com contadores
- * e filtros rápidos por canal (Pix/Comprovante) e correção cadastral.
+ * Barra de busca e exportação da auditoria de compras no ambiente Desktop.
+ * Focado em busca por nome do comprador ou número da rifa (compras pagas).
  *
- * @param {AuditoriaComprasFiltrosProps} props - Propriedades do filtro.
- * @returns {JSX.Element} Painel de filtros desktop.
+ * @param {AuditoriaComprasFiltrosProps} props - Propriedades da barra de busca.
+ * @returns {JSX.Element} Painel de busca desktop.
  */
 export function AuditoriaComprasFiltrosDesktop({
   filtros,
   filtrosAtivos,
   possuiResultados,
-  contagens,
   onChangeFiltros,
   onLimparFiltros,
   onExportarCsv,
@@ -68,12 +60,12 @@ export function AuditoriaComprasFiltrosDesktop({
                 lineHeight: 1.2,
               }}
             >
-              Filtros da auditoria
+              Buscar compras pagas
             </Typography>
             <Typography
               sx={{ color: colors.cinzaTexto, fontSize: "0.82rem", mt: 0.25 }}
             >
-              Localize uma compra pelo nome do comprador ou número da rifa.
+              Localize uma compra paga pelo nome do comprador ou número da rifa.
             </Typography>
           </Box>
 
@@ -156,47 +148,6 @@ export function AuditoriaComprasFiltrosDesktop({
             },
           }}
         />
-
-        <Stack
-          direction="row"
-          spacing={1}
-          alignItems="center"
-          justifyContent="space-between"
-          flexWrap="wrap"
-          useFlexGap
-        >
-          <Stack
-            direction="row"
-            spacing={0.85}
-            alignItems="center"
-            flexWrap="wrap"
-            useFlexGap
-          >
-            <AuditoriaFiltroStatusChips
-              filtros={filtros}
-              contagens={contagens}
-              onChangeFiltros={onChangeFiltros}
-            />
-
-            <Divider
-              orientation="vertical"
-              flexItem
-              sx={{ mx: 0.5, height: 22, alignSelf: "center" }}
-            />
-
-            <AuditoriaFiltroOrigemChips
-              filtros={filtros}
-              contagens={contagens}
-              onChangeFiltros={onChangeFiltros}
-            />
-
-            <AuditoriaFiltroCorrecaoChip
-              filtros={filtros}
-              contagens={contagens}
-              onChangeFiltros={onChangeFiltros}
-            />
-          </Stack>
-        </Stack>
       </Stack>
     </Paper>
   );

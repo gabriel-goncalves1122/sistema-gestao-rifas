@@ -11,13 +11,13 @@ import { ResponsiveDialogShell } from "@/shared/components/ResponsiveDialogShell
 
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 
-import { AuditoriaStatusChip } from "./AuditoriaStatusChip";
-import { AuditoriaOrigemChip } from "./AuditoriaOrigemChip";
 import { AuditoriaCorrecaoChip } from "./AuditoriaCorrecaoChip";
 import {
   formatarTelefone,
   formatarDataCurta,
   formatarMoeda,
+  mascararCpfLgpd,
+  mascararEmailLgpd,
 } from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
@@ -76,13 +76,8 @@ export function AuditoriaCompraDetalhesDialog({
 }: AuditoriaCompraDetalhesDialogProps) {
   const { isMobile } = useTesourariaLayout();
 
-  const txidIdentificador = compra
-    ? compra.pixOrderId ||
-      (compra.id.startsWith("pix-") ? compra.id.replace("pix-", "") : null)
-    : null;
-
   const conteudoDetalhes = compra && (
-    <Stack spacing={2}>
+    <Stack spacing={1.75}>
       {/* Banner Resumo da Compra */}
       <Box
         sx={{
@@ -99,29 +94,26 @@ export function AuditoriaCompraDetalhesDialog({
           spacing={1.5}
         >
           <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography sx={{ ...typography.label, fontSize: "0.7rem" }}>
+              Comprador
+            </Typography>
             <Typography
               sx={{
                 color: colors.pretoEsverdeado,
                 fontWeight: 950,
                 fontSize: "1.08rem",
                 lineHeight: 1.2,
+                mt: 0.25,
                 wordBreak: "break-word",
               }}
             >
               {compra.compradorNome}
             </Typography>
-            <Stack
-              direction="row"
-              spacing={0.6}
-              alignItems="center"
-              flexWrap="wrap"
-              useFlexGap
-              sx={{ mt: 1 }}
-            >
-              <AuditoriaStatusChip status={compra.status} />
-              <AuditoriaOrigemChip origem={compra.origem} />
-              <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
-            </Stack>
+            {compra.correcaoPendente && (
+              <Box sx={{ mt: 0.85 }}>
+                <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
+              </Box>
+            )}
           </Box>
 
           <Box sx={{ textAlign: "right", flexShrink: 0 }}>
@@ -189,12 +181,8 @@ export function AuditoriaCompraDetalhesDialog({
         </Box>
       )}
 
-      {/* Grid de Informações Essenciais */}
+      {/* Grid de Informações Essenciais (com proteção LGPD para dados sensíveis) */}
       <Box sx={layout.gridDois}>
-        <CampoDetalhe
-          label="E-mail do comprador"
-          valor={compra.compradorEmail || "Não informado"}
-        />
         <CampoDetalhe
           label="Telefone do comprador"
           valor={
@@ -204,12 +192,16 @@ export function AuditoriaCompraDetalhesDialog({
           }
         />
         <CampoDetalhe
+          label="E-mail do comprador"
+          valor={mascararEmailLgpd(compra.compradorEmail)}
+        />
+        <CampoDetalhe
           label="Vendedor responsável"
           valor={compra.vendedorNome}
         />
         <CampoDetalhe
           label="CPF do vendedor"
-          valor={compra.vendedorCpf || "Não informado"}
+          valor={mascararCpfLgpd(compra.vendedorCpf)}
         />
         <CampoDetalhe
           label="Data da reserva"
@@ -219,12 +211,6 @@ export function AuditoriaCompraDetalhesDialog({
           label="Data do pagamento"
           valor={formatarDataCurta(compra.dataPagamento)}
         />
-        {txidIdentificador && (
-          <CampoDetalhe
-            label="Identificador Pix (txid)"
-            valor={txidIdentificador}
-          />
-        )}
       </Box>
 
       {/* Rifas Vinculadas */}
@@ -254,6 +240,7 @@ export function AuditoriaCompraDetalhesDialog({
       title="Detalhes da compra"
       closeAriaLabel="Fechar detalhes da compra"
       maxWidth="sm"
+      destaqueItalico
       actions={
         <Button
           fullWidth={isMobile}

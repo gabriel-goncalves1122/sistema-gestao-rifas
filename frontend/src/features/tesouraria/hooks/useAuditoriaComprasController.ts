@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { baixarCsv } from "@/shared/utils/arquivosBrowser";
+import { normalizarTexto } from "@/shared/utils/formatadores";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
   calcularContagensAuditoria,
@@ -62,6 +63,15 @@ export function useAuditoriaComprasController() {
     ]);
   }, [queryClient]);
 
+  // A tela de Auditoria exibe exclusivamente compras pagas
+  const transacoesPagas = useMemo(
+    () =>
+      historicoTransacoes.filter(
+        (compra) => normalizarTexto(compra.status) === "pago",
+      ),
+    [historicoTransacoes],
+  );
+
   // Hook composition
   const {
     filtros,
@@ -70,7 +80,7 @@ export function useAuditoriaComprasController() {
     possuiResultados,
     setFiltros,
     limparFiltros,
-  } = useAuditoriaComprasFiltros(historicoTransacoes);
+  } = useAuditoriaComprasFiltros(transacoesPagas);
 
   const {
     salvandoEdicao,
@@ -94,8 +104,8 @@ export function useAuditoriaComprasController() {
   );
 
   const contagens = useMemo(
-    () => calcularContagensAuditoria(historicoTransacoes),
-    [historicoTransacoes],
+    () => calcularContagensAuditoria(transacoesPagas),
+    [transacoesPagas],
   );
 
   const baixarCSV = useCallback(() => {

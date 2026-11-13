@@ -90,13 +90,14 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
     expect(
       auditoriaComprasService.buscarHistoricoDetalhado,
     ).toHaveBeenCalledTimes(1);
-    expect(result.current.comprasFiltradas).toHaveLength(2);
-    expect(result.current.resumo.totalCompras).toBe(2);
-    expect(result.current.resumo.totalRifas).toBe(3);
-    expect(result.current.resumo.valorTotal).toBe(30);
+    // Tela de auditoria exibe exclusivamente compras pagas (João Lima é pendente)
+    expect(result.current.comprasFiltradas).toHaveLength(1);
+    expect(result.current.resumo.totalCompras).toBe(1);
+    expect(result.current.resumo.totalRifas).toBe(2);
+    expect(result.current.resumo.valorTotal).toBe(20);
   });
 
-  it("Deve aplicar filtros e limpar o estado de filtros", async () => {
+  it("Deve aplicar busca e limpar o estado de busca", async () => {
     const { result } = renderHook(() => useAuditoriaComprasController(), {
       wrapper: criarWrapper(),
     });
@@ -108,20 +109,28 @@ describe("Hook-controller: useAuditoriaComprasController", () => {
     act(() => {
       result.current.setFiltros({
         ...result.current.filtros,
-        busca: "003",
+        busca: "001",
       });
     });
 
     expect(result.current.filtrosAtivos).toBe(true);
     expect(result.current.comprasFiltradas).toHaveLength(1);
-    expect(result.current.comprasFiltradas[0].compradorNome).toBe("João Lima");
+    expect(result.current.comprasFiltradas[0].compradorNome).toBe("Maria Souza");
+
+    act(() => {
+      result.current.setFiltros({
+        ...result.current.filtros,
+        busca: "003",
+      });
+    });
+    expect(result.current.comprasFiltradas).toHaveLength(0);
 
     act(() => {
       result.current.limparFiltros();
     });
 
     expect(result.current.filtrosAtivos).toBe(false);
-    expect(result.current.comprasFiltradas).toHaveLength(2);
+    expect(result.current.comprasFiltradas).toHaveLength(1);
   });
 
   it("Deve controlar detalhes, edição e comprovante selecionado", async () => {

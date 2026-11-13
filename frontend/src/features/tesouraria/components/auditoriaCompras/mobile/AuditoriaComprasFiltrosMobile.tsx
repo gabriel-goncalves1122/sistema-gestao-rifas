@@ -2,9 +2,6 @@ import CloseIcon from "@mui/icons-material/Close";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import {
-  Box,
-  Button,
-  Chip,
   IconButton,
   InputAdornment,
   Paper,
@@ -15,27 +12,18 @@ import {
 
 import { safeAreaStickyTop } from "@/shared/tokens/safeArea";
 import { AuditoriaComprasFiltrosProps } from "../shared/auditoriaComprasFiltrosTypes";
-import {
-  AuditoriaFiltroStatusChips,
-  AuditoriaFiltroOrigemChips,
-  AuditoriaFiltroCorrecaoChip,
-} from "../shared/AuditoriaFiltrosUtils";
 import { colors } from "@/shared/tokens/colors";
 
 /**
- * Painel de filtros compacto e moderno para dispositivos móveis na auditoria de compras,
- * com linhas de chips 100% livres (sem sobreposição do botão de limpar).
+ * Barra de busca e exportação compacta para dispositivos móveis na auditoria de compras pagas.
  *
- * @param {AuditoriaComprasFiltrosProps} props - Propriedades de filtros e callbacks.
- * @returns {JSX.Element} Componente mobile de filtros.
+ * @param {AuditoriaComprasFiltrosProps} props - Propriedades de busca e exportação.
+ * @returns {JSX.Element} Componente mobile de busca.
  */
 export function AuditoriaComprasFiltrosMobile({
   filtros,
-  filtrosAtivos,
   possuiResultados,
-  contagens,
   onChangeFiltros,
-  onLimparFiltros,
   onExportarCsv,
 }: AuditoriaComprasFiltrosProps) {
   return (
@@ -107,83 +95,6 @@ export function AuditoriaComprasFiltrosMobile({
             </span>
           </Tooltip>
         </Stack>
-
-        {/* Linha 1: Status Financeiro */}
-        <Box
-          sx={{
-            display: "flex",
-            gap: 0.75,
-            overflowX: "auto",
-            pb: 0.5,
-            pt: 0.25,
-            "&::-webkit-scrollbar": { display: "none" },
-            scrollbarWidth: "none",
-          }}
-        >
-          <AuditoriaFiltroStatusChips
-            filtros={filtros}
-            contagens={contagens}
-            onChangeFiltros={onChangeFiltros}
-          />
-        </Box>
-
-        {/* Linha 2: Origem e Correção */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-            pt: 0.25,
-            minWidth: 0,
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              overflowX: "auto",
-              minWidth: 0,
-              flex: 1,
-              "&::-webkit-scrollbar": { display: "none" },
-              scrollbarWidth: "none",
-            }}
-          >
-            <AuditoriaFiltroOrigemChips
-              filtros={filtros}
-              onChangeFiltros={onChangeFiltros}
-            />
-            <AuditoriaFiltroCorrecaoChip
-              filtros={filtros}
-              contagens={contagens}
-              onChangeFiltros={onChangeFiltros}
-            />
-          </Box>
-
-          {filtrosAtivos && (
-            <Chip
-              size="small"
-              label="Limpar"
-              onDelete={onLimparFiltros}
-              onClick={onLimparFiltros}
-              sx={{
-                flexShrink: 0,
-                height: 26,
-                fontWeight: 800,
-                fontSize: "0.72rem",
-                bgcolor: "rgba(11, 122, 97, 0.08)",
-                color: colors.verdeEscuro,
-                border: "1px solid rgba(11, 122, 97, 0.2)",
-                "& .MuiChip-deleteIcon": {
-                  color: colors.verdeEscuro,
-                  fontSize: 14,
-                  "&:hover": { color: colors.verdeEscuro },
-                },
-              }}
-            />
-          )}
-        </Box>
       </Stack>
     </Paper>
   );

@@ -105,8 +105,10 @@ export function PixAderidoDrawerHeader({
               sx={{
                 ...typography.bodyDestaque,
                 fontWeight: 950,
-                fontSize: { xs: "1.05rem", sm: "1.15rem" },
-                color: colors.pretoEsverdeado,
+                fontStyle: "italic",
+                letterSpacing: "-0.02em",
+                fontSize: { xs: "1.12rem", sm: "1.25rem" },
+                color: "#063D31",
                 lineHeight: 1.25,
               }}
             >

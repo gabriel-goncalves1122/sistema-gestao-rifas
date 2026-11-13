@@ -51,6 +51,8 @@ export interface ResponsiveDialogShellProps {
   formId?: string;
   /** Estilos adicionais aplicados ao `DialogContent` no desktop. */
   contentSx?: SxProps<Theme>;
+  /** Destaca o título em negrito itálico com maior ênfase visual. */
+  destaqueItalico?: boolean;
 }
 
 /**
@@ -75,6 +77,7 @@ export function ResponsiveDialogShell({
   onSubmit,
   formId,
   contentSx,
+  destaqueItalico = false,
 }: ResponsiveDialogShellProps) {
   if (isMobile) {
     return (
@@ -84,6 +87,8 @@ export function ResponsiveDialogShell({
         onClose={onClose}
         PaperProps={{
           sx: {
+            display: "flex",
+            flexDirection: "column",
             borderTopLeftRadius: 16,
             borderTopRightRadius: 16,
             p: 2,
@@ -98,7 +103,7 @@ export function ResponsiveDialogShell({
           id={formId}
           onSubmit={onSubmit}
           spacing={2}
-          sx={{ height: "100%", overflow: "hidden" }}
+          sx={{ flex: 1, minHeight: 0, overflow: "hidden" }}
         >
           <Box
             sx={{
@@ -119,7 +124,16 @@ export function ResponsiveDialogShell({
             }}
           >
             <Box>
-              <Typography sx={{ ...typography.titulo, fontSize: "1.2rem" }}>
+              <Typography
+                sx={{
+                  ...typography.titulo,
+                  fontSize: destaqueItalico ? "1.32rem" : "1.2rem",
+                  fontWeight: destaqueItalico ? 950 : undefined,
+                  fontStyle: destaqueItalico ? "italic" : "normal",
+                  color: destaqueItalico ? "#063D31" : undefined,
+                  letterSpacing: destaqueItalico ? "-0.02em" : undefined,
+                }}
+              >
                 {title}
               </Typography>
               {subtitle && (
@@ -144,7 +158,7 @@ export function ResponsiveDialogShell({
             )}
           </Box>
 
-          <Box sx={{ flex: 1, overflowY: "auto", px: 0.25, pb: 1 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", px: 0.25, pb: 1 }}>
             {children}
           </Box>
 
@@ -167,6 +181,15 @@ export function ResponsiveDialogShell({
         sx={{
           ...surfaces.dialogTitle,
           pr: closeAriaLabel ? 6 : undefined,
+          ...(destaqueItalico
+            ? {
+                fontWeight: 950,
+                fontStyle: "italic",
+                color: "#063D31",
+                letterSpacing: "-0.02em",
+                fontSize: "1.42rem",
+              }
+            : {}),
         }}
       >
         {title}

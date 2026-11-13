@@ -7,6 +7,8 @@ interface TesourariaSectionHeaderProps {
   subtitulo: string;
   action?: ReactNode;
   compact?: boolean;
+  /** Destaca o título em negrito itálico com maior ênfase visual. */
+  destaqueItalico?: boolean;
 }
 
 export function TesourariaSectionHeader({
@@ -15,6 +17,7 @@ export function TesourariaSectionHeader({
   subtitulo,
   action,
   compact = false,
+  destaqueItalico = true,
 }: TesourariaSectionHeaderProps) {
   return (
     <Stack
@@ -54,13 +57,21 @@ export function TesourariaSectionHeader({
 
         <Typography
           sx={{
-            color: "#021B16",
+            color: destaqueItalico ? "#063D31" : "#021B16",
             fontWeight: 950,
-            fontSize: {
-              xs: "1.38rem",
-              sm: "1.55rem",
-              md: compact ? "1.58rem" : "1.72rem",
-            },
+            fontStyle: destaqueItalico ? "italic" : "normal",
+            letterSpacing: destaqueItalico ? "-0.02em" : undefined,
+            fontSize: destaqueItalico
+              ? {
+                  xs: "1.55rem",
+                  sm: "1.8rem",
+                  md: compact ? "1.8rem" : "2rem",
+                }
+              : {
+                  xs: "1.38rem",
+                  sm: "1.55rem",
+                  md: compact ? "1.58rem" : "1.72rem",
+                },
             lineHeight: 1.08,
             overflowWrap: "anywhere",
           }}

@@ -168,6 +168,7 @@ export function PixTransacaoDetalhesDialog({
         isMobile
         title="Detalhes da transação Pix"
         closeAriaLabel="Fechar detalhes da transação Pix"
+        destaqueItalico
         actions={acoes}
       >
         <Stack spacing={2}>
@@ -189,6 +190,7 @@ export function PixTransacaoDetalhesDialog({
       title="Detalhes da transação Pix"
       titleId="pix-transacao-detalhes-titulo"
       closeAriaLabel="Fechar detalhes da transação Pix"
+      destaqueItalico
       maxWidth="lg"
       contentSx={{ pt: 1, pb: 2.5 }}
       actions={acoes}

@@ -2,8 +2,6 @@ import { memo } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 
 import { AuditoriaCompraActions } from "../shared/AuditoriaCompraActions";
-import { AuditoriaStatusChip } from "../shared/AuditoriaStatusChip";
-import { AuditoriaOrigemChip } from "../shared/AuditoriaOrigemChip";
 import { AuditoriaCorrecaoChip } from "../shared/AuditoriaCorrecaoChip";
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 
@@ -119,6 +117,20 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
                 ? ` • ${formatarTelefone(compra.compradorTelefone)}`
                 : ""}
             </Typography>
+            {compra.compradorEmail && (
+              <Typography
+                sx={{
+                  color: colors.cinzaTexto,
+                  fontSize: "0.75rem",
+                  mt: 0.2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {compra.compradorEmail}
+              </Typography>
+            )}
           </Box>
 
           <Box sx={{ textAlign: "right", flexShrink: 0 }}>
@@ -184,36 +196,23 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
               </Typography>
             </Box>
 
-            <Stack
-              direction="row"
-              spacing={0.5}
-              alignItems="center"
-              flexWrap="wrap"
-              useFlexGap
-            >
-              <AuditoriaStatusChip status={compra.status} />
-              <AuditoriaOrigemChip origem={compra.origem} />
+            {compra.correcaoPendente && (
               <AuditoriaCorrecaoChip pendente={compra.correcaoPendente} />
-            </Stack>
+            )}
           </Stack>
         </Box>
 
-        {/* Rodapé: Rifas à esquerda + Ações à direita */}
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={1}
-        >
+        {/* Rodapé: Rifas em linha livre + Barra dedicada de ações confortáveis */}
+        <Stack spacing={1.1}>
           <Stack
             direction="row"
             spacing={0.5}
             alignItems="center"
             flexWrap="wrap"
             useFlexGap
-            sx={{ minWidth: 0, flex: 1 }}
+            sx={{ minWidth: 0 }}
           >
-            {compra.bilhetes.slice(0, 4).map((bilhete) => (
+            {compra.bilhetes.slice(0, 6).map((bilhete) => (
               <Chip
                 key={bilhete}
                 label={bilhete}
@@ -227,9 +226,9 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
                 }}
               />
             ))}
-            {compra.bilhetes.length > 4 && (
+            {compra.bilhetes.length > 6 && (
               <Chip
-                label={`+${compra.bilhetes.length - 4}`}
+                label={`+${compra.bilhetes.length - 6}`}
                 size="small"
                 sx={{
                   ...components.chipBilhete,
@@ -244,17 +243,21 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
             )}
           </Stack>
 
-          <Box onClick={(e) => e.stopPropagation()} sx={{ flexShrink: 0 }}>
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              pt: 1,
+              borderTop: "1px solid rgba(2, 27, 22, 0.08)",
+            }}
+          >
             <AuditoriaCompraActions
               compra={compra}
+              variante="mobile"
               onVerComprovante={onVerComprovante}
               onEditar={onEditar}
               onVerDetalhes={onVerDetalhes}
               onReenviarEmailComprovante={onReenviarEmailComprovante}
               reenviandoEmailComprovante={reenviandoEmailComprovante}
-              onAceitar={onAceitar}
-              onNegar={onNegar}
-              processandoAcaoId={processandoAcaoId}
             />
           </Box>
         </Stack>

@@ -1,6 +1,6 @@
 import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumberOutlined";
 import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 
 import { ResumoAuditoriaCompras } from "../../../types/auditoriaCompras";
 import { colors } from "@/shared/tokens/colors";
@@ -34,28 +34,16 @@ export function AuditoriaComprasResumo({
         px: { xs: 0.5, sm: 0.25 },
       }}
     >
-      <Box>
-        <Typography
-          sx={{
-            color: colors.pretoEsverdeado,
-            fontWeight: 900,
-            fontSize: "0.98rem",
-            lineHeight: 1.2,
-          }}
-        >
-          Compras Auditadas
-        </Typography>
-        <Typography
-          sx={{
-            color: colors.cinzaTexto,
-            fontSize: "0.84rem",
-            mt: 0.2,
-          }}
-        >
-          {resumo.totalCompras} compra(s) encontrada(s) • {resumo.totalRifas}{" "}
-          rifa(s)
-        </Typography>
-      </Box>
+      <Typography
+        sx={{
+          color: colors.pretoEsverdeado,
+          fontWeight: 900,
+          fontSize: "0.98rem",
+          lineHeight: 1.2,
+        }}
+      >
+        Compras Auditadas
+      </Typography>
 
       <Stack
         direction="row"

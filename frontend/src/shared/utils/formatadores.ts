@@ -149,3 +149,47 @@ export function formatarValorEixo(valor: number): string {
   }
   return `R$ ${valor}`;
 }
+
+/**
+ * Mascara e formata um CPF no padrão LGPD (`***.XXX.XXX-**`), preservando apenas
+ * os 6 dígitos centrais para conferência sem expor os blocos extremos do documento.
+ *
+ * @param {string | null} [valor] - CPF bruto ou formatado.
+ * @returns {string} CPF mascarado no padrão LGPD ou `'Não informado'`.
+ */
+export function mascararCpfLgpd(valor?: string | null): string {
+  if (!valor) return "Não informado";
+  const digitos = somenteNumeros(valor);
+  if (!digitos) return "Não informado";
+
+  if (digitos.length === 11) {
+    return `***.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-**`;
+  }
+
+  if (digitos.length === 14) {
+    return `**.${digitos.slice(2, 5)}.${digitos.slice(5, 8)}/****-**`;
+  }
+
+  return "***.***.***-**";
+}
+
+/**
+ * Mascara um endereço de e-mail para exibição compatível com LGPD (`ab***@dominio.com`),
+ * ocultando a maior parte da caixa postal e preservando apenas o prefixo inicial e o domínio.
+ *
+ * @param {string | null} [valor] - E-mail completo.
+ * @returns {string} E-mail mascarado ou `'Não informado'`.
+ */
+export function mascararEmailLgpd(valor?: string | null): string {
+  const limpo = String(valor || "").trim();
+  if (!limpo) return "Não informado";
+
+  const arrobaIdx = limpo.indexOf("@");
+  if (arrobaIdx <= 0) return "***";
+
+  const local = limpo.slice(0, arrobaIdx);
+  const dominio = limpo.slice(arrobaIdx + 1);
+  const prefixo = local.slice(0, local.length > 2 ? 2 : 1);
+
+  return `${prefixo}***@${dominio}`;
+}

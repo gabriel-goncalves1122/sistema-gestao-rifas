@@ -1,73 +1,59 @@
-import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import { useState } from "react";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import { CircularProgress, IconButton, Stack, Tooltip } from "@mui/material";
+import {
+  Button,
+  CircularProgress,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Stack,
+  Tooltip,
+} from "@mui/material";
 import { normalizarTexto } from "@/shared/utils/formatadores";
 
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 
 import { colors } from "@/shared/tokens/colors";
 
-interface AuditoriaCompraActionsProps {
+/**
+ * Propriedades do componente de ações da auditoria de compras.
+ */
+export interface AuditoriaCompraActionsProps {
+  /** Transação de compra exibida */
   compra: TransacaoTesouraria;
+  /** Callback para visualização do arquivo de comprovante */
   onVerComprovante: (compra: TransacaoTesouraria) => void;
+  /** Callback para edição dos dados cadastrais do comprador */
   onEditar: (compra: TransacaoTesouraria) => void;
+  /** Callback para abertura do modal de detalhes completos */
   onVerDetalhes: (compra: TransacaoTesouraria) => void;
+  /** Callback para reenvio do e-mail com os bilhetes e comprovante */
   onReenviarEmailComprovante: (compra: TransacaoTesouraria) => void;
+  /** Indica se o e-mail desta compra está em processo de envio */
   reenviandoEmailComprovante?: boolean;
-  onAceitar?: (compra: TransacaoTesouraria) => void;
-  onNegar?: (compra: TransacaoTesouraria) => void;
-  processandoAcaoId?: string | null;
+  /** Variante visual adaptada para tabela desktop compacta ou barra mobile */
+  variante?: "desktop" | "mobile";
 }
-
-type ActionIconVariant = "default" | "success" | "warning" | "danger";
-
-const ACTION_VARIANT_STYLES: Record<
-  ActionIconVariant,
-  { color: string; bgcolor: string; hoverBg: string }
-> = {
-  default: {
-    color: colors.verdeEscuro,
-    bgcolor: colors.verdeClaro,
-    hoverBg: colors.verdeHover,
-  },
-  success: {
-    color: "#0B5136",
-    bgcolor: "#D8EFE4",
-    hoverBg: "#BEE5D2",
-  },
-  warning: {
-    color: "#8A5300",
-    bgcolor: "#FFF4D8",
-    hoverBg: "#FFE9AD",
-  },
-  danger: {
-    color: colors.erroTexto,
-    bgcolor: colors.erroSuave,
-    hoverBg: "#F5C2C2",
-  },
-};
 
 function ActionIcon({
   tooltip,
   label,
   icon,
   disabled = false,
-  variant = "default",
   onClick,
 }: {
   tooltip: string;
   label: string;
   icon: React.ReactNode;
   disabled?: boolean;
-  variant?: ActionIconVariant;
   onClick: (e: React.MouseEvent) => void;
 }) {
-  const palette = ACTION_VARIANT_STYLES[variant];
-
   return (
     <Tooltip title={tooltip}>
       <span>
@@ -77,9 +63,9 @@ function ActionIcon({
           disabled={disabled}
           onClick={onClick}
           sx={{
-            color: palette.color,
-            bgcolor: palette.bgcolor,
-            "&:hover": { bgcolor: palette.hoverBg },
+            color: colors.verdeEscuro,
+            bgcolor: colors.verdeClaro,
+            "&:hover": { bgcolor: colors.verdeHover },
             "&.Mui-disabled": {
               bgcolor: colors.fundoSuave,
               color: colors.cinzaDisabled,
@@ -93,6 +79,14 @@ function ActionIcon({
   );
 }
 
+/**
+ * Renderiza as ações estritas de histórico da compra (Ver comprovante, Editar comprador,
+ * Reenviar e-mail e Ver detalhes), adaptadas para tabela desktop (compacta com menu `...`)
+ * ou barra de ações mobile com área de toque confortável (>= 36px).
+ *
+ * @param {AuditoriaCompraActionsProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Conjunto de botões ou barra de ações.
+ */
 export function AuditoriaCompraActions({
   compra,
   onVerComprovante,
@@ -100,13 +94,13 @@ export function AuditoriaCompraActions({
   onVerDetalhes,
   onReenviarEmailComprovante,
   reenviandoEmailComprovante = false,
-  onAceitar,
-  onNegar,
-  processandoAcaoId = null,
+  variante = "desktop",
 }: AuditoriaCompraActionsProps) {
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
   const compraPaga = normalizarTexto(compra.status) === "pago";
   const possuiCompradorId = Boolean(compra.compradorId);
-  const possuiEmail = Boolean(compra.compradorEmail.trim());
+  const possuiEmail = Boolean(compra.compradorEmail?.trim());
   const podeReenviarEmail =
     compraPaga &&
     possuiCompradorId &&
@@ -122,8 +116,143 @@ export function AuditoriaCompraActions({
           ? "Compra sem e-mail do comprador"
           : "Reenviar e-mail de comprovante";
 
+  if (variante === "mobile") {
+    return (
+      <Stack
+        direction="row"
+        spacing={0.75}
+        alignItems="center"
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ width: "100%" }}
+      >
+        {compra.comprovanteUrl && (
+          <Button
+            type="button"
+            size="small"
+            variant="outlined"
+            aria-label="Ver comprovante"
+            startIcon={<ImageOutlinedIcon sx={{ fontSize: 16 }} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerComprovante(compra);
+            }}
+            sx={{
+              minHeight: 36,
+              px: 1.25,
+              borderRadius: 2,
+              textTransform: "none",
+              fontWeight: 800,
+              fontSize: "0.78rem",
+              color: colors.verdeEscuro,
+              borderColor: "rgba(6, 61, 49, 0.24)",
+              bgcolor: colors.verdeClaro,
+              "&:hover": {
+                bgcolor: colors.verdeHover,
+                borderColor: colors.verdeEscuro,
+              },
+            }}
+          >
+            Comprovante
+          </Button>
+        )}
+
+        <Button
+          type="button"
+          size="small"
+          variant="outlined"
+          aria-label="Editar comprador"
+          startIcon={<EditOutlinedIcon sx={{ fontSize: 16 }} />}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditar(compra);
+          }}
+          sx={{
+            minHeight: 36,
+            px: 1.25,
+            borderRadius: 2,
+            textTransform: "none",
+            fontWeight: 800,
+            fontSize: "0.78rem",
+            color: colors.verdeEscuro,
+            borderColor: "rgba(6, 61, 49, 0.2)",
+            bgcolor: colors.branco,
+            "&:hover": {
+              bgcolor: colors.verdeClaro,
+              borderColor: colors.verdeEscuro,
+            },
+          }}
+        >
+          Editar
+        </Button>
+
+        <Tooltip title={tooltipEmail}>
+          <span>
+            <Button
+              type="button"
+              size="small"
+              variant="outlined"
+              aria-label="Reenviar e-mail"
+              disabled={!podeReenviarEmail}
+              startIcon={
+                reenviandoEmailComprovante ? (
+                  <CircularProgress size={14} sx={{ color: colors.verdeEscuro }} />
+                ) : (
+                  <EmailOutlinedIcon sx={{ fontSize: 16 }} />
+                )
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                onReenviarEmailComprovante(compra);
+              }}
+              sx={{
+                minHeight: 36,
+                px: 1.25,
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 800,
+                fontSize: "0.78rem",
+                color: colors.verdeEscuro,
+                borderColor: "rgba(6, 61, 49, 0.2)",
+                bgcolor: colors.branco,
+                "&:hover": {
+                  bgcolor: colors.verdeClaro,
+                  borderColor: colors.verdeEscuro,
+                },
+              }}
+            >
+              E-mail
+            </Button>
+          </span>
+        </Tooltip>
+
+        <IconButton
+          size="small"
+          aria-label="Ver detalhes da compra"
+          onClick={(e) => {
+            e.stopPropagation();
+            onVerDetalhes(compra);
+          }}
+          sx={{
+            ml: "auto",
+            width: 36,
+            height: 36,
+            color: colors.cinzaTexto,
+            bgcolor: colors.fundoSuave,
+            "&:hover": {
+              bgcolor: colors.verdeClaro,
+              color: colors.verdeEscuro,
+            },
+          }}
+        >
+          <VisibilityOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Stack>
+    );
+  }
+
   return (
-    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+    <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
       {compra.comprovanteUrl && (
         <ActionIcon
           tooltip="Ver comprovante"
@@ -137,23 +266,6 @@ export function AuditoriaCompraActions({
       )}
 
       <ActionIcon
-        tooltip={tooltipEmail}
-        label="Reenviar e-mail"
-        disabled={!podeReenviarEmail}
-        icon={
-          reenviandoEmailComprovante ? (
-            <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
-          ) : (
-            <EmailOutlinedIcon fontSize="small" />
-          )
-        }
-        onClick={(e) => {
-          e.stopPropagation();
-          onReenviarEmailComprovante(compra);
-        }}
-      />
-
-      <ActionIcon
         tooltip="Editar comprador"
         label="Editar comprador"
         icon={<EditOutlinedIcon fontSize="small" />}
@@ -163,55 +275,72 @@ export function AuditoriaCompraActions({
         }}
       />
 
-      <ActionIcon
-        tooltip="Ver detalhes da compra"
-        label="Ver detalhes da compra"
-        icon={<VisibilityOutlinedIcon fontSize="small" />}
-        onClick={(e) => {
-          e.stopPropagation();
-          onVerDetalhes(compra);
-        }}
-      />
-
-      {onAceitar && (compra.status === "pendente" || compra.status === "reservado") && (
-        <ActionIcon
-          tooltip="Aprovar compra"
-          label="Aprovar compra"
-          variant="success"
-          disabled={processandoAcaoId === compra.id}
-          icon={
-            processandoAcaoId === compra.id ? (
-              <CircularProgress size={16} sx={{ color: "#0B5136" }} />
-            ) : (
-              <CheckCircleOutlinedIcon fontSize="small" />
-            )
-          }
+      <Tooltip title="Mais ações">
+        <IconButton
+          size="small"
+          aria-label="Mais ações"
+          aria-haspopup="menu"
+          aria-expanded={Boolean(menuAnchor)}
           onClick={(e) => {
             e.stopPropagation();
-            onAceitar(compra);
+            setMenuAnchor(e.currentTarget);
           }}
-        />
-      )}
+          sx={{
+            color: colors.verdeEscuro,
+            bgcolor: colors.fundoSuave,
+            "&:hover": { bgcolor: colors.verdeClaro },
+          }}
+        >
+          {reenviandoEmailComprovante ? (
+            <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+          ) : (
+            <MoreVertIcon fontSize="small" />
+          )}
+        </IconButton>
+      </Tooltip>
 
-      {onNegar && (compra.status === "pendente" || compra.status === "reservado") && (
-        <ActionIcon
-          tooltip="Recusar compra"
-          label="Recusar compra"
-          variant="danger"
-          disabled={processandoAcaoId === compra.id}
-          icon={
-            processandoAcaoId === compra.id ? (
-              <CircularProgress size={16} sx={{ color: colors.erroTexto }} />
-            ) : (
-              <CancelOutlinedIcon fontSize="small" />
-            )
-          }
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={() => setMenuAnchor(null)}
+        onClick={(e) => e.stopPropagation()}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem
+          disabled={!podeReenviarEmail}
           onClick={(e) => {
             e.stopPropagation();
-            onNegar(compra);
+            setMenuAnchor(null);
+            onReenviarEmailComprovante(compra);
           }}
-        />
-      )}
+        >
+          <ListItemIcon>
+            {reenviandoEmailComprovante ? (
+              <CircularProgress size={16} sx={{ color: colors.verdeEscuro }} />
+            ) : (
+              <EmailOutlinedIcon fontSize="small" />
+            )}
+          </ListItemIcon>
+          <ListItemText
+            primary="Reenviar e-mail"
+            secondary={!podeReenviarEmail ? tooltipEmail : undefined}
+          />
+        </MenuItem>
+
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuAnchor(null);
+            onVerDetalhes(compra);
+          }}
+        >
+          <ListItemIcon>
+            <VisibilityOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Ver detalhes da compra" />
+        </MenuItem>
+      </Menu>
     </Stack>
   );
 }
