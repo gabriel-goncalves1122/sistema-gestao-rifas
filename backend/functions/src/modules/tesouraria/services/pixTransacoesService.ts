@@ -1,8 +1,8 @@
 import * as admin from "firebase-admin";
 
-import { MercadoPagoPixClient } from "../../../shared/services/mercadoPagoPixClient";
-import { CheckoutPixWebhookService } from "./checkoutPixWebhookService";
-import { Bilhete, Usuario } from "../../types/models";
+import { CheckoutStrategyFactory } from "../checkout/checkoutStrategyFactory";
+import { CheckoutPixRepository } from "../checkout/repositories/checkoutPixRepository";
+import { Bilhete, PagamentoPix, Usuario } from "../../types/models";
 import {
   BilheteComNumero,
   PixTransacao,
@@ -10,13 +10,17 @@ import {
   ResultadoSincronizacaoPix,
   ResumoComprovantesTesouraria,
 } from "../../tesouraria/types/tesourariaTypes";
+import { resolverProvedorRegistro } from "../helpers/origemPagamentoHelper";
 import {
+  aplicarSelectSeguro,
   calcularResumoComprovantes,
   calcularResumoPixTransacoes,
+  CAMPOS_PROJECAO_BILHETE_TESOURARIA,
   chaveCompra,
   montarPixTransacao,
   valorDataSeguro,
 } from "../helpers/pixTransacoesHelper";
+import { isReservaBilheteExpirada } from "../helpers/checkoutPixHelper";
 import {
   cpfEhValido,
   criarMapaVendedores,
@@ -37,11 +41,14 @@ export class PixTransacoesService {
     resumoComprovantes: ResumoComprovantesTesouraria;
   }> {
     const db = admin.firestore();
-    const bilhetesSnap = await db
-      .collection("bilhetes")
-      .where("status", "in", ["pago", "pendente", "recusado", "reservado"])
-      .limit(20000)
-      .get();
+    const bilhetesQuery = aplicarSelectSeguro(
+      db
+        .collection("bilhetes")
+        .where("status", "in", ["pago", "pendente", "recusado", "reservado"])
+        .limit(20000),
+      CAMPOS_PROJECAO_BILHETE_TESOURARIA,
+    );
+    const bilhetesSnap = await bilhetesQuery.get();
 
     const gruposTransacoes = new Map<string, BilheteComNumero[]>();
     const bilhetesManuais: BilheteComNumero[] = [];
@@ -49,12 +56,16 @@ export class PixTransacoesService {
 
     extrairDocsSnapshot<Bilhete>(bilhetesSnap).forEach((doc) => {
       const data = doc.data() as Bilhete;
+      if (isReservaBilheteExpirada(data)) {
+        return;
+      }
+
       const bilhete: BilheteComNumero = {
         ...data,
         numero: doc.id,
       };
 
-      if (!data.pix_order_id) {
+      if (resolverProvedorRegistro(data) === "COMPROVANTE_PURO") {
         bilhetesManuais.push(bilhete);
       }
 
@@ -113,6 +124,13 @@ export class PixTransacoesService {
   }
 
 
+  /**
+   * Percorre as cobranças Pix em aberto no Firestore e sincroniza seus estados
+   * polimorficamente via `CheckoutStrategyFactory` (Mercado Pago consulta o gateway;
+   * Pix Normal/EMV Offline retorna sem chamadas externas).
+   *
+   * @returns {Promise<ResultadoSincronizacaoPix>} Resumo com total de cobranças atualizadas.
+   */
   static async sincronizar(): Promise<ResultadoSincronizacaoPix> {
     const db = admin.firestore();
     const pagamentosSnap = await db
@@ -130,17 +148,28 @@ export class PixTransacoesService {
     }
 
     let atualizados = 0;
+    const repository = new CheckoutPixRepository(db);
 
     for (const doc of pagamentosSnap.docs) {
-      const dados = doc.data();
+      const dados = doc.data() as PagamentoPix;
       const orderId = String(dados.pix_order_id || dados.id || doc.id);
 
       if (!orderId) continue;
 
-      const pedido = await MercadoPagoPixClient.consultarPedido(orderId);
+      try {
+        const strategy = CheckoutStrategyFactory.obterPorPagamento(dados, repository);
+        const sincronizado = await strategy.sincronizarCheckout({
+          ...dados,
+          id: dados.id || doc.id,
+          pix_order_id: dados.pix_order_id || orderId,
+        });
 
-      await CheckoutPixWebhookService.processarPayloadConfiavel(pedido);
-      atualizados += 1;
+        if (sincronizado) {
+          atualizados += 1;
+        }
+      } catch (err) {
+        console.warn(`[PixTransacoesService] Falha ao sincronizar pedido ${orderId}:`, err);
+      }
     }
 
     return {

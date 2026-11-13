@@ -5,7 +5,14 @@ import { Response } from "express";
 
 import { AuthRequest } from "../../../shared/middlewares/authMiddleware";
 import { ComprasManuaisService } from "../services/comprasManuaisService";
+import { PixValidacaoService } from "../services/pixValidacaoService";
 
+/**
+ * Controlador Express para aprovar manualmente uma compra (Pix ou comprovante) na Tesouraria.
+ *
+ * @param {AuthRequest} req - Requisição autenticada contendo `params.chave`.
+ * @param {Response} res - Resposta Express.
+ */
 export async function aceitarCompraManual(req: AuthRequest, res: Response) {
   try {
     const chave = String(req.params.chave || "").trim();
@@ -14,11 +21,21 @@ export async function aceitarCompraManual(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: "Chave da transação inválida." });
     }
 
-    const resultado = await ComprasManuaisService.aceitarCompra({
-      chave,
-      uidTesouraria: req.user?.uid || "",
-      emailTesouraria: req.user?.email,
-    });
+    const uidTesouraria = req.user?.uid || "";
+    const emailTesouraria = req.user?.email;
+
+    const resultado = chave.startsWith("pix-")
+      ? await PixValidacaoService.aceitarTransacao({
+          transacaoId: chave,
+          chaveAcao: chave,
+          uidTesouraria,
+          emailTesouraria,
+        })
+      : await ComprasManuaisService.aceitarCompra({
+          chave,
+          uidTesouraria,
+          emailTesouraria,
+        });
 
     return res.status(200).json(resultado);
   } catch (error: any) {

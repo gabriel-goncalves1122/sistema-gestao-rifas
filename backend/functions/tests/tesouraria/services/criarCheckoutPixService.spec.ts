@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import * as admin from "firebase-admin";
 
 const mockGet = jest.fn<any>();
 const mockSet = jest.fn<any>();
@@ -24,30 +23,12 @@ jest.mock("firebase-admin", () => {
       {
         Timestamp: {
           now: () => ({ valueOf: () => Date.now() }),
-          fromDate: (date: Date) => ({ valueOf: () => date.getTime() })
-        }
-      }
+          fromDate: (date: Date) => ({ valueOf: () => date.getTime() }),
+        },
+      },
     ),
   };
 });
-
-jest.mock("../../../src/modules/tesouraria/helpers/checkoutPixFirestoreHelper", () => ({
-  verificarDisponibilidadeRifasPix: jest.fn(),
-  obterPagamentoAtivoPorLockPix: jest.fn(),
-  compensarErroCriacaoPix: jest.fn(),
-  montarRespostaPagamentoPix: jest.fn(),
-  erroMensagem: (e: any) => e.message,
-  STATUS_PAGAMENTO_PIX_ATIVO: ["WAITING"],
-  persistirPedidoMercadoPagoNoFirestore: jest.fn(),
-}));
-
-import {
-  verificarDisponibilidadeRifasPix,
-  obterPagamentoAtivoPorLockPix,
-  compensarErroCriacaoPix,
-  montarRespostaPagamentoPix,
-  persistirPedidoMercadoPagoNoFirestore,
-} from "../../../src/modules/tesouraria/helpers/checkoutPixFirestoreHelper";
 
 jest.mock("../../../src/modules/rifas/helpers/usuarioRifasHelper", () => ({
   obterContextoAderidoPorEmail: jest.fn(),
@@ -64,6 +45,8 @@ jest.mock("../../../src/shared/services/mercadoPagoPixClient", () => ({
 import { MercadoPagoPixClient } from "../../../src/shared/services/mercadoPagoPixClient";
 import { CriarCheckoutPixService } from "../../../src/modules/tesouraria/services/criarCheckoutPixService";
 import { PaymentProviderFactory } from "../../../src/shared/payments/paymentProviderFactory";
+import { CheckoutStrategyFactory } from "../../../src/modules/tesouraria/checkout/checkoutStrategyFactory";
+import { CheckoutPixRepository } from "../../../src/modules/tesouraria/checkout/repositories/checkoutPixRepository";
 
 describe("Service: CriarCheckoutPixService", () => {
   const mockPayload = {
@@ -77,6 +60,8 @@ describe("Service: CriarCheckoutPixService", () => {
 
   const contextoAderidoMock = {
     idAderido: "ADERIDO_123",
+    vendedorNome: "Aderido Teste",
+    vendedorCpf: "11122233344",
     slugBase: "rifa-do-aderido",
   };
 
@@ -86,13 +71,21 @@ describe("Service: CriarCheckoutPixService", () => {
     PaymentProviderFactory.resetarParaTestes();
 
     (obterContextoAderidoPorEmail as jest.Mock).mockResolvedValue(contextoAderidoMock);
-    
-    // Configuração padrão do Firestore Transaction
+
+    mockGet.mockImplementation(() =>
+      Promise.resolve({ exists: false, data: () => ({}) }),
+    );
+
     mockRunTransaction.mockImplementation(async (cb: any) => {
       return cb({
-        get: jest.fn().mockResolvedValue({
-          exists: true,
-          data: () => ({ status: "disponivel" }),
+        get: jest.fn().mockImplementation((ref: any) => {
+          if (ref.path && ref.path.includes("pagamentos_pix_idempotencia")) {
+            return Promise.resolve({ exists: false });
+          }
+          return Promise.resolve({
+            exists: true,
+            data: () => ({ status: "disponivel" }),
+          });
         }),
         set: mockSet,
         delete: mockDelete,
@@ -100,29 +93,47 @@ describe("Service: CriarCheckoutPixService", () => {
     });
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("Deve retornar unauthorized se faltar uid ou email", async () => {
     await expect(
-      CriarCheckoutPixService.executar("", "email@teste.com", mockPayload)
+      CriarCheckoutPixService.executar("", "email@teste.com", mockPayload),
     ).rejects.toThrow("UNAUTHORIZED");
 
     await expect(
-      CriarCheckoutPixService.executar("uid1", "", mockPayload)
+      CriarCheckoutPixService.executar("uid1", "", mockPayload),
     ).rejects.toThrow("UNAUTHORIZED");
   });
 
   it("Deve retornar pagamento ativo caso exista lock", async () => {
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce({ status_pagamento_banco: "WAITING" });
-    (montarRespostaPagamentoPix as jest.Mock).mockReturnValueOnce({ id: "PAG_123" });
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce({
+        id: "PAG_123",
+        status_pagamento_banco: "WAITING",
+        pix_qr_code_id: "QR_123",
+        copia_e_cola: "000201...",
+        numeros_rifas: ["001"],
+      } as any);
 
     const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload);
 
-    expect(result).toEqual({ id: "PAG_123" });
+    expect(result).toEqual(expect.objectContaining({ id: "PAG_123" }));
     expect(MercadoPagoPixClient.criarPedidoPix).not.toHaveBeenCalled();
   });
 
-  it("Deve criar novo pedido Pix no Mercado Pago e retornar resposta normalizada", async () => {
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
-    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+  it("Deve criar novo pedido Pix no Mercado Pago quando estratégia for forçada e retornar resposta normalizada", async () => {
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce(null);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "verificarDisponibilidadeRifas")
+      .mockResolvedValueOnce(undefined);
+    const persistirSpy = jest
+      .spyOn(CheckoutPixRepository.prototype, "persistirCobrancaGerada")
+      .mockResolvedValueOnce(undefined);
 
     (MercadoPagoPixClient.criarPedidoPix as jest.Mock).mockResolvedValueOnce({
       id: "MP_ORDER_123",
@@ -136,11 +147,17 @@ describe("Service: CriarCheckoutPixService", () => {
       date_of_expiration: "2026-01-01T10:00:00Z",
     });
 
-    const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload);
+    const strategy = CheckoutStrategyFactory.obterParaCriacao("MERCADOPAGO_API");
+    const result = await strategy.criarCheckout("uid1", "joao@teste.com", mockPayload);
 
     expect(MercadoPagoPixClient.criarPedidoPix).toHaveBeenCalled();
-    expect(mockRunTransaction).toHaveBeenCalledTimes(1); // apenas lock, a segunda persistência foi abstraída
-    expect(persistirPedidoMercadoPagoNoFirestore).toHaveBeenCalled();
+    expect(mockRunTransaction).toHaveBeenCalledTimes(1);
+    expect(persistirSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "MP_ORDER_123",
+        provedorPagamento: "MERCADOPAGO_API",
+      }),
+    );
     expect(result).toEqual(
       expect.objectContaining({
         id: "MOCK_DOC_ID",
@@ -150,94 +167,130 @@ describe("Service: CriarCheckoutPixService", () => {
         qrCodeImagemUrl: null,
         copiaECola: "000201123456789",
         expiraEm: "2026-01-01T10:00:00Z",
-      })
+      }),
     );
   });
 
-  it("Deve criar cobrança via EMV_OFFLINE quando configurado", async () => {
-    process.env.MODO_PAGAMENTO_PROVIDER = "EMV_OFFLINE";
+  it("Deve criar cobrança via InfinitePay (EMV_OFFLINE) mesmo se MODO_PAGAMENTO_PROVIDER=MERCADOPAGO_API", async () => {
+    process.env.MODO_PAGAMENTO_PROVIDER = "MERCADOPAGO_API";
     PaymentProviderFactory.resetarParaTestes();
 
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
-    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce(null);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "verificarDisponibilidadeRifas")
+      .mockResolvedValueOnce(undefined);
+    const persistirSpy = jest
+      .spyOn(CheckoutPixRepository.prototype, "persistirCobrancaGerada")
+      .mockResolvedValueOnce(undefined);
 
-    const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload);
+    const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", {
+      nome: "Maria Offline",
+      telefone: "35999990000",
+      numerosRifas: ["001", "002"],
+    });
 
     expect(MercadoPagoPixClient.criarPedidoPix).not.toHaveBeenCalled();
-    expect(persistirPedidoMercadoPagoNoFirestore).toHaveBeenCalled();
+    expect(persistirSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provedorPagamento: "EMV_OFFLINE",
+      }),
+    );
     expect(result.status).toBe("aguardando_pagamento");
     expect(result.copiaECola).toContain("br.gov.bcb.pix");
     expect(result.qrCodeBase64).toBeDefined();
   });
 
-  it("Deve disparar compensarErroCriacaoPix caso Mercado Pago falhe (throw erro) antes de retornar orderId", async () => {
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
-    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+  it("Deve disparar compensarErroCriacao caso Mercado Pago falhe antes de retornar orderId", async () => {
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce(null);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "verificarDisponibilidadeRifas")
+      .mockResolvedValueOnce(undefined);
+    const compensarSpy = jest
+      .spyOn(CheckoutPixRepository.prototype, "compensarErroCriacao")
+      .mockResolvedValueOnce(undefined);
 
     (MercadoPagoPixClient.criarPedidoPix as jest.Mock).mockRejectedValueOnce(new Error("MP_TIMEOUT"));
-    (compensarErroCriacaoPix as jest.Mock).mockResolvedValueOnce(undefined);
 
+    const strategy = CheckoutStrategyFactory.obterParaCriacao("MERCADOPAGO_API");
     await expect(
-      CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload)
+      strategy.criarCheckout("uid1", "joao@teste.com", mockPayload),
     ).rejects.toThrow("MP_TIMEOUT");
 
-    expect(compensarErroCriacaoPix).toHaveBeenCalledWith(
+    expect(compensarSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         compradorId: "MOCK_DOC_ID",
         error: expect.any(Error),
         numerosRifas: ["001", "002"],
-      })
+      }),
     );
   });
 
-  it("Deve salvar erro no Firestore e disparar erro caso falhe MAS já tenha o orderId de alguma forma", async () => {
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
-    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+  it("Deve registrar erro pós-criação caso persistirCobrancaGerada falhe após receber orderId", async () => {
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce(null);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "verificarDisponibilidadeRifas")
+      .mockResolvedValueOnce(undefined);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "persistirCobrancaGerada")
+      .mockRejectedValueOnce(new Error("TRANSACTION_FAILED"));
+    const registrarErroSpy = jest
+      .spyOn(CheckoutPixRepository.prototype, "registrarErroPosCriacao")
+      .mockResolvedValueOnce(undefined);
 
-    // O Mock de MercadoPagoClient irá falhar apenas num sub-passo (por exemplo, na transaction secundária)
-    // Para testar a linha 202 (else { await db.runTransaction ... erro_criacao }), precisamos que 
-    // a transaction secundária falhe.
     (MercadoPagoPixClient.criarPedidoPix as jest.Mock).mockResolvedValueOnce({
       id: "MP_ORDER_123",
       point_of_interaction: { transaction_data: { qr_code: "123" } },
     });
 
-    (persistirPedidoMercadoPagoNoFirestore as jest.Mock).mockRejectedValueOnce(new Error("TRANSACTION_FAILED"));
-
-    mockRunTransaction
-      .mockImplementationOnce(async (cb: any) => cb({
-        get: jest.fn().mockResolvedValue({ exists: true, data: () => ({ status: "disponivel" }) }),
-        set: mockSet
-      }))
-      .mockImplementationOnce(async (cb: any) => cb({ set: mockSet })); // a transação do fallback de erro
-
+    const strategy = CheckoutStrategyFactory.obterParaCriacao("MERCADOPAGO_API");
     await expect(
-      CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload)
+      strategy.criarCheckout("uid1", "joao@teste.com", mockPayload),
     ).rejects.toThrow("TRANSACTION_FAILED");
 
-    // Verifica se rodou o fallback (lock + fallback = 2 chamadas)
-    expect(mockRunTransaction).toHaveBeenCalledTimes(2);
+    expect(registrarErroSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "MP_ORDER_123",
+        provedorPagamento: "MERCADOPAGO_API",
+      }),
+    );
   });
 
   it("Deve retornar pagamento existente caso alguém gere o lock concorrentemente na primeira transaction", async () => {
-    (obterPagamentoAtivoPorLockPix as jest.Mock).mockResolvedValueOnce(null);
-    (verificarDisponibilidadeRifasPix as jest.Mock).mockResolvedValueOnce(undefined);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "obterPagamentoAtivoPorLock")
+      .mockResolvedValueOnce(null);
+    jest
+      .spyOn(CheckoutPixRepository.prototype, "verificarDisponibilidadeRifas")
+      .mockResolvedValueOnce(undefined);
 
     mockRunTransaction.mockImplementationOnce(async (cb: any) => {
-      // Simula que o lockSnap existe na transaction
       const mockLockSnap = {
         exists: true,
-        data: () => ({ payment_id: "PAG_CONCORRENTE", expira_em: { valueOf: () => Date.now() + 10000, toDate: () => new Date(Date.now() + 10000), toMillis: () => Date.now() + 10000, seconds: Date.now() / 1000 + 10, nanoseconds: 0 } as any }),
+        data: () => ({ payment_id: "PAG_CONCORRENTE" }),
       };
       const mockPagamentoSnap = {
         exists: true,
-        data: () => ({ status_pagamento_banco: "WAITING" }),
+        data: () => ({
+          id: "PAG_CONCORRENTE",
+          status_pagamento_banco: "WAITING",
+          pix_qr_code_id: "QR_CONC",
+          copia_e_cola: "000201_CONC",
+          numeros_rifas: ["001"],
+        }),
       };
 
       return cb({
         get: jest.fn().mockImplementation((ref: any) => {
           if (ref.id === "PAG_CONCORRENTE") return Promise.resolve(mockPagamentoSnap);
-          if (ref.path && ref.path.includes("pagamentos_pix_idempotencia")) return Promise.resolve(mockLockSnap);
+          if (ref.path && ref.path.includes("pagamentos_pix_idempotencia")) {
+            return Promise.resolve(mockLockSnap);
+          }
           return Promise.resolve({ exists: true, data: () => ({ status: "disponivel" }) });
         }),
         set: mockSet,
@@ -245,11 +298,9 @@ describe("Service: CriarCheckoutPixService", () => {
       });
     });
 
-    (montarRespostaPagamentoPix as jest.Mock).mockReturnValueOnce({ id: "PAG_CONCORRENTE" });
-
     const result = await CriarCheckoutPixService.executar("uid1", "joao@teste.com", mockPayload);
 
-    expect(result).toEqual({ id: "PAG_CONCORRENTE" });
+    expect(result).toEqual(expect.objectContaining({ id: "PAG_CONCORRENTE" }));
     expect(MercadoPagoPixClient.criarPedidoPix).not.toHaveBeenCalled();
   });
 });

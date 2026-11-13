@@ -5,7 +5,14 @@ import { Response } from "express";
 
 import { AuthRequest } from "../../../shared/middlewares/authMiddleware";
 import { ComprasManuaisService } from "../services/comprasManuaisService";
+import { PixValidacaoService } from "../services/pixValidacaoService";
 
+/**
+ * Controlador Express para recusar manualmente uma compra (Pix ou comprovante) na Tesouraria.
+ *
+ * @param {AuthRequest} req - Requisição autenticada contendo `params.chave` e `body.motivo`.
+ * @param {Response} res - Resposta Express.
+ */
 export async function negarCompraManual(req: AuthRequest, res: Response) {
   try {
     const chave = String(req.params.chave || "").trim();
@@ -19,12 +26,23 @@ export async function negarCompraManual(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: "O motivo da recusa é obrigatório." });
     }
 
-    const resultado = await ComprasManuaisService.negarCompra({
-      chave,
-      uidTesouraria: req.user?.uid || "",
-      emailTesouraria: req.user?.email,
-      motivo,
-    });
+    const uidTesouraria = req.user?.uid || "";
+    const emailTesouraria = req.user?.email;
+
+    const resultado = chave.startsWith("pix-")
+      ? await PixValidacaoService.negarTransacao({
+          transacaoId: chave,
+          chaveAcao: chave,
+          uidTesouraria,
+          emailTesouraria,
+          motivo,
+        })
+      : await ComprasManuaisService.negarCompra({
+          chave,
+          uidTesouraria,
+          emailTesouraria,
+          motivo,
+        });
 
     return res.status(200).json(resultado);
   } catch (error: any) {

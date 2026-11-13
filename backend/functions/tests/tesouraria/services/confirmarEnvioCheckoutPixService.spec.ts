@@ -64,18 +64,36 @@ describe("ConfirmarEnvioCheckoutPixService", () => {
         uid: "",
         emailLogado: "teste@unifei.edu.br",
         pagamentoId: "PAG_1",
+        comprovanteUrl: "comprovantes/comp_123.pdf",
       }),
     ).rejects.toThrow("UNAUTHORIZED");
+  });
+
+  it("deve rejeitar chamada sem comprovanteUrl", async () => {
+    await expect(
+      ConfirmarEnvioCheckoutPixService.executar({
+        uid: "uid_aderido",
+        emailLogado: "aderido@unifei.edu.br",
+        pagamentoId: "PAG_1",
+        comprovanteUrl: "",
+      }),
+    ).rejects.toThrow("COMPROVANTE_OBRIGATORIO");
   });
 
   it("deve transicionar bilhetes para pendente e salvar comprovante na transação", async () => {
     const mockPagamentoData = {
       vendedor_id: "ADERIDO_123",
+      provedor_pagamento: "EMV_OFFLINE",
       status_pagamento_banco: "WAITING",
       numeros_rifas: ["001", "002"],
       comprador_email: "comprador@gmail.com",
       comprador_nome: "Maria Compradora",
     };
+
+    mockGet.mockResolvedValue({
+      exists: true,
+      data: () => mockPagamentoData,
+    });
 
     mockRunTransaction.mockImplementation(async (cb: any) => {
       return cb({
@@ -112,14 +130,22 @@ describe("ConfirmarEnvioCheckoutPixService", () => {
   });
 
   it("deve impedir confirmação se a transação já foi paga", async () => {
+    const mockPagamentoPago = {
+      vendedor_id: "ADERIDO_123",
+      provedor_pagamento: "EMV_OFFLINE",
+      status_pagamento_banco: "PAID",
+    };
+
+    mockGet.mockResolvedValue({
+      exists: true,
+      data: () => mockPagamentoPago,
+    });
+
     mockRunTransaction.mockImplementation(async (cb: any) => {
       return cb({
         get: jest.fn().mockResolvedValue({
           exists: true,
-          data: () => ({
-            vendedor_id: "ADERIDO_123",
-            status_pagamento_banco: "PAID",
-          }),
+          data: () => mockPagamentoPago,
         }),
         set: mockSet,
       });
@@ -130,6 +156,7 @@ describe("ConfirmarEnvioCheckoutPixService", () => {
         uid: "uid_aderido",
         emailLogado: "aderido@unifei.edu.br",
         pagamentoId: "PAG_JA_PAGO",
+        comprovanteUrl: "comprovantes/comp_123.pdf",
       }),
     ).rejects.toThrow("TRANSACAO_JA_FINALIZADA");
   });

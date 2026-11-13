@@ -65,20 +65,34 @@ export class EmailComprovanteService {
       throw new Error("COMPRA_NAO_PAGA");
     }
 
-    const email = normalizarTexto(
+    let email = normalizarTexto(
       bilhetes.find(({ dados }) => normalizarTexto(dados.comprador_email))
         ?.dados.comprador_email,
     );
 
-    if (!email) {
-      throw new Error("COMPRA_SEM_EMAIL");
-    }
-
-    const nome =
+    let nome =
       normalizarTexto(
         bilhetes.find(({ dados }) => normalizarTexto(dados.comprador_nome))
           ?.dados.comprador_nome,
       ) || "Comprador";
+
+    if (!email) {
+      const compradoresCol = db.collection("compradores") as any;
+      if (typeof compradoresCol?.doc === "function") {
+        const compradorDoc = await compradoresCol.doc(compradorId).get();
+        if (compradorDoc?.exists) {
+          const dadosComprador = compradorDoc.data();
+          email = normalizarTexto(dadosComprador?.email);
+          if (dadosComprador?.nome) {
+            nome = normalizarTexto(dadosComprador.nome) || nome;
+          }
+        }
+      }
+    }
+
+    if (!email) {
+      throw new Error("COMPRA_SEM_EMAIL");
+    }
     const rifas = bilhetes
       .map(({ numero }) => numero)
       .sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true }));

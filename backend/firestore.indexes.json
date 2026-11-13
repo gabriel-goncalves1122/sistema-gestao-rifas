@@ -11,58 +11,6 @@
         {
           "fieldPath": "comprovante_url",
           "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "ASCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "notificacoes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "vendedor_id",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "data_criacao",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "__name__",
-          "order": "DESCENDING"
-        }
-      ],
-      "density": "SPARSE_ALL"
-    },
-    {
-      "collectionGroup": "pagamentos_pix",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status_pagamento_banco",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "data_expiracao",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "pagamentos_pix",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status_pagamento_banco",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "data_criacao",
-          "order": "DESCENDING"
         }
       ]
     },
@@ -77,6 +25,48 @@
         {
           "fieldPath": "data_pagamento",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notificacoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "vendedor_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_criacao",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pagamentos_pix",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status_pagamento_banco",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_criacao",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pagamentos_pix",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status_pagamento_banco",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_expiracao",
+          "order": "ASCENDING"
         }
       ]
     }

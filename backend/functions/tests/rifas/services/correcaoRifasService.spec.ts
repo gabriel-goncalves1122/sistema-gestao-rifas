@@ -357,14 +357,19 @@ describe("Service: CorrecaoRifasService", () => {
         ],
       });
 
-      mockTransactionGet.mockResolvedValueOnce({
-        exists: true,
-        data: () => ({
-          vendedor_id: "ADERIDO_030",
-          comprador_id: "COMPRADOR_999",
-          status: "recusado",
-        }),
-      });
+      mockTransactionGet
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({
+            vendedor_id: "ADERIDO_030",
+            comprador_id: "COMPRADOR_999",
+            status: "recusado",
+          }),
+        })
+        .mockResolvedValueOnce({
+          empty: true,
+          docs: [],
+        });
 
       const sucesso = await CorrecaoRifasService.desistirRifasRecusadas(
         "valido@teste.com",

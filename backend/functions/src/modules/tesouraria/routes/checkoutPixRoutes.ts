@@ -11,6 +11,7 @@ import { simularPagamentoPix } from "../controllers/simularPagamentoPixControlle
 import { cancelarCheckoutPix } from "../controllers/cancelarCheckoutPixController";
 import { confirmarEnvioCheckoutPix } from "../controllers/confirmarEnvioCheckoutPixController";
 import { checkoutPixSchema } from "../schemas/checkoutPixSchema";
+import { confirmarEnvioCheckoutPixSchema } from "../schemas/confirmarEnvioCheckoutPixSchema";
 
 const checkoutPixRoutes = Router();
 
@@ -41,6 +42,7 @@ checkoutPixRoutes.post(
 checkoutPixRoutes.post(
   "/checkout/pix/:id/confirmar-envio",
   validateToken,
+  validate(confirmarEnvioCheckoutPixSchema),
   confirmarEnvioCheckoutPix,
 );
 

@@ -1,4 +1,4 @@
-import { Bilhete, StatusBilhete } from "../../types/models";
+import { Bilhete, ProvedorPagamento, StatusBilhete } from "../../types/models";
 
 export type StatusPagamentoPix =
   | "WAITING"
@@ -66,6 +66,7 @@ export interface PixTransacao {
   statusValidacao?: StatusValidacaoPix;
   observacao?: string;
   origem?: OrigemTransacaoTesouraria;
+  provedor?: ProvedorPagamento;
   comprovanteUrl?: string | null;
   chaveAcao?: string;
 }
@@ -171,6 +172,7 @@ export interface TransacaoTesouraria {
   valorTotal: number;
   valorLiquido?: number;
   origem?: OrigemTransacaoTesouraria;
+  provedor?: ProvedorPagamento;
   pixOrderId?: string | null;
   statusPagamentoBanco?: string | null;
   statusValidacao?: string | null;

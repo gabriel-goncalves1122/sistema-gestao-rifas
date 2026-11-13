@@ -5,7 +5,7 @@ const mockBilhetesGet = jest.fn<any>();
 const mockCompradorDoc = jest.fn<any>();
 const mockCompradorGet = jest.fn<any>();
 const mockBatchUpdate = jest.fn<any>();
-const mockBatchCommit = jest.fn<any>();
+const mockRunTransaction = jest.fn<any>();
 const mockUsuariosGet = jest.fn<any>();
 
 const bilhetesCollectionMock = {
@@ -40,10 +40,7 @@ jest.mock("firebase-admin", () => ({
         get: jest.fn().mockResolvedValue({ docs: [] }),
       };
     }),
-    batch: jest.fn().mockReturnValue({
-      update: mockBatchUpdate,
-      commit: mockBatchCommit,
-    }),
+    runTransaction: (...args: any[]) => mockRunTransaction(...args),
   }),
 }));
 
@@ -53,6 +50,12 @@ describe("Service: TesourariaRelatorioService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCompradorDoc.mockReturnValue(compradorRefMock);
+    mockRunTransaction.mockImplementation(async (callback: any) =>
+      callback({
+        get: jest.fn((target: any) => target.get()),
+        update: mockBatchUpdate,
+      }),
+    );
   });
 
   describe("obterRelatorioTesouraria", () => {
@@ -271,7 +274,7 @@ describe("Service: TesourariaRelatorioService", () => {
         email: "maria@teste.com",
         telefone: "35999990000",
       });
-      expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+      expect(mockRunTransaction).toHaveBeenCalledTimes(1);
       expect(resultado).toEqual({
         comprador_id: "comprador_123",
         nome: "Maria Atualizada",
@@ -307,7 +310,7 @@ describe("Service: TesourariaRelatorioService", () => {
       );
 
       expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
-      expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+      expect(mockRunTransaction).toHaveBeenCalledTimes(1);
       expect(resultado.compradorDocumentoAtualizado).toBe(false);
     });
 
@@ -325,7 +328,6 @@ describe("Service: TesourariaRelatorioService", () => {
       ).rejects.toThrow("COMPRA_NAO_ENCONTRADA");
 
       expect(mockBatchUpdate).not.toHaveBeenCalled();
-      expect(mockBatchCommit).not.toHaveBeenCalled();
     });
   });
 });

@@ -6,12 +6,43 @@ import * as admin from "firebase-admin";
 import { Bilhete, Comprador } from "../../types/models";
 import { ordenarRifasPorNumero } from "../helpers/ordenarRifasHelper";
 import { buscarUsuarioPorEmail } from "../helpers/usuarioRifasHelper";
+import { isReservaBilheteExpirada } from "../../tesouraria/helpers/checkoutPixHelper";
 import {
   ItemVendaRelatorioAderidoDTO,
   RelatorioVendasAderidoDTO,
 } from "../types/rifasTypes";
 
 const VALOR_PADRAO_RIFA = 10;
+
+/**
+ * Normaliza em memória um bilhete cuja reserva Pix expirou sem confirmação bancária,
+ * devolvendo a aparência de `"disponivel"` para listagem e relatórios do aderido.
+ *
+ * @param {Bilhete} bilhete - Documento do bilhete carregado do Firestore.
+ * @returns {Bilhete} Bilhete normalizado ou o próprio bilhete original se não expirado.
+ */
+function normalizarBilheteExpiradoParaDisponivel(bilhete: Bilhete): Bilhete {
+  if (!isReservaBilheteExpirada(bilhete)) {
+    return bilhete;
+  }
+
+  return {
+    ...bilhete,
+    status: "disponivel",
+    comprador_id: null,
+    comprador_nome: undefined,
+    comprador_email: null,
+    comprador_telefone: undefined,
+    data_reserva: undefined,
+    data_expiracao: null,
+    pix_order_id: null,
+    pix_qr_code_id: null,
+    pix_reference_id: null,
+    status_pagamento_banco: null,
+    status_validacao: null,
+    sessao_checkout_id: null,
+  };
+}
 
 export class AderidoRifasService {
   /**
@@ -32,7 +63,9 @@ export class AderidoRifasService {
       .where("vendedor_id", "==", idAderido)
       .get();
 
-    const bilhetes = bilhetesSnapshot.docs.map((doc) => doc.data() as Bilhete);
+    const bilhetes = bilhetesSnapshot.docs.map((doc) =>
+      normalizarBilheteExpiradoParaDisponivel(doc.data() as Bilhete),
+    );
 
     return ordenarRifasPorNumero(bilhetes);
   }
@@ -60,7 +93,9 @@ export class AderidoRifasService {
       .where("vendedor_id", "==", idAderido)
       .get();
 
-    const bilhetes = bilhetesSnapshot.docs.map((doc) => doc.data() as Bilhete);
+    const bilhetes = bilhetesSnapshot.docs.map((doc) =>
+      normalizarBilheteExpiradoParaDisponivel(doc.data() as Bilhete),
+    );
 
     let rifasPagas = 0;
     let valorPagoConfirmado = 0;

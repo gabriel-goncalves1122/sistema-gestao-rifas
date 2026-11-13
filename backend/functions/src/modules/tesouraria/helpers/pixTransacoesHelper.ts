@@ -4,11 +4,11 @@
 import {
   BilheteComNumero,
   PixTransacao,
-  PixTransacoesResumo,
-  ResumoComprovantesTesouraria,
   StatusPagamentoPix,
   StatusValidacaoPix,
-} from "../../tesouraria/types/tesourariaTypes";
+} from "../types/tesourariaTypes";
+import { resolverProvedorRegistro } from "./origemPagamentoHelper";
+import { chaveCompra } from "./pixResumoHelper";
 import {
   cpfEhValido,
   formatarCpfVendedor,
@@ -16,7 +16,61 @@ import {
   resolverVendedorDoBilhete,
 } from "./vendedorLookupHelper";
 
+export {
+  chaveCompra,
+  transacaoPixEstaValidada,
+  transacaoPixAguardandoValidacao,
+  calcularResumoComprovantes,
+  calcularResumoPixTransacoes,
+} from "./pixResumoHelper";
+
 const VALOR_RIFA = 10;
+
+/**
+ * Campos mínimos da coleção `bilhetes` projetados via `.select()` nas consultas da Tesouraria,
+ * evitando tráfego de campos pesados desnecessários (como logs extensos).
+ */
+export const CAMPOS_PROJECAO_BILHETE_TESOURARIA = [
+  "status",
+  "pix_order_id",
+  "pix_reference_id",
+  "provedor_pagamento",
+  "dados_conciliacao",
+  "comprovante_url",
+  "comprador_id",
+  "comprador_nome",
+  "comprador_email",
+  "comprador_telefone",
+  "vendedor_id",
+  "vendedor_nome",
+  "vendedor_cpf",
+  "data_reserva",
+  "data_pagamento",
+  "data_expiracao",
+  "sessao_checkout_id",
+  "status_pagamento_banco",
+  "status_validacao",
+  "valor_bruto",
+  "valor_pago",
+  "motivo_recusa",
+  "correcao_pendente",
+] as const;
+
+/**
+ * Aplica projeção `.select(...)` com fallback seguro para mocks de teste que não implementam `.select()`.
+ *
+ * @template T
+ * @param {T} query - Query Firestore ou dublê de teste.
+ * @param {readonly string[]} campos - Campos a projetar.
+ * @returns {T} Mesma query com projeção aplicada quando suportada.
+ */
+export function aplicarSelectSeguro<T>(query: T, campos: readonly string[]): T {
+  const candidata = query as { select?: (...args: string[]) => T };
+  if (typeof candidata?.select === "function") {
+    return candidata.select(...campos);
+  }
+  return query;
+}
 
 /**
  * Converte com segurança uma string de data para timestamp numérico em milissegundos.
@@ -58,36 +112,6 @@ export function normalizarId(valor: string): string {
 }
 
 /**
- * Gera uma chave unificadora de agrupamento para reunir múltiplos bilhetes que pertencem à mesma compra.
- * Prioridade: `pix_order_id` > `pix_reference_id` > `comprovante_url` > `comprador_id` > fallback por comprador/data.
- *
- * @param {BilheteComNumero} bilhete - Bilhete individual avaliado.
- * @returns {string} Chave única de agrupamento da compra.
- */
-export function chaveCompra(bilhete: BilheteComNumero): string {
-  if (bilhete.pix_order_id) {
-    return `pix-${bilhete.pix_order_id}`;
-  }
-
-  if (bilhete.pix_reference_id) {
-    return `pixref-${bilhete.pix_reference_id}`;
-  }
-
-  if (bilhete.comprovante_url) {
-    return `comprovante-${bilhete.comprovante_url}`;
-  }
-
-  if (bilhete.comprador_id) {
-    return `comprador-${bilhete.comprador_id}`;
-  }
-
-  const comprador = bilhete.comprador_nome || "sem-comprador";
-  const reserva = bilhete.data_reserva || "sem-data";
-
-  return `manual|${comprador}|${reserva}|${bilhete.status}`;
-}
-
-/**
  * Mapeia os status de bilhete e de gateway bancário para o enum unificado `StatusPagamentoPix`.
  *
  * @param {string} status - Status do bilhete ('pago', 'pendente', 'reservado', 'recusado').
@@ -98,6 +122,21 @@ export function statusPagamento(
   status: string,
   statusBanco?: string | null,
 ): StatusPagamentoPix {
+  if (status === "recusado") {
+    return statusBanco === "CANCELED" ? "CANCELED" : "DECLINED";
+  }
+
+  if (status === "pago") {
+    return "PAID";
+  }
+
+  if (
+    status === "pendente" &&
+    (statusBanco === "CANCELED" || statusBanco === "ERROR")
+  ) {
+    return "WAITING";
+  }
+
   if (
     statusBanco &&
     ["WAITING", "PAID", "AUTHORIZED", "IN_ANALYSIS", "DECLINED", "CANCELED", "ERROR"]
@@ -110,8 +149,6 @@ export function statusPagamento(
     return "PAID";
   }
 
-  if (status === "pago") return "PAID";
-  if (status === "recusado") return "DECLINED";
   if (status === "reservado") return "WAITING";
   if (status === "pendente") return "WAITING";
 
@@ -120,7 +157,6 @@ export function statusPagamento(
 
 /**
  * Resolve o status de validação da Tesouraria para uma transação Pix a partir do bilhete base.
- * Caso o bilhete já esteja com `status === "pago"` e possua `pix_order_id`, garante `"aceita"`.
  *
  * @param {BilheteComNumero} base - Bilhete representativo da compra.
  * @returns {StatusValidacaoPix | undefined} Status de validação ('aceita', 'negada' ou `undefined` quando pendente).
@@ -149,7 +185,7 @@ export function resolverStatusValidacaoBilhete(
  *
  * @param {BilheteComNumero[]} bilhetes - Bilhetes agrupados da transação.
  * @param {MapaVendedores | null} [mapaVendedores] - Mapa indexado opcional da coleção `usuarios`.
- * @returns {PixTransacao} DTO consolidado com valores somados, dados do comprador e do vendedor.
+ * @returns {PixTransacao} DTO consolidado com valores somados, dados do comprador, vendedor e provedor explícito.
  */
 export function montarPixTransacao(
   bilhetes: BilheteComNumero[],
@@ -182,7 +218,10 @@ export function montarPixTransacao(
         ? base.vendedor_cpf
         : undefined;
 
-  const ehPix = bilhetesOrdenados.some((bilhete) => Boolean(bilhete.pix_order_id));
+  const registroOrigem =
+    bilhetesOrdenados.find((b) => Boolean(b.provedor_pagamento || b.pix_order_id)) || base;
+  const provedor = resolverProvedorRegistro(registroOrigem);
+  const ehPix = provedor !== "COMPROVANTE_PURO";
   const comprovanteUrl =
     bilhetesOrdenados.find((bilhete) => Boolean(bilhete.comprovante_url))
       ?.comprovante_url || null;
@@ -231,250 +270,8 @@ export function montarPixTransacao(
         ? base.motivo_recusa || "Comprovante recusado pela tesouraria."
         : undefined,
     origem: ehPix ? "PIX" : "COMPROVANTE",
+    provedor,
     comprovanteUrl,
     chaveAcao: chaveBruta,
   };
 }
-
-/**
- * Avalia se uma transação Pix está efetivamente validada/paga pela Tesouraria.
- * Distingue transações já aceitas (`status: "pago"` / `statusValidacao: "aceita"`) daquelas
- * cujo Pix foi liquidado no banco (`statusPagamento: "PAID"`), mas os bilhetes ainda estão `"pendente"`.
- *
- * @param {PixTransacao} transacao - Transação Pix avaliada.
- * @returns {boolean} `true` se o pagamento estiver confirmado e validado.
- */
-export function transacaoPixEstaValidada(transacao: PixTransacao): boolean {
-  if (transacao.statusValidacao === "aceita") {
-    return true;
-  }
-
-  if (transacao.statusValidacao === "negada") {
-    return false;
-  }
-
-  if (transacao.origem === "COMPROVANTE") {
-    if (transacao.rifas && transacao.rifas.length > 0) {
-      return transacao.rifas.every((rifa) => rifa.status === "pago");
-    }
-    return transacao.statusPagamento === "PAID";
-  }
-
-  if (!["PAID", "AUTHORIZED"].includes(transacao.statusPagamento)) {
-    return false;
-  }
-
-  if (transacao.rifas && transacao.rifas.length > 0) {
-    return transacao.rifas.every((rifa) => rifa.status === "pago");
-  }
-
-  return true;
-}
-
-/**
- * Avalia se uma transação Pix já teve o pagamento aprovado no gateway bancário ou comprovante enviado,
- * mas ainda aguarda conferência/aceite manual da Tesouraria (`status === "pendente"`).
- *
- * @param {PixTransacao} transacao - Transação Pix avaliada.
- * @returns {boolean} `true` se aguarda validação da tesouraria.
- */
-export function transacaoPixAguardandoValidacao(transacao: PixTransacao): boolean {
-  if (transacao.statusValidacao === "negada" || transacaoPixEstaValidada(transacao)) {
-    return false;
-  }
-
-  if (transacao.origem === "COMPROVANTE") {
-    return Boolean(
-      transacao.rifas?.some((r) => r.status === "pendente" || r.status === "reservado"),
-    );
-  }
-
-  return (
-    ["PAID", "AUTHORIZED", "IN_ANALYSIS"].includes(transacao.statusPagamento) ||
-    Boolean(transacao.comprovanteUrl)
-  );
-}
-
-/**
- * Calcula as métricas financeiras e de volume para os bilhetes negociados manualmente
- * via comprovante bancário legado (sem `pix_order_id`).
- *
- * @param {BilheteComNumero[]} bilhetesManuais - Lista de bilhetes sem `pix_order_id`.
- * @returns {ResumoComprovantesTesouraria} Totais de rifas, compras e valores de comprovantes.
- */
-export function calcularResumoComprovantes(
-  bilhetesManuais: BilheteComNumero[],
-): ResumoComprovantesTesouraria {
-  const gruposPagos = new Set<string>();
-  const gruposPendentes = new Set<string>();
-
-  let comprovantesRifasPagas = 0;
-  let comprovantesValorRecebido = 0;
-  let comprovantesRifasPendentes = 0;
-  let comprovantesValorPendente = 0;
-
-  bilhetesManuais.forEach((bilhete) => {
-    const chave = chaveCompra(bilhete);
-
-    if (bilhete.status === "pago") {
-      gruposPagos.add(chave);
-      comprovantesRifasPagas += 1;
-      comprovantesValorRecebido += bilhete.valor_pago || bilhete.valor_bruto || VALOR_RIFA;
-    } else if (bilhete.status === "pendente" || bilhete.status === "reservado") {
-      gruposPendentes.add(chave);
-      comprovantesRifasPendentes += 1;
-      comprovantesValorPendente += bilhete.valor_bruto || VALOR_RIFA;
-    }
-  });
-
-  return {
-    comprovantesTransacoesPagas: gruposPagos.size,
-    comprovantesRifasPagas,
-    comprovantesValorRecebido,
-    comprovantesTransacoesPendentes: gruposPendentes.size,
-    comprovantesRifasPendentes,
-    comprovantesValorPendente,
-  };
-}
-
-/**
- * Calcula os indicadores financeiros agregados (KPIs) unificando:
- * 1. Transações Pix automatizadas (separando validadas de aguardando validação, com taxa de 1% -> fator 0.99);
- * 2. Rifas negociadas manualmente via comprovante bancário;
- * 3. Total Geral consolidado da Tesouraria.
- *
- * @param {PixTransacao[]} transacoes - Lista consolidada de transações Pix.
- * @param {ResumoComprovantesTesouraria} [resumoComprovantes] - Métricas opcionais das vendas por comprovante manual.
- * @returns {PixTransacoesResumo} Métricas financeiras completas para os dashboards da Tesouraria.
- */
-export function calcularResumoPixTransacoes(
-  transacoes: PixTransacao[],
-  resumoComprovantes?: ResumoComprovantesTesouraria,
-): PixTransacoesResumo {
-  const transacoesPix = transacoes.filter((t) => t.origem !== "COMPROVANTE");
-  const transacoesComprovante = transacoes.filter((t) => t.origem === "COMPROVANTE");
-
-  const pagas = transacoesPix.filter(transacaoPixEstaValidada);
-  const aguardandoBanco = transacoesPix.filter(
-    (transacao) =>
-      transacao.statusPagamento === "WAITING" ||
-      transacao.statusPagamento === "IN_ANALYSIS",
-  );
-  const aguardandoValidacao = transacoesPix.filter(transacaoPixAguardandoValidacao);
-  const aguardando = [...aguardandoBanco, ...aguardandoValidacao];
-
-  const canceladas = transacoesPix.filter(
-    (transacao) =>
-      ["CANCELED", "DECLINED"].includes(transacao.statusPagamento) ||
-      transacao.statusValidacao === "negada",
-  );
-  const erros = transacoesPix.filter(
-    (transacao) => transacao.statusPagamento === "ERROR",
-  );
-
-  const pixRecebidoBruto = pagas.reduce(
-    (acc, transacao) => acc + (transacao.valorPago || transacao.valorBruto),
-    0,
-  );
-  const totalRecebido = Number(
-    pagas.reduce((acc, transacao) => acc + transacao.valorPago * 0.99, 0).toFixed(2),
-  );
-  const totalPendente = aguardando.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
-  const pixValorAguardandoLiquido = Number((totalPendente * 0.99).toFixed(2));
-  const totalCancelado = canceladas.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
-  const totalErros = erros.reduce(
-    (acc, transacao) => acc + transacao.valorBruto,
-    0,
-  );
-
-  const contarRifasTransacao = (transacao: PixTransacao): number => {
-    if (typeof transacao.quantidadeRifas === "number" && transacao.quantidadeRifas > 0) {
-      return transacao.quantidadeRifas;
-    }
-    if (Array.isArray(transacao.rifas) && transacao.rifas.length > 0) {
-      return transacao.rifas.length;
-    }
-    const baseValor = transacao.valorPago || transacao.valorBruto || 0;
-    return baseValor > 0 ? Math.round(baseValor / VALOR_RIFA) : 0;
-  };
-
-  const pixRifasPagas = pagas.reduce((acc, t) => acc + contarRifasTransacao(t), 0);
-  const pixRifasAguardando = aguardando.reduce((acc, t) => acc + contarRifasTransacao(t), 0);
-
-  const comprovantes: ResumoComprovantesTesouraria = resumoComprovantes || {
-    comprovantesTransacoesPagas: transacoesComprovante.filter(transacaoPixEstaValidada).length,
-    comprovantesRifasPagas: transacoesComprovante
-      .filter(transacaoPixEstaValidada)
-      .reduce((acc, t) => acc + contarRifasTransacao(t), 0),
-    comprovantesValorRecebido: transacoesComprovante
-      .filter(transacaoPixEstaValidada)
-      .reduce((acc, t) => acc + (t.valorPago || t.valorBruto), 0),
-    comprovantesTransacoesPendentes: transacoesComprovante.filter(transacaoPixAguardandoValidacao).length,
-    comprovantesRifasPendentes: transacoesComprovante
-      .filter(transacaoPixAguardandoValidacao)
-      .reduce((acc, t) => acc + contarRifasTransacao(t), 0),
-    comprovantesValorPendente: transacoesComprovante
-      .filter(transacaoPixAguardandoValidacao)
-      .reduce((acc, t) => acc + t.valorBruto, 0),
-  };
-
-  const totalGeralTransacoesPagas = pagas.length + comprovantes.comprovantesTransacoesPagas;
-  const totalGeralRifasPagas = pixRifasPagas + comprovantes.comprovantesRifasPagas;
-  const totalGeralRecebidoBruto = pixRecebidoBruto + comprovantes.comprovantesValorRecebido;
-  const totalGeralRecebidoLiquido = Number(
-    (totalRecebido + comprovantes.comprovantesValorRecebido).toFixed(2),
-  );
-  const totalGeralTransacoesPendentes =
-    aguardando.length + comprovantes.comprovantesTransacoesPendentes;
-  const totalGeralRifasPendentes =
-    pixRifasAguardando + comprovantes.comprovantesRifasPendentes;
-  const totalGeralValorPendenteBruto =
-    totalPendente + comprovantes.comprovantesValorPendente;
-
-  return {
-    totalRecebido,
-    totalPendente,
-    totalCancelado,
-    totalErros,
-    quantidadePagas: pagas.length,
-    quantidadeAguardando: aguardando.length,
-    quantidadeCanceladas: canceladas.length,
-    quantidadeErros: erros.length,
-    totalTransacoes: transacoes.length,
-    ticketMedio: pagas.length > 0 ? Number((totalRecebido / pagas.length).toFixed(2)) : 0,
-
-    // 1. Indicadores Pix
-    pixRifasPagas,
-    pixRecebidoBruto,
-    pixRecebidoLiquido: totalRecebido,
-    pixTransacoesAguardando: aguardando.length,
-    pixRifasAguardando,
-    pixValorAguardandoBruto: totalPendente,
-    pixValorAguardandoLiquido,
-
-    // 2. Indicadores Comprovantes Manuais
-    comprovantesTransacoesPagas: comprovantes.comprovantesTransacoesPagas,
-    comprovantesRifasPagas: comprovantes.comprovantesRifasPagas,
-    comprovantesValorRecebido: comprovantes.comprovantesValorRecebido,
-    comprovantesTransacoesPendentes: comprovantes.comprovantesTransacoesPendentes,
-    comprovantesRifasPendentes: comprovantes.comprovantesRifasPendentes,
-    comprovantesValorPendente: comprovantes.comprovantesValorPendente,
-
-    // 3. Indicadores Total Geral Consolidado
-    totalGeralTransacoesPagas,
-    totalGeralRifasPagas,
-    totalGeralRecebidoBruto,
-    totalGeralRecebidoLiquido,
-    totalGeralTransacoesPendentes,
-    totalGeralRifasPendentes,
-    totalGeralValorPendenteBruto,
-  };
-}
-
-

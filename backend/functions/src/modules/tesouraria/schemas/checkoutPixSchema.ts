@@ -3,7 +3,7 @@ import * as yup from "yup";
 import {
   validarDocumentoPix,
   validarEmailPix,
-} from "../helpers/checkoutPixHelper";
+} from "../../../shared/utils/validadoresDocumentos";
 
 export const checkoutPixSchema = yup
   .object({

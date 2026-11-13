@@ -53,10 +53,36 @@ export interface CriarCobrancaProviderOutput {
 }
 
 /**
+ * Evento canônico de mudança ou consulta de status de pagamento,
+ * desacoplado do formato bruto de qualquer gateway externo.
+ */
+export interface EventoStatusPagamento {
+  /** Identificador do pedido no gateway ou txid local */
+  orderId: string;
+  /** Identificador de referência externa do checkout (`reference_id`) */
+  referenceId?: string | null;
+  /** Status traduzido para os três estados canônicos do domínio */
+  statusCanonico: "pago" | "cancelado" | "aguardando_pagamento";
+  /** Status bruto retornado pelo banco/gateway */
+  statusBancoBruto: string;
+  /** Mensagem amigável de falha ou cancelamento quando aplicável */
+  motivoFalha?: string | null;
+  /** Valor efetivamente pago em reais (R$) */
+  valorPagoReais: number;
+  /** Data/hora ISO da liquidação bancária */
+  pagoEm?: string | null;
+  /** Payload original retornado pelo provedor para auditoria */
+  rawPayload?: unknown;
+}
+
+/**
  * Contrato universal de provedores de pagamento da aplicação.
  * Permite alternar entre Mercado Pago, gerador EMV Offline ou outros gateways.
  */
 export interface IPaymentProvider {
+  /** Identificador canônico do modo operacional do provedor */
+  readonly modo: ModoProvedorPagamento;
+
   /**
    * Cria uma nova cobrança Pix e gera o QR Code / código Copia-e-Cola.
    *
@@ -72,6 +98,15 @@ export interface IPaymentProvider {
    * @returns {Promise<CriarCobrancaProviderOutput | null>} Estado da cobrança ou null se não encontrada.
    */
   consultarCobranca(orderId: string): Promise<CriarCobrancaProviderOutput | null>;
+
+  /**
+   * Consulta e traduz o estado atual da cobrança em um evento canônico de domínio.
+   * Provedores offline sem API de consulta retornam `null`.
+   *
+   * @param {string} orderId - Identificador do pedido no provedor.
+   * @returns {Promise<EventoStatusPagamento | null>} Evento traduzido ou `null`.
+   */
+  consultarEventoStatus?(orderId: string): Promise<EventoStatusPagamento | null>;
 
   /**
    * Solicita o cancelamento/invalidação de uma cobrança pendente.

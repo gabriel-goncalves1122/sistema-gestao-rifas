@@ -201,4 +201,63 @@ describe("Service: VendaRifasService", () => {
 
     expect(mockBatchSet).toHaveBeenCalledTimes(2);
   });
+
+  it("Deve permitir venda manual sobre bilhete com reserva Pix expirada e limpar campos residuais de Pix", async () => {
+    const passado = new Date(Date.now() - 40 * 60 * 1000).toISOString();
+    const dadosVenda = {
+      nome: "Comprador Manual",
+      telefone: "35999999999",
+      numerosRifas: ["015"],
+      comprovanteUrl: "https://storage/comprovante-manual.png",
+    };
+
+    mockGet
+      .mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: "DOC_USUARIO_001",
+            data: () => ({
+              nome: "Vendedor Teste",
+              cpf: "123.456.789-00",
+              id_aderido: "ADERIDO_999",
+            }),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          status: "reservado",
+          vendedor_id: "ADERIDO_999",
+          data_expiracao: passado,
+          pix_order_id: "RIFA_EXPIRADO_01",
+          pix_reference_id: "ref_antiga",
+          status_pagamento_banco: "WAITING",
+        }),
+      });
+
+    await VendaRifasService.processarVenda(
+      "uid_123",
+      "vendedor@teste.com",
+      dadosVenda,
+    );
+
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "pendente",
+        comprovante_url: "https://storage/comprovante-manual.png",
+        pix_order_id: null,
+        pix_qr_code_id: null,
+        pix_reference_id: null,
+        status_pagamento_banco: null,
+        status_validacao: null,
+        motivo_recusa: null,
+        correcao_pendente: null,
+        data_expiracao: null,
+      }),
+      { merge: true },
+    );
+  });
 });

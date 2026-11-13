@@ -92,6 +92,45 @@ describe("Service: AderidoRifasService", () => {
 
       expect(resultado).toEqual([{ numero: "010", status: "disponivel" }]);
     });
+
+    it("Deve normalizar bilhete com reserva Pix expirada para disponivel na listagem do aderido", async () => {
+      const passado = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+
+      mockGet.mockResolvedValueOnce({
+        empty: false,
+        docs: [
+          {
+            id: "DOC_USUARIO_001",
+            data: () => ({
+              id_aderido: "ADERIDO_001",
+            }),
+          },
+        ],
+      });
+
+      mockGet.mockResolvedValueOnce({
+        docs: [
+          {
+            data: () => ({
+              numero: "007",
+              status: "reservado",
+              data_expiracao: passado,
+              status_pagamento_banco: "WAITING",
+              pix_order_id: "RIFA_EXP_007",
+              comprador_nome: "Comprador Desistente",
+            }),
+          },
+        ],
+      });
+
+      const resultado =
+        await AderidoRifasService.buscarPorAderido("valido@teste.com");
+
+      expect(resultado).toHaveLength(1);
+      expect(resultado[0].status).toBe("disponivel");
+      expect(resultado[0].comprador_nome).toBeUndefined();
+      expect(resultado[0].pix_order_id).toBeNull();
+    });
   });
 
   describe("obterRelatorioVendas", () => {

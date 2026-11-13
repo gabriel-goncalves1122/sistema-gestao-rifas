@@ -24,12 +24,8 @@ jest.mock("../../../src/shared/services/mercadoPagoPixClient", () => ({
   MercadoPagoPixClient: { consultarPedido: jest.fn() },
 }));
 
-jest.mock("../../../src/modules/tesouraria/services/checkoutPixWebhookService", () => ({
-  CheckoutPixWebhookService: { processarPayloadConfiavel: jest.fn() },
-}));
-
 import { MercadoPagoPixClient } from "../../../src/shared/services/mercadoPagoPixClient";
-import { CheckoutPixWebhookService } from "../../../src/modules/tesouraria/services/checkoutPixWebhookService";
+import { CheckoutPixRepository } from "../../../src/modules/tesouraria/checkout/repositories/checkoutPixRepository";
 
 import { PixTransacoesService } from "../../../src/modules/tesouraria/services/pixTransacoesService";
 
@@ -172,13 +168,14 @@ describe("Service: PixTransacoesService", () => {
     );
   });
 
-  it("Deve sincronizar cobranças abertas chamando a API do Mercado Pago e o webhook interno", async () => {
+  it("Deve sincronizar cobranças abertas via MercadoPagoCheckoutStrategy ignorando Pix Normal offline", async () => {
     mockGet.mockResolvedValueOnce({
       empty: false,
       docs: [
-        { id: "PAG_001", data: () => ({ pix_order_id: "ORDER_111" }) },
+        { id: "PAG_001", data: () => ({ pix_order_id: "ORDER_111", provedor_pagamento: "MERCADOPAGO_API" }) },
         { id: "PAG_002", data: () => ({ pix_order_id: "ORDER_222" }) },
         { id: "PAG_003", data: () => ({ id: "ORDER_333" }) },
+        { id: "PAG_OFFLINE", data: () => ({ pix_order_id: "RIFA12345", provedor_pagamento: "EMV_OFFLINE" }) },
       ],
     });
 
@@ -187,7 +184,9 @@ describe("Service: PixTransacoesService", () => {
       .mockResolvedValueOnce({ id: "ORDER_222", status: "rejected" })
       .mockResolvedValueOnce({ id: "ORDER_333", status: "pending" });
 
-    (CheckoutPixWebhookService.processarPayloadConfiavel as jest.Mock).mockResolvedValue(undefined);
+    const aplicarSpy = jest
+      .spyOn(CheckoutPixRepository.prototype, "aplicarEventoPagamento")
+      .mockResolvedValue({ sucesso: true, idempotente: false, status: "approved" });
 
     const resultado = await PixTransacoesService.sincronizar();
 
@@ -203,6 +202,7 @@ describe("Service: PixTransacoesService", () => {
     expect(MercadoPagoPixClient.consultarPedido).toHaveBeenCalledWith("ORDER_222");
     expect(MercadoPagoPixClient.consultarPedido).toHaveBeenCalledWith("ORDER_333");
 
-    expect(CheckoutPixWebhookService.processarPayloadConfiavel).toHaveBeenCalledTimes(3);
+    expect(aplicarSpy).toHaveBeenCalledTimes(3);
+    aplicarSpy.mockRestore();
   });
 });

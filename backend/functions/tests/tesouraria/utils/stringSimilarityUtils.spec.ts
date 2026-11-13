@@ -1,6 +1,7 @@
 import {
   normalizarNomeParaComparacao,
   calcularSimilaridadeDice,
+  calcularSimilaridadeAderente,
 } from "../../../src/modules/tesouraria/utils/stringSimilarityUtils";
 
 describe("stringSimilarityUtils", () => {
@@ -40,6 +41,21 @@ describe("stringSimilarityUtils", () => {
     it("deve retornar 0 para strings vazias", () => {
       expect(calcularSimilaridadeDice("", "JOAO")).toBe(0);
       expect(calcularSimilaridadeDice("A", "B")).toBe(0);
+    });
+  });
+
+  describe("calcularSimilaridadeAderente", () => {
+    it("deve retornar 1.0 para nomes idênticos após normalização", () => {
+      expect(calcularSimilaridadeAderente("Gabriel Gonçalves Sampaio", "GABRIEL GONCALVES SAMPAIO")).toBe(1);
+    });
+
+    it("deve atribuir score alto (mínimo 0.95) quando houver omissão de sobrenome do meio mas primeiro e último coincidirem", () => {
+      const score = calcularSimilaridadeAderente("Gabriel Sampaio", "Gabriel Gonçalves Sampaio");
+      expect(score).toBeGreaterThanOrEqual(0.95);
+    });
+
+    it("deve retornar 0 para strings vazias", () => {
+      expect(calcularSimilaridadeAderente("", "Gabriel")).toBe(0);
     });
   });
 });

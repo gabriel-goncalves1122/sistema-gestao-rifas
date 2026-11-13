@@ -220,4 +220,78 @@ describe("Service: PixValidacaoService", () => {
       motivo: "Telefone inválido",
     });
   });
+
+  it("Deve atualizar status_pagamento_banco para PAID e valor_pago ao aceitar Pix em IN_ANALYSIS", async () => {
+    mockTransactionGet.mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        {
+          ref: {},
+          data: () => ({
+            status_pagamento_banco: "IN_ANALYSIS",
+            numeros_rifas: ["001"],
+            reference_id: "rifas-001",
+          }),
+        },
+      ],
+    });
+
+    await PixValidacaoService.aceitarTransacao({
+      transacaoId: "pix-ORDE_001",
+      uidTesouraria: "tesoureiro_001",
+      emailTesouraria: "tesouraria@teste.com",
+    });
+
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "pago",
+        status_validacao: "aceita",
+        status_pagamento_banco: "PAID",
+        valor_pago: 10,
+      }),
+      { merge: true },
+    );
+  });
+
+  it("Deve criar notificação no fallback de negarTransacao quando pagamentos_pix não existe", async () => {
+    mockTransactionGet
+      .mockResolvedValueOnce({ empty: true, docs: [] })
+      .mockResolvedValueOnce({
+        empty: false,
+        forEach: (cb: any) =>
+          cb({
+            id: "001",
+            ref: {},
+            data: () => ({
+              status: "pendente",
+              vendedor_id: "ADERIDO_001",
+            }),
+          }),
+      });
+
+    const resultado = await PixValidacaoService.negarTransacao({
+      transacaoId: "pix-ORDE_LEGACY",
+      uidTesouraria: "tesoureiro_001",
+      motivo: "Comprovante ilegível",
+    });
+
+    expect(resultado.rifas).toEqual(["001"]);
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "recusado",
+        status_validacao: "negada",
+        status_pagamento_banco: "DECLINED",
+      }),
+      { merge: true },
+    );
+    expect(mockTransactionSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        vendedor_id: "ADERIDO_001",
+        tipo: "correcao_dados",
+      }),
+    );
+  });
 });

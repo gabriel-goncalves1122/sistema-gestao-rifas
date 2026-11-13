@@ -7,7 +7,9 @@ import QRCode from "qrcode";
 import {
   CriarCobrancaProviderInput,
   CriarCobrancaProviderOutput,
+  EventoStatusPagamento,
   IPaymentProvider,
+  ModoProvedorPagamento,
 } from "../types/paymentProviderTypes";
 import { gerarPayloadPixEmv } from "../utils/emvPixUtils";
 
@@ -18,6 +20,7 @@ import { gerarPayloadPixEmv } from "../utils/emvPixUtils";
  * Insere a chave Pix da InfinitePay (ou outra chave configurada), valor exato e txid único por venda.
  */
 export class EmvOfflinePaymentProvider implements IPaymentProvider {
+  readonly modo: ModoProvedorPagamento = "EMV_OFFLINE";
   private readonly chavePix: string;
   private readonly nomeBeneficiario: string;
   private readonly cidadeBeneficiario: string;
@@ -81,9 +84,21 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
         txid,
         chave: this.chavePix,
         beneficiario: this.nomeBeneficiario,
+        provedor: this.modo,
         geradoOffline: true,
       },
     };
+  }
+
+  /**
+   * No modo offline sem conexão com API bancária em tempo real,
+   * não há evento externo para consultar.
+   *
+   * @param {string} _orderId - Identificador txid.
+   * @returns {Promise<EventoStatusPagamento | null>} Sempre `null`.
+   */
+  async consultarEventoStatus(_orderId: string): Promise<EventoStatusPagamento | null> {
+    return null;
   }
 
   /**

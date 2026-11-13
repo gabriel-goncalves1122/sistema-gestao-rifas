@@ -7,6 +7,7 @@ import { enviarEmailRecibo } from "../emailService";
 import { Bilhete, Comprador } from "../../types/models";
 import { DadosVenda } from "../types/rifasTypes";
 import { obterContextoAderidoPorEmail } from "../helpers/usuarioRifasHelper";
+import { isReservaBilheteExpirada } from "../../tesouraria/helpers/checkoutPixHelper";
 
 export class VendaRifasService {
   /**
@@ -68,8 +69,8 @@ export class VendaRifasService {
           throw new Error("RIFA_INDISPONIVEL"); // Pertence a outro aderido (Cross-Seller Theft)
         }
 
-        if (bilhete.status !== "disponivel") {
-          throw new Error("RIFA_INDISPONIVEL"); // Já vendida ou reservada
+        if (bilhete.status !== "disponivel" && !isReservaBilheteExpirada(bilhete)) {
+          throw new Error("RIFA_INDISPONIVEL"); // Já vendida ou reservada ativa
         }
       }
 
@@ -94,7 +95,18 @@ export class VendaRifasService {
           vendedor_cpf: contextoAderido.vendedorCpf,
           vendedor_id: contextoAderido.idAderido,
           data_reserva: momentoExatoDaReserva,
+          data_expiracao: null,
+          data_pagamento: null,
           comprovante_url: comprovanteUrl,
+          pix_order_id: null,
+          pix_qr_code_id: null,
+          pix_reference_id: null,
+          status_pagamento_banco: null,
+          status_validacao: null,
+          motivo_recusa: null,
+          correcao_pendente: null,
+          sessao_checkout_id: null,
+          valor_pago: 0,
         };
 
         transaction.set(ref, updateBilhete, { merge: true });

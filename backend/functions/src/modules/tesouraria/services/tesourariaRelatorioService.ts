@@ -1,4 +1,6 @@
-import * as admin from "firebase-admin";
+// ============================================================================
+// ARQUIVO: backend/functions/src/modules/tesouraria/services/tesourariaRelatorioService.ts
+// ============================================================================
 
 import {
   obterSuperAdmins,
@@ -10,169 +12,146 @@ import {
   AderidoRelatorioTesouraria,
   BilheteComNumero,
   DadosAtualizacaoCompradorCompra,
-  OrigemTransacaoTesouraria,
   RelatorioTesourariaResponse,
-  TransacaoResumoAderido,
   TransacaoTesouraria,
 } from "../types/tesourariaTypes";
+import { calcularValorLiquido } from "../helpers/origemPagamentoHelper";
+import { chaveCompra } from "../helpers/pixTransacoesHelper";
 import {
-  chaveCompra,
-  normalizarId,
-  primeiraDataValida,
-  statusPagamento,
-  valorDataSeguro,
-} from "../helpers/pixTransacoesHelper";
+  AcumuladorVendasAderido,
+  agruparHistoricoTesouraria,
+  classificarOrigemBilhete,
+  criarAcumuladorVendasAderido,
+  montarTransacoesDoAderido,
+} from "../helpers/tesourariaRelatorioHelper";
 import {
-  cpfEhValido,
   criarMapaVendedores,
   ehUsuarioAderidoRelatorio,
-  extrairDocsSnapshot,
-  formatarCpfVendedor,
   MapaVendedores,
   resolverVendedorDoBilhete,
 } from "../helpers/vendedorLookupHelper";
+import { TesourariaRelatorioRepository } from "../repositories/tesourariaRelatorioRepository";
 
 const VALOR_RIFA = 10;
 
-interface AcumuladorVendasAderido {
+interface TotaisGlobaisRelatorio {
   rifasPagasPix: number;
   rifasPagasComprovante: number;
-  valorBrutoPix: number;
-  valorBrutoComprovante: number;
-  rifasPendentes: number;
-  gruposCompra: Map<string, BilheteComNumero[]>;
-}
-
-/**
- * Converte os grupos de bilhetes de um aderido em uma lista ordenada de transações resumidas.
- *
- * @param {Map<string, BilheteComNumero[]>} gruposCompra - Mapa de bilhetes agrupados por compra.
- * @returns {TransacaoResumoAderido[]} Lista de transações ordenada pela data mais recente.
- */
-function montarTransacoesDoAderido(
-  gruposCompra: Map<string, BilheteComNumero[]>,
-): TransacaoResumoAderido[] {
-  return Array.from(gruposCompra.values())
-    .map((grupo) => {
-      const ordenados = [...grupo].sort((a, b) =>
-        a.numero.localeCompare(b.numero, "pt-BR", { numeric: true }),
-      );
-      const base = ordenados[0];
-      const ehPix = Boolean(base.pix_order_id);
-      const origem: OrigemTransacaoTesouraria = ehPix ? "PIX" : "COMPROVANTE";
-      const statusPag = statusPagamento(
-        base.status || "pago",
-        base.status_pagamento_banco,
-      );
-      const valorBruto = ordenados.reduce(
-        (soma, b) => soma + (b.valor_pago || b.valor_bruto || VALOR_RIFA),
-        0,
-      );
-      const valorPago = ["PAID", "AUTHORIZED"].includes(statusPag)
-        ? ehPix
-          ? Number((valorBruto * 0.99).toFixed(2))
-          : valorBruto
-        : 0;
-      const dataCriacao = primeiraDataValida(
-        base.data_reserva,
-        base.data_pagamento,
-      );
-      const dataPagamento = ["PAID", "AUTHORIZED"].includes(statusPag)
-        ? primeiraDataValida(base.data_pagamento, base.data_reserva)
-        : null;
-      const numerosStr = ordenados.map((b) => b.numero).join("-");
-      const idNormalizado =
-        normalizarId(chaveCompra(base) || numerosStr) || `rifas-${numerosStr}`;
-
-      return {
-        id: idNormalizado,
-        compradorNome: base.comprador_nome || "Pagador não informado",
-        dataPagamento,
-        dataCriacao,
-        valorBruto,
-        valorPago,
-        quantidadeRifas: ordenados.length,
-        rifas: ordenados.map((b) => ({
-          numero: b.numero,
-          status: b.status || "pago",
-        })),
-        origem,
-        statusPagamento: statusPag,
-      };
-    })
-    .sort(
-      (a, b) =>
-        valorDataSeguro(b.dataPagamento || b.dataCriacao) -
-        valorDataSeguro(a.dataPagamento || a.dataCriacao),
-    );
+  valorPixBruto: number;
+  valorPixLiquido: number;
+  valorComprovante: number;
+  rifasPendentesPix: number;
+  rifasPendentesComprovante: number;
 }
 
 export class TesourariaRelatorioService {
   /**
    * Gera o relatório financeiro consolidado da Tesouraria e de Desempenho.
-   * Vincula bilhetes aos aderidos de forma resiliente (via `vendedor_id` e fallback de `vendedor_cpf` normalizado)
-   * e inclui todos os formandos aderidos (inclusive aqueles com cargo na comissão), separando métricas
-   * de Pix automatizado e comprovantes manuais, bem como o histórico de transações de cada aderido.
+   * Vincula bilhetes aos aderidos de forma resiliente (via `vendedor_id` e fallback de `vendedor_cpf` normalizado),
+   * separando métricas de Pix (`MERCADOPAGO_API` com taxa de 1% vs. `EMV_OFFLINE` integral) e comprovantes manuais.
    *
    * @returns {Promise<RelatorioTesourariaResponse>} Resumo geral e lista de desempenho por aderido.
    */
   static async obterRelatorioTesouraria(): Promise<RelatorioTesourariaResponse> {
-    const db = admin.firestore();
     const superAdmins = obterSuperAdmins();
     const cargosAdmin = new Set([
       ...CARGOS_TESOURARIA_OU_ADMIN,
       ...CARGOS_SECRETARIA_OU_ADMIN,
     ]);
 
-    const [usuariosSnap, bilhetesSnap] = await Promise.all([
-      db.collection("usuarios").get(),
-      db
-        .collection("bilhetes")
-        .where("status", "in", ["pago", "pendente", "reservado"])
-        .get(),
-    ]);
-
-    const usuariosDocs = extrairDocsSnapshot<Partial<Usuario>>(usuariosSnap);
-    const bilhetesDocs = extrairDocsSnapshot<Bilhete>(bilhetesSnap);
+    const { usuariosDocs, bilhetesDocs } =
+      await TesourariaRelatorioRepository.carregarUsuariosEBilhetesRelatorio();
     const mapaVendedores = criarMapaVendedores(usuariosDocs);
 
+    const { vendasPorDocId, totaisGlobais } = this.contabilizarBilhetes(
+      bilhetesDocs,
+      mapaVendedores,
+    );
+
+    const aderidos = this.construirAderidosRelatorio({
+      usuariosDocs,
+      mapaVendedores,
+      vendasPorDocId,
+      superAdmins,
+      cargosAdmin,
+    });
+
+    return {
+      resumoGeral: this.montarResumoGeral(totaisGlobais, aderidos.length),
+      aderidos,
+    };
+  }
+
+  /**
+   * Obtém o histórico detalhado e unificado de todas as compras (Pix e Comprovantes),
+   * agrupando bilhetes da mesma negociação, saneando datas ausentes e enriquecendo dados do vendedor.
+   *
+   * @returns {Promise<TransacaoTesouraria[]>} Lista de compras ordenada pela data mais recente.
+   */
+  static async obterHistoricoDetalhado(): Promise<TransacaoTesouraria[]> {
+    const { bilhetesDocs, mapaVendedores } =
+      await TesourariaRelatorioRepository.carregarHistoricoComVendedores();
+
+    return agruparHistoricoTesouraria(bilhetesDocs, mapaVendedores);
+  }
+
+  /**
+   * Atualiza os dados cadastrais do comprador na coleção `compradores` (fonte de verdade)
+   * e propaga as alterações para todos os bilhetes vinculados em transação ACID.
+   *
+   * @param {string} compradorId - Identificador único do documento do comprador.
+   * @param {DadosAtualizacaoCompradorCompra} dados - Novos dados cadastrais (`nome`, `email`, `telefone`).
+   * @returns {Promise<Record<string, unknown>>} Resumo da atualização contendo contagem de rifas afetadas.
+   * @throws {Error} `"COMPRA_NAO_ENCONTRADA"` quando nenhum bilhete referencia `compradorId`.
+   * @transactional Delegado para `TesourariaRelatorioRepository.atualizarCompradorAtomicamente`.
+   */
+  static async atualizarCompradorCompra(
+    compradorId: string,
+    dados: DadosAtualizacaoCompradorCompra,
+  ) {
+    return TesourariaRelatorioRepository.atualizarCompradorAtomicamente(compradorId, dados);
+  }
+
+  /**
+   * Contabiliza os totais globais e por aderido iterando uma única vez sobre os bilhetes projetados.
+   */
+  private static contabilizarBilhetes(
+    bilhetesDocs: Array<{ id: string; data: () => Bilhete }>,
+    mapaVendedores: MapaVendedores,
+  ): {
+    vendasPorDocId: Map<string, AcumuladorVendasAderido>;
+    totaisGlobais: TotaisGlobaisRelatorio;
+  } {
     const vendasPorDocId = new Map<string, AcumuladorVendasAderido>();
     const obterAcumulador = (docId: string): AcumuladorVendasAderido => {
       const atual = vendasPorDocId.get(docId);
       if (atual) return atual;
-      const novo: AcumuladorVendasAderido = {
-        rifasPagasPix: 0,
-        rifasPagasComprovante: 0,
-        valorBrutoPix: 0,
-        valorBrutoComprovante: 0,
-        rifasPendentes: 0,
-        gruposCompra: new Map(),
-      };
+      const novo = criarAcumuladorVendasAderido();
       vendasPorDocId.set(docId, novo);
       return novo;
     };
 
-    let rifasPagasPixGlobal = 0;
-    let rifasPagasComprovanteGlobal = 0;
-    let valorPixBrutoGlobal = 0;
-    let valorComprovanteGlobal = 0;
-    let rifasPendentesPixGlobal = 0;
-    let rifasPendentesComprovanteGlobal = 0;
+    const totais: TotaisGlobaisRelatorio = {
+      rifasPagasPix: 0,
+      rifasPagasComprovante: 0,
+      valorPixBruto: 0,
+      valorPixLiquido: 0,
+      valorComprovante: 0,
+      rifasPendentesPix: 0,
+      rifasPendentesComprovante: 0,
+    };
 
     bilhetesDocs.forEach((doc, idx) => {
       const data = doc.data() as Bilhete;
       const status = data.status || "pago";
-      const ehPix = Boolean(data.pix_order_id);
+      const { provedor, ehPix } = classificarOrigemBilhete(data);
       const valorBilhete = data.valor_pago || data.valor_bruto || VALOR_RIFA;
+      const valorBilheteLiquido = calcularValorLiquido(valorBilhete, provedor);
       const vendedor = resolverVendedorDoBilhete(data, mapaVendedores);
 
       if (vendedor) {
         const acc = obterAcumulador(vendedor.docId);
-        const numero = doc.id || `bilhete-${idx}`;
-        const bilheteComNumero: BilheteComNumero = {
-          ...data,
-          numero,
-        };
+        const bilheteComNumero: BilheteComNumero = { ...data, numero: doc.id || `bilhete-${idx}` };
         const chave = chaveCompra(bilheteComNumero);
         const grupoAtual = acc.gruposCompra.get(chave) || [];
         grupoAtual.push(bilheteComNumero);
@@ -181,11 +160,12 @@ export class TesourariaRelatorioService {
 
       if (status === "pago") {
         if (ehPix) {
-          rifasPagasPixGlobal += 1;
-          valorPixBrutoGlobal += valorBilhete;
+          totais.rifasPagasPix += 1;
+          totais.valorPixBruto += valorBilhete;
+          totais.valorPixLiquido += valorBilheteLiquido;
         } else {
-          rifasPagasComprovanteGlobal += 1;
-          valorComprovanteGlobal += valorBilhete;
+          totais.rifasPagasComprovante += 1;
+          totais.valorComprovante += valorBilhete;
         }
 
         if (vendedor) {
@@ -193,6 +173,7 @@ export class TesourariaRelatorioService {
           if (ehPix) {
             acc.rifasPagasPix += 1;
             acc.valorBrutoPix += valorBilhete;
+            acc.valorLiquidoPix += valorBilheteLiquido;
           } else {
             acc.rifasPagasComprovante += 1;
             acc.valorBrutoComprovante += valorBilhete;
@@ -200,27 +181,38 @@ export class TesourariaRelatorioService {
         }
       } else if (status === "pendente" || status === "reservado") {
         if (ehPix) {
-          rifasPendentesPixGlobal += 1;
+          totais.rifasPendentesPix += 1;
         } else {
-          rifasPendentesComprovanteGlobal += 1;
+          totais.rifasPendentesComprovante += 1;
         }
 
         if (vendedor) {
-          const acc = obterAcumulador(vendedor.docId);
-          acc.rifasPendentes += 1;
+          obterAcumulador(vendedor.docId).rifasPendentes += 1;
         }
       }
     });
 
-    const aderidos: AderidoRelatorioTesouraria[] = usuariosDocs
+    return { vendasPorDocId, totaisGlobais: totais };
+  }
+
+  /**
+   * Mapeia os usuários elegíveis como aderidos no relatório consolidado.
+   */
+  private static construirAderidosRelatorio(params: {
+    usuariosDocs: Array<{ id: string; data: () => Partial<Usuario> }>;
+    mapaVendedores: MapaVendedores;
+    vendasPorDocId: Map<string, AcumuladorVendasAderido>;
+    superAdmins: string[];
+    cargosAdmin: Set<string>;
+  }): AderidoRelatorioTesouraria[] {
+    const { usuariosDocs, mapaVendedores, vendasPorDocId, superAdmins, cargosAdmin } = params;
+
+    return usuariosDocs
       .filter((doc) => {
         const usuario = (doc.data() || {}) as Partial<Usuario>;
         const acc = vendasPorDocId.get(doc.id);
         const possuiVendasVinculadas = Boolean(
-          acc &&
-            (acc.rifasPagasPix > 0 ||
-              acc.rifasPagasComprovante > 0 ||
-              acc.rifasPendentes > 0),
+          acc && (acc.rifasPagasPix > 0 || acc.rifasPagasComprovante > 0 || acc.rifasPendentes > 0),
         );
 
         return ehUsuarioAderidoRelatorio({
@@ -233,34 +225,23 @@ export class TesourariaRelatorioService {
       })
       .map((doc) => {
         const vendedor = mapaVendedores.porId.get(doc.id);
-        const acc = vendasPorDocId.get(doc.id) || {
-          rifasPagasPix: 0,
-          rifasPagasComprovante: 0,
-          valorBrutoPix: 0,
-          valorBrutoComprovante: 0,
-          rifasPendentes: 0,
-          gruposCompra: new Map<string, BilheteComNumero[]>(),
-        };
+        const acc = vendasPorDocId.get(doc.id) || criarAcumuladorVendasAderido();
 
         const rifasVendidas = acc.rifasPagasPix + acc.rifasPagasComprovante;
         const arrecadado = acc.valorBrutoPix + acc.valorBrutoComprovante;
-        const valorPixLiquido = Number((acc.valorBrutoPix * 0.99).toFixed(2));
+        const valorPixLiquido = Number(acc.valorLiquidoPix.toFixed(2));
         const arrecadadoLiquido = Number(
           (valorPixLiquido + acc.valorBrutoComprovante).toFixed(2),
         );
         const transacoes = montarTransacoesDoAderido(acc.gruposCompra);
-        const comprasCount = transacoes.filter(
-          (t) => t.statusPagamento === "PAID",
-        ).length;
+        const comprasCount = transacoes.filter((t) => t.statusPagamento === "PAID").length;
 
         return {
           id: doc.id,
           nome: vendedor?.nome || "Aderido Sem Nome",
           cpf: vendedor?.cpf || "-",
           ...(vendedor?.curso ? { curso: vendedor.curso } : {}),
-          ...(vendedor?.modalidadeAdesao
-            ? { modalidadeAdesao: vendedor.modalidadeAdesao }
-            : {}),
+          ...(vendedor?.modalidadeAdesao ? { modalidadeAdesao: vendedor.modalidadeAdesao } : {}),
           ...(vendedor?.cargo ? { cargo: vendedor.cargo } : {}),
           arrecadado,
           arrecadadoLiquido,
@@ -276,201 +257,34 @@ export class TesourariaRelatorioService {
           transacoes,
         };
       });
-
-    const totalArrecadadoGlobal = valorPixBrutoGlobal + valorComprovanteGlobal;
-    const valorArrecadadoPixLiquido = Number((valorPixBrutoGlobal * 0.99).toFixed(2));
-    const totalArrecadadoLiquido = Number(
-      (valorArrecadadoPixLiquido + valorComprovanteGlobal).toFixed(2),
-    );
-    const rifasPagasGlobal = rifasPagasPixGlobal + rifasPagasComprovanteGlobal;
-    const rifasPendentesGlobal =
-      rifasPendentesPixGlobal + rifasPendentesComprovanteGlobal;
-
-    return {
-      resumoGeral: {
-        totalArrecadado: totalArrecadadoGlobal,
-        totalArrecadadoLiquido,
-        rifasPagas: rifasPagasGlobal,
-        rifasPagasPix: rifasPagasPixGlobal,
-        rifasPagasComprovante: rifasPagasComprovanteGlobal,
-        valorArrecadadoPixBruto: valorPixBrutoGlobal,
-        valorArrecadadoPixLiquido,
-        valorArrecadadoComprovante: valorComprovanteGlobal,
-        rifasPendentes: rifasPendentesGlobal,
-        rifasPendentesPix: rifasPendentesPixGlobal,
-        rifasPendentesComprovante: rifasPendentesComprovanteGlobal,
-        aderidosAtivos: aderidos.length,
-      },
-      aderidos,
-    };
   }
 
   /**
-   * Obtém o histórico detalhado e unificado de todas as compras (Pix e Comprovantes),
-   * agrupando bilhetes da mesma negociação, saneando datas ausentes e enriquecendo dados do vendedor.
-   *
-   * @returns {Promise<TransacaoTesouraria[]>} Lista de compras ordenada pela data mais recente.
+   * Consolida o objeto `resumoGeral` do relatório financeiro da Tesouraria.
    */
-  static async obterHistoricoDetalhado(): Promise<TransacaoTesouraria[]> {
-    const db = admin.firestore();
-
-    const bilhetesSnap = await db
-      .collection("bilhetes")
-      .where("status", "in", ["pago", "pendente", "reservado", "recusado"])
-      .limit(5000)
-      .get();
-
-    const bilhetesDocs = extrairDocsSnapshot<Bilhete>(bilhetesSnap);
-
-    let precisaEnriquecerVendedor = false;
-    bilhetesDocs.forEach((doc) => {
-      const data = doc.data() as Bilhete;
-      if (data.vendedor_id && (!cpfEhValido(data.vendedor_cpf) || !data.vendedor_nome)) {
-        precisaEnriquecerVendedor = true;
-      }
-    });
-
-    let mapaVendedores: MapaVendedores | null = null;
-    if (precisaEnriquecerVendedor) {
-      const usuariosSnap = await db.collection("usuarios").get();
-      const usuariosDocs = extrairDocsSnapshot<Partial<Usuario>>(usuariosSnap);
-      if (usuariosDocs.length > 0) {
-        mapaVendedores = criarMapaVendedores(usuariosDocs);
-      }
-    }
-
-    const agrupado: Record<string, TransacaoTesouraria> = {};
-
-    bilhetesDocs.forEach((doc) => {
-      const data = doc.data() as Bilhete;
-      const numero = doc.id;
-
-      const bilheteComNumero: BilheteComNumero = {
-        ...data,
-        numero,
-      };
-
-      const chave = chaveCompra(bilheteComNumero);
-      const vendedorResolvido = resolverVendedorDoBilhete(data, mapaVendedores);
-      const vendedorNome =
-        vendedorResolvido?.nome || data.vendedor_nome || "Desconhecido";
-      const vendedorCpf = formatarCpfVendedor(data.vendedor_cpf, vendedorResolvido);
-      const dataReserva = data.data_reserva || data.data_pagamento || null;
-      const dataPagamento =
-        data.data_pagamento || (data.status === "pago" ? data.data_reserva || null : null);
-      const valorBilhete = data.valor_pago || data.valor_bruto || VALOR_RIFA;
-      const origem: OrigemTransacaoTesouraria = data.pix_order_id
-        ? "PIX"
-        : "COMPROVANTE";
-
-      if (!agrupado[chave]) {
-        agrupado[chave] = {
-          id: chave,
-          dataReserva,
-          dataPagamento,
-          vendedorId: vendedorResolvido?.docId || data.vendedor_id,
-          vendedorNome,
-          vendedorCpf,
-          compradorId: data.comprador_id || null,
-          compradorNome: data.comprador_nome || "Desconhecido",
-          compradorEmail: data.comprador_email || "",
-          compradorTelefone: data.comprador_telefone || "",
-          status: data.status,
-          comprovanteUrl: data.comprovante_url || null,
-          bilhetes: [numero],
-          valorTotal: valorBilhete,
-          origem,
-          pixOrderId: data.pix_order_id || null,
-          statusPagamentoBanco: data.status_pagamento_banco || null,
-          statusValidacao: data.status_validacao || null,
-          correcaoPendente: Boolean(data.correcao_pendente),
-        };
-      } else {
-        if (!agrupado[chave].bilhetes.includes(numero)) {
-          agrupado[chave].bilhetes.push(numero);
-          agrupado[chave].valorTotal += valorBilhete;
-        }
-        agrupado[chave].comprovanteUrl =
-          agrupado[chave].comprovanteUrl || data.comprovante_url || null;
-        agrupado[chave].dataReserva =
-          agrupado[chave].dataReserva || dataReserva;
-        agrupado[chave].dataPagamento =
-          agrupado[chave].dataPagamento || dataPagamento;
-        if (data.correcao_pendente) {
-          agrupado[chave].correcaoPendente = true;
-        }
-      }
-    });
-
-    const historico = Object.values(agrupado).map((transacao) => {
-      transacao.bilhetes.sort((a, b) =>
-        a.localeCompare(b, "pt-BR", { numeric: true }),
-      );
-      transacao.valorLiquido =
-        transacao.origem === "PIX"
-          ? Number((transacao.valorTotal * 0.99).toFixed(2))
-          : transacao.valorTotal;
-
-      return transacao;
-    });
-
-    historico.sort((a, b) => {
-      const dataA = valorDataSeguro(a.dataReserva || a.dataPagamento);
-      const dataB = valorDataSeguro(b.dataReserva || b.dataPagamento);
-
-      return dataB - dataA;
-    });
-
-    return historico;
-  }
-
-
-  static async atualizarCompradorCompra(
-    compradorId: string,
-    dados: DadosAtualizacaoCompradorCompra,
-  ) {
-    const db = admin.firestore();
-    const bilhetesSnap = await db
-      .collection("bilhetes")
-      .where("comprador_id", "==", compradorId)
-      .get();
-
-    if (bilhetesSnap.empty) {
-      throw new Error("COMPRA_NAO_ENCONTRADA");
-    }
-
-    const bilheteAtualizado = {
-      comprador_nome: dados.nome,
-      comprador_email: dados.email || null,
-      comprador_telefone: dados.telefone || null,
-    };
-
-    const compradorDocAtualizado = {
-      nome: dados.nome,
-      email: dados.email || null,
-      telefone: dados.telefone || null,
-    };
-
-    const batch = db.batch();
-
-    bilhetesSnap.docs.forEach((doc) => {
-      batch.update(doc.ref, bilheteAtualizado);
-    });
-
-    const compradorRef = db.collection("compradores").doc(compradorId);
-    const compradorSnap = await compradorRef.get();
-
-    if (compradorSnap.exists) {
-      batch.update(compradorRef, compradorDocAtualizado);
-    }
-
-    await batch.commit();
+  private static montarResumoGeral(
+    totais: TotaisGlobaisRelatorio,
+    aderidosAtivos: number,
+  ): RelatorioTesourariaResponse["resumoGeral"] {
+    const totalArrecadado = totais.valorPixBruto + totais.valorComprovante;
+    const valorArrecadadoPixLiquido = Number(totais.valorPixLiquido.toFixed(2));
+    const totalArrecadadoLiquido = Number(
+      (valorArrecadadoPixLiquido + totais.valorComprovante).toFixed(2),
+    );
 
     return {
-      comprador_id: compradorId,
-      ...compradorDocAtualizado,
-      rifasAtualizadas: bilhetesSnap.size,
-      compradorDocumentoAtualizado: compradorSnap.exists,
+      totalArrecadado,
+      totalArrecadadoLiquido,
+      rifasPagas: totais.rifasPagasPix + totais.rifasPagasComprovante,
+      rifasPagasPix: totais.rifasPagasPix,
+      rifasPagasComprovante: totais.rifasPagasComprovante,
+      valorArrecadadoPixBruto: totais.valorPixBruto,
+      valorArrecadadoPixLiquido,
+      valorArrecadadoComprovante: totais.valorComprovante,
+      rifasPendentes: totais.rifasPendentesPix + totais.rifasPendentesComprovante,
+      rifasPendentesPix: totais.rifasPendentesPix,
+      rifasPendentesComprovante: totais.rifasPendentesComprovante,
+      aderidosAtivos,
     };
   }
 }

@@ -26,26 +26,19 @@ export class PaymentProviderFactory {
   }
 
   /**
-   * Obtém o modo de pagamento ativo no ambiente.
+   * Obtém o modo de pagamento ativo para novas cobranças.
+   * Bloqueia a seleção automática de `MERCADOPAGO_API` mesmo que exista variável de
+   * ambiente legada, mantendo o fluxo ativo estritamente em InfinitePay (`EMV_OFFLINE`).
    *
-   * @returns {ModoProvedorPagamento} Modo selecionado via env ou padrão contingencial.
+   * @returns {ModoProvedorPagamento} `"COMPROVANTE_PURO"` se explicitado, caso contrário `"EMV_OFFLINE"`.
    */
   static obterModoAtivo(): ModoProvedorPagamento {
     const modoConfigurado = process.env.MODO_PAGAMENTO_PROVIDER || process.env.PAYMENT_PROVIDER_MODE;
-
-    if (modoConfigurado === "EMV_OFFLINE") {
-      return "EMV_OFFLINE";
-    }
 
     if (modoConfigurado === "COMPROVANTE_PURO") {
       return "COMPROVANTE_PURO";
     }
 
-    if (modoConfigurado === "MERCADOPAGO_API") {
-      return "MERCADOPAGO_API";
-    }
-
-    // Na branch main-comprovantes, o modo padrão de operação é EMV_OFFLINE (InfinitePay)
     return "EMV_OFFLINE";
   }
 
@@ -54,6 +47,55 @@ export class PaymentProviderFactory {
    *
    * @param {ModoProvedorPagamento} [modoForcado] - Opcional para testes e injeção de dependência.
    * @returns {IPaymentProvider} Provedor pronto para uso.
+   */
+  /**
+   * Resolve dinamicamente o provedor de pagamento correspondente a um documento já persistido
+   * em `pagamentos_pix`, priorizando `provedor_pagamento` com fallback retrocompatível.
+   *
+   * @param {Record<string, unknown> | null | undefined} pagamento - Documento de pagamento lido do Firestore.
+   * @returns {IPaymentProvider} Provedor compatível com o ciclo de vida daquele pagamento.
+   */
+  static obterProvedorPorPagamento(
+    pagamento?: Record<string, unknown> | null,
+  ): IPaymentProvider {
+    if (!pagamento) {
+      return this.obterProvedor("EMV_OFFLINE");
+    }
+
+    const provedorExplicito = String(pagamento.provedor_pagamento || "").trim().toUpperCase();
+    if (provedorExplicito === "MERCADOPAGO_API" || provedorExplicito === "MERCADOPAGO") {
+      return this.obterProvedor("MERCADOPAGO_API");
+    }
+    if (provedorExplicito === "EMV_OFFLINE" || provedorExplicito === "COMPROVANTE_PURO") {
+      return this.obterProvedor("EMV_OFFLINE");
+    }
+
+    const rawOffline = Boolean(
+      (pagamento.raw_mercadopago as { geradoOffline?: unknown } | null | undefined)?.geradoOffline,
+    );
+    const metaOffline = Boolean(
+      (pagamento.gateway_meta as { geradoOffline?: unknown } | null | undefined)?.geradoOffline,
+    );
+    const pixOrderId = String(pagamento.pix_order_id || "").trim();
+
+    if (
+      rawOffline ||
+      metaOffline ||
+      Boolean(pagamento.dados_conciliacao) ||
+      pixOrderId.startsWith("RIFA") ||
+      !pixOrderId
+    ) {
+      return this.obterProvedor("EMV_OFFLINE");
+    }
+
+    return this.obterProvedor("MERCADOPAGO_API");
+  }
+
+  /**
+   * Instancia ou retorna em cache o provedor de pagamento configurado para o modo informado.
+   *
+   * @param {ModoProvedorPagamento} [modoForcado] - Modo opcional para sobrescrever a configuração de ambiente.
+   * @returns {IPaymentProvider} Instância do provedor selecionado.
    */
   static obterProvedor(modoForcado?: ModoProvedorPagamento): IPaymentProvider {
     const modo = modoForcado || this.obterModoAtivo();

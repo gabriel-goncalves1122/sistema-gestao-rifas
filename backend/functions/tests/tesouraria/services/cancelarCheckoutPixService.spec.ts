@@ -3,7 +3,7 @@
 import * as admin from "firebase-admin";
 import { CancelarCheckoutPixService } from "../../../src/modules/tesouraria/services/cancelarCheckoutPixService";
 import { MercadoPagoPixClient } from "../../../src/shared/services/mercadoPagoPixClient";
-import * as checkoutPixHelper from "../../../src/modules/tesouraria/helpers/checkoutPixHelper";
+import { CheckoutPixRepository } from "../../../src/modules/tesouraria/checkout/repositories/checkoutPixRepository";
 
 jest.mock("firebase-admin", () => {
   const deleteMock = jest.fn(() => "DELETE_TOKEN");
@@ -38,13 +38,14 @@ jest.mock("../../../src/shared/services/mercadoPagoPixClient", () => ({
   },
 }));
 
-jest.mock("../../../src/modules/tesouraria/helpers/checkoutPixHelper", () => ({
-  liberarBilhetesNaTransacao: jest.fn(),
-}));
-
 describe("CancelarCheckoutPixService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(CheckoutPixRepository, "liberarBilhetesNaTransacao").mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("deve disparar erro se não houver uid ou pagamentoId", async () => {
@@ -79,7 +80,7 @@ describe("CancelarCheckoutPixService", () => {
     });
 
     await CancelarCheckoutPixService.executar({ uid: "uid", email: "a@a.com", role: "admin", pagamentoId: "pag_123", reterReserva: false });
-    expect(checkoutPixHelper.liberarBilhetesNaTransacao).toHaveBeenCalledWith(
+    expect(CheckoutPixRepository.liberarBilhetesNaTransacao).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
       expect.anything(),
@@ -105,7 +106,7 @@ describe("CancelarCheckoutPixService", () => {
     });
 
     await CancelarCheckoutPixService.executar({ uid: "uid", email: "a@a.com", role: "admin", pagamentoId: "pag_123", reterReserva: true });
-    expect(checkoutPixHelper.liberarBilhetesNaTransacao).not.toHaveBeenCalled();
+    expect(CheckoutPixRepository.liberarBilhetesNaTransacao).not.toHaveBeenCalled();
   });
 
   it("deve disparar erro se o status for invalido para cancelamento", async () => {
@@ -158,7 +159,7 @@ describe("CancelarCheckoutPixService", () => {
       }
     );
 
-    expect(checkoutPixHelper.liberarBilhetesNaTransacao).toHaveBeenCalledWith(
+    expect(CheckoutPixRepository.liberarBilhetesNaTransacao).toHaveBeenCalledWith(
       expect.anything(), // transaction
       expect.anything(), // db
       expect.anything(), // FieldValue.delete()

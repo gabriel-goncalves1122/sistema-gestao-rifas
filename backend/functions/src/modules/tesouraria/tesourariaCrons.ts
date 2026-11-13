@@ -2,40 +2,38 @@
 // ARQUIVO: backend/functions/src/modules/tesouraria/tesourariaCrons.ts
 // ============================================================================
 import * as admin from "firebase-admin";
-import { FieldValue } from "firebase-admin/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 
-import { MercadoPagoPixClient } from "../../shared/services/mercadoPagoPixClient";
-import { liberarBilhetesNaTransacao } from "./helpers/checkoutPixHelper";
-import { aprovarOuRejeitarPixNoFirestore } from "./helpers/checkoutPixWebhookHelper";
-import { mapearStatusMercadoPagoParaCanonico } from "./helpers/statusPagamentoPixHelper";
+import { CheckoutStrategyFactory } from "./checkout/checkoutStrategyFactory";
+import { CheckoutPixRepository } from "./checkout/repositories/checkoutPixRepository";
 import { PagamentoPix } from "../types/models";
 
 /**
- * Função rodando a cada 15 minutos para fazer a limpeza (fallback) de Pix que expiraram 
- * mas cujo webhook do Mercado Pago nunca chegou ou falhou.
+ * Função agendada a cada 5 minutos para expirar e liberar cobranças Pix vencidas,
+ * delegando o comportamento específico (Mercado Pago vs. Pix Normal/EMV Offline)
+ * polimorficamente à estratégia OO correspondente.
  */
 export const limparPixExpirados = onSchedule(
   {
-    schedule: "every 15 minutes",
+    schedule: "every 5 minutes",
     timeoutSeconds: 300,
     memory: "256MiB",
     retryCount: 0,
     region: "southamerica-east1",
   },
-  async (event) => {
+  async () => {
     const db = admin.firestore();
+    const repository = new CheckoutPixRepository(db);
     const agora = new Date().toISOString();
 
     console.log("[CRON] Iniciando limpeza de pagamentos Pix expirados...");
 
     try {
-      // 1. Busca todos os pagamentos pendentes cuja data_expiracao já passou
       const snap = await db
         .collection("pagamentos_pix")
         .where("status_pagamento_banco", "in", ["pending", "CRIANDO", "WAITING"])
         .where("data_expiracao", "<", agora)
-        .limit(100) // Limite de lote
+        .limit(100)
         .get();
 
       if (snap.empty) {
@@ -48,120 +46,11 @@ export const limparPixExpirados = onSchedule(
       const promessasLimpeza = snap.docs.map(async (docSnap) => {
         const pagamento = docSnap.data() as PagamentoPix;
         const pagamentoId = docSnap.id;
-        const orderId = pagamento.pix_order_id;
 
         try {
-          if (!orderId) {
-            throw new Error("Sem orderId para consultar.");
-          }
-
-          // 2. Se o pagamento foi gerado offline (InfinitePay / EMV) sem conexão com gateway externo
-          const isGeradoOffline =
-            Boolean(pagamento.raw_mercadopago?.geradoOffline) ||
-            orderId.startsWith("RIFA") ||
-            Boolean((pagamento as any).dados_conciliacao);
-
-          if (isGeradoOffline) {
-            await db.runTransaction(async (transaction) => {
-              const trSnap = await transaction.get(docSnap.ref);
-              if (!trSnap.exists) return;
-              const trPagamento = trSnap.data() as PagamentoPix;
-
-              if (
-                !["pending", "CRIANDO", "WAITING"].includes(
-                  String(trPagamento.status_pagamento_banco),
-                )
-              ) {
-                return;
-              }
-
-              await liberarBilhetesNaTransacao(
-                transaction,
-                db,
-                FieldValue.delete(),
-                trPagamento.numeros_rifas || [],
-                "cancelled",
-                "Pagamento offline expirado por inatividade.",
-                false,
-                undefined,
-                trPagamento.reference_id,
-              );
-
-              transaction.update(docSnap.ref, {
-                status_pagamento_banco: "cancelled",
-                erro_criacao: "Expirado automaticamente (CRON Offline).",
-              });
-            });
-
-            console.log(
-              `[CRON] Pagamento offline ${pagamentoId} expirado com sucesso e rifas liberadas.`,
-            );
-            return;
-          }
-
-          // 3. Para pagamentos online, consulta o status real no Mercado Pago
-          let pagamentoMP: any = null;
-          try {
-            pagamentoMP = await MercadoPagoPixClient.consultarPedido(orderId);
-          } catch (mpQueryErr: any) {
-            console.warn(
-              `[CRON] Não foi possível consultar Mercado Pago para orderId ${orderId}: ${mpQueryErr?.message}. Prosseguindo com cancelamento por expiração.`,
-            );
-          }
-
-          const statusMP = pagamentoMP?.status || "";
-          const statusCanonico = mapearStatusMercadoPagoParaCanonico(statusMP);
-
-          // Se o banco disser que foi pago/autorizado (ex: approved, authorized), aplicamos o pagamento
-          // usando o mesmo helper do webhook, para não deixá-lo no vácuo se o webhook falhou.
-          if (statusCanonico === "pago") {
-            console.log(
-              `[CRON] Pagamento ${pagamentoId} está pago no MP. Sincronizando aprovação...`,
-            );
-            await aprovarOuRejeitarPixNoFirestore(db, pagamentoMP);
-            return;
-          }
-
-          // Se não estiver pago, seguimos com o cancelamento
-          await db.runTransaction(async (transaction) => {
-            const trSnap = await transaction.get(docSnap.ref);
-            if (!trSnap.exists) return;
-            const trPagamento = trSnap.data() as PagamentoPix;
-
-            // Previne Race Condition
-            if (!["pending", "CRIANDO", "WAITING"].includes(String(trPagamento.status_pagamento_banco))) {
-              return;
-            }
-
-            // 3. Libera as rifas
-            await liberarBilhetesNaTransacao(
-              transaction,
-              db,
-              FieldValue.delete(),
-              trPagamento.numeros_rifas || [],
-              "cancelled", // Status fictício para liberação
-              "Pagamento expirado (limpeza automática por inatividade).",
-              false,
-              undefined,
-              trPagamento.reference_id
-            );
-
-            // 4. Marca como cancelado com status consistente (minúsculo)
-            transaction.update(docSnap.ref, {
-              status_pagamento_banco: "cancelled",
-              erro_criacao: "Expirado automaticamente (CRON).",
-            });
-          });
-
-          // 5. Cancela fisicamente o QR Code no Mercado Pago para não permitir pagamento atrasado
-          try {
-            await MercadoPagoPixClient.cancelarPedidoPix(orderId);
-            console.log(`[CRON] Pedido Pix cancelado ativamente na API do Mercado Pago (orderId: ${orderId}).`);
-          } catch (mpError: any) {
-            console.warn(`[CRON] Falha ao cancelar Pedido Pix no Mercado Pago (orderId: ${orderId}). Erro:`, mpError?.message);
-          }
-
-          console.log(`[CRON] Pagamento ${pagamentoId} expirado com sucesso e rifas liberadas.`);
+          const strategy = CheckoutStrategyFactory.obterPorPagamento(pagamento, repository);
+          await strategy.expirarCheckout(pagamentoId, pagamento);
+          console.log(`[CRON] Pagamento ${pagamentoId} processado com sucesso.`);
         } catch (error: any) {
           console.error(`[CRON] Erro ao processar pagamento ${pagamentoId}:`, error);
         }
@@ -173,5 +62,5 @@ export const limparPixExpirados = onSchedule(
     } catch (err) {
       console.error("[CRON] Falha na execução principal da limpeza:", err);
     }
-  }
+  },
 );

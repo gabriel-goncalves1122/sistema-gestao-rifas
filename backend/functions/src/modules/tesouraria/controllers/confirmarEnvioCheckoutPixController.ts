@@ -29,7 +29,10 @@ export async function confirmarEnvioCheckoutPix(req: AuthRequest, res: Response)
       return res.status(400).json({ error: "ID do pagamento obrigatório." });
     }
 
-    const comprovanteUrl = req.body?.comprovanteUrl ? String(req.body.comprovanteUrl).trim() : null;
+    const comprovanteUrl = req.body?.comprovanteUrl ? String(req.body.comprovanteUrl).trim() : "";
+    if (!comprovanteUrl) {
+      return res.status(400).json({ error: "Comprovante de pagamento é obrigatório." });
+    }
     const hashComprovante = req.body?.hashComprovante ? String(req.body.hashComprovante).trim() : null;
 
     const resultado = await ConfirmarEnvioCheckoutPixService.executar({
@@ -50,12 +53,32 @@ export async function confirmarEnvioCheckoutPix(req: AuthRequest, res: Response)
       return res.status(403).json({ error: "Você não possui permissão para confirmar este pagamento." });
     }
 
+    if (error.message === "COMPROVANTE_OBRIGATORIO") {
+      return res.status(400).json({ error: "Comprovante de pagamento é obrigatório." });
+    }
+
     if (error.message === "PAGAMENTO_NOT_FOUND") {
       return res.status(404).json({ error: "Cobrança Pix não encontrada." });
     }
 
+    if (error.message === "CONFIRMACAO_MANUAL_NAO_SUPORTADA") {
+      return res.status(400).json({ error: "Confirmação manual não suportada para este método de pagamento." });
+    }
+
     if (error.message === "TRANSACAO_JA_FINALIZADA") {
       return res.status(400).json({ error: "Esta transação já foi processada e aprovada anteriormente." });
+    }
+
+    if (error.message === "STATUS_INVALIDO_CONFIRMACAO") {
+      return res.status(400).json({ error: "O status atual deste pagamento não permite confirmação de envio." });
+    }
+
+    if (error.message === "RIFA_INDISPONIVEL") {
+      return res.status(409).json({ error: "Uma ou mais rifas desta cobrança não estão mais disponíveis." });
+    }
+
+    if (error.message === "RIFA_NOT_FOUND") {
+      return res.status(404).json({ error: "Rifa não encontrada." });
     }
 
     console.error("[ConfirmarEnvioCheckoutPixController] Erro:", error);

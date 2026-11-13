@@ -114,6 +114,28 @@ export type StatusPagamentoBanco =
 
 export type StatusValidacaoTesouraria = "aceita" | "negada";
 
+/**
+ * Identificador canônico do provedor responsável pelo processamento do pagamento.
+ */
+export type ProvedorPagamento =
+  | "MERCADOPAGO_API"
+  | "EMV_OFFLINE"
+  | "COMPROVANTE_PURO";
+
+/**
+ * Metadados enxutos do gateway persistidos em `pagamentos_pix` no lugar do payload bruto completo.
+ */
+export interface GatewayMetaPagamento {
+  /** Identificador do pedido/transação no gateway externo ou TXID local. */
+  id?: string;
+  /** Detalhe técnico de status retornado pelo provedor (ex: `accredited`, `by_collector`). */
+  status_detail?: string | null;
+  /** Data/hora ISO de aprovação reportada pelo gateway. */
+  date_approved?: string | null;
+  /** Indicador de geração offline para compatibilidade com registros EMV. */
+  geradoOffline?: boolean;
+}
+
 export interface Bilhete {
   numero: string;
   status: StatusBilhete;
@@ -143,6 +165,7 @@ export interface Bilhete {
   motivo_recusa?: string | null;
 
   // Pix dinâmico e validação da tesouraria
+  provedor_pagamento?: ProvedorPagamento | string | null;
   pix_order_id?: string | null;
   pix_qr_code_id?: string | null;
   pix_reference_id?: string | null;
@@ -186,6 +209,8 @@ export interface PagamentoPix {
   validado_em?: string | null;
   validado_por?: string | null;
   motivo_negacao?: string | null;
+  provedor_pagamento?: ProvedorPagamento | string | null;
+  gateway_meta?: GatewayMetaPagamento | null;
   raw_mercadopago?: Record<string, unknown> | null;
   idempotency_key?: string | null;
   erro_criacao?: string | null;

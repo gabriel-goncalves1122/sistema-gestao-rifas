@@ -17,7 +17,7 @@ export interface LinhaExtratoBancario {
 }
 
 /**
- * Converte strings monetárias variadas (ex: "R$ 20,00", " 20,50 ", "20.00", "20") em number.
+ * Converte strings monetárias variadas (ex: "R$ 20,00", "+R$ 20,00", "-R$ 15,00", "(R$ 20,00)", " 20,50 ", "20.00", "20") em number.
  *
  * @param {any} valorBruto - Entrada crua de valor.
  * @returns {number} Valor numérico em reais ou 0 se inválido.
@@ -30,6 +30,9 @@ export function normalizarValorMonetario(valorBruto: any): number {
     return 0;
   }
 
+  // Verifica se é valor contábil negativo entre parênteses, ex: "(R$ 20,00)"
+  const ehNegativoParenteses = /^\s*\(.*\)\s*$/.test(valorBruto);
+
   // Remove caracteres que não sejam dígitos, sinal de menos, ponto ou vírgula
   const limpo = valorBruto
     .replace(/[^\d.,-]/g, "")
@@ -37,22 +40,42 @@ export function normalizarValorMonetario(valorBruto: any): number {
 
   if (!limpo) return 0;
 
+  let num = 0;
   // Se tiver vírgula e ponto (ex: "1.250,50"), remove o ponto e troca vírgula por ponto
   if (limpo.includes(",") && limpo.includes(".")) {
     const tratado = limpo.replace(/\./g, "").replace(",", ".");
-    const num = parseFloat(tratado);
-    return isNaN(num) ? 0 : Number(num.toFixed(2));
-  }
-
-  // Se tiver apenas vírgula (ex: "20,00"), substitui por ponto
-  if (limpo.includes(",")) {
+    num = parseFloat(tratado);
+  } else if (limpo.includes(",")) {
+    // Se tiver apenas vírgula (ex: "20,00"), substitui por ponto
     const tratado = limpo.replace(",", ".");
-    const num = parseFloat(tratado);
-    return isNaN(num) ? 0 : Number(num.toFixed(2));
+    num = parseFloat(tratado);
+  } else {
+    num = parseFloat(limpo);
   }
 
-  const num = parseFloat(limpo);
-  return isNaN(num) ? 0 : Number(num.toFixed(2));
+  if (isNaN(num)) return 0;
+  if (ehNegativoParenteses && num > 0) {
+    num = -num;
+  }
+
+  return Number(num.toFixed(2));
+}
+
+/**
+ * Sanitiza o nome do pagador vindo do extrato bancário, removendo aspas e prefixos comuns
+ * adicionados por adquirentes e bancos (ex: "Pix Gabriel Sampaio", "TED Maria").
+ *
+ * @param {string} [nome] - Nome bruto do pagador extraído da linha.
+ * @returns {string | undefined} Nome higienizado ou undefined.
+ */
+export function sanitizarNomePagadorExtrato(nome?: string): string | undefined {
+  if (!nome || typeof nome !== "string") return undefined;
+  const limpo = nome
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^(?:pix|transfer[eê]ncia\s+pix|transf\s+pix|ted|doc)\s+/i, "")
+    .trim();
+  return limpo.length > 0 ? limpo : undefined;
 }
 
 /**
@@ -120,26 +143,36 @@ export function parsearExtratoCsv(conteudoCsv: string): LinhaExtratoBancario[] {
     // Filtra apenas recebimentos (valores positivos > 0)
     if (valor <= 0) return;
 
-    // Filtra transações canceladas, recusadas, negadas ou estornadas (comum em extratos de adquirentes)
-    const statusChave = Object.keys(linha).find((k) =>
-      /status|situacao|situação/i.test(k)
+    // Filtra transações canceladas, recusadas, negadas, estornadas ou saídas/débitos (comum em extratos de adquirentes como InfinitePay)
+    const statusChaves = Object.keys(linha).filter((k) =>
+      /status|situacao|situação|detalhe|tipo\s+de\s+transa/i.test(k)
     );
-    const statusTexto = statusChave
-      ? String(linha[statusChave] || "").trim().toLowerCase()
-      : "";
+    const textosIndicadores = statusChaves
+      .map((k) => String(linha[k] || "").trim().toLowerCase())
+      .join(" ");
 
     if (
-      statusTexto &&
-      /negad|recusad|cancelad|falh|estorn/i.test(statusTexto)
+      textosIndicadores &&
+      /negad|recusad|cancelad|falh|estorn|enviad|sa[ií]da|debito|débito/i.test(textosIndicadores)
     ) {
       return;
     }
 
     // Busca colunas de data
     const dataChave = Object.keys(linha).find((k) =>
-      /data|date|horario|criado/i.test(k)
+      /^data$|^date$/i.test(k) || /data|date|horario|criado/i.test(k)
     );
-    const data = dataChave ? String(linha[dataChave] || "").trim() : "";
+    let data = dataChave ? String(linha[dataChave] || "").trim() : "";
+
+    // Busca coluna separada de hora se existir (ex: InfinitePay possui coluna 'Hora' com '16:40:58')
+    const horaChave = Object.keys(linha).find((k) =>
+      /^hora$|^hor[aá]rio$|^time$/i.test(k)
+    );
+    const hora = horaChave ? String(linha[horaChave] || "").trim() : "";
+
+    if (data && hora && !data.includes("T") && !data.includes(" ")) {
+      data = `${data}T${hora}`;
+    }
 
     // Busca colunas de Identificador / txid
     const idChave = Object.keys(linha).find((k) =>
@@ -159,11 +192,12 @@ export function parsearExtratoCsv(conteudoCsv: string): LinhaExtratoBancario[] {
       txid = undefined;
     }
 
-    // Busca colunas de nome do pagador
+    // Busca colunas de nome do pagador e sanitiza prefixos como "Pix "
     const nomeChave = Object.keys(linha).find((k) =>
       /origem - nome|nome do pagador|nome|cliente|pagador/i.test(k)
     );
-    const nomePagador = nomeChave ? String(linha[nomeChave] || "").trim() : undefined;
+    const nomeBruto = nomeChave ? String(linha[nomeChave] || "").trim() : undefined;
+    const nomePagador = sanitizarNomePagadorExtrato(nomeBruto);
 
     // Busca CPF/CNPJ
     const docChave = Object.keys(linha).find((k) =>
@@ -247,6 +281,7 @@ export function parsearExtratoOfx(conteudoOfx: string): LinhaExtratoBancario[] {
 
     const nameMatch = bloco.match(/<NAME>([\s\S]*?)(?:<|\r|\n)/i);
     const name = nameMatch ? nameMatch[1].trim() : "";
+    const nomePagador = sanitizarNomePagadorExtrato(name);
 
     const textoCompleto = `${fitId} ${checkNum} ${memo} ${name}`;
     const txid = extrairTxidDeTexto(textoCompleto) || normalizarIdentificadorPix(checkNum);
@@ -257,7 +292,7 @@ export function parsearExtratoOfx(conteudoOfx: string): LinhaExtratoBancario[] {
       valor: Math.abs(valor),
       txid,
       endToEndId,
-      nomePagador: name || undefined,
+      nomePagador,
       descricao: memo || undefined,
       linhaOriginal: index,
     });

@@ -71,6 +71,12 @@ export class CorrecaoDadosRifasService {
             );
 
       const compradoresIds = new Set<string>();
+      const pixOrderIdsRecusados = new Set<string>();
+      const pixOrderIdsCorrecaoPendente = new Set<string>();
+      const operacoesBilhetes: Array<{
+        ref: FirebaseFirestore.DocumentReference;
+        payload: Partial<Bilhete>;
+      }> = [];
 
       for (let i = 0; i < snaps.length; i++) {
         const bilheteSnap = snaps[i];
@@ -88,6 +94,14 @@ export class CorrecaoDadosRifasService {
         }
 
         const eraRecusado = bilhete.status === "recusado";
+        if (bilhete.pix_order_id) {
+          if (eraRecusado) {
+            pixOrderIdsRecusados.add(bilhete.pix_order_id);
+          } else {
+            pixOrderIdsCorrecaoPendente.add(bilhete.pix_order_id);
+          }
+        }
+
         const payload: Partial<Bilhete> = {
           comprador_nome: nomeLimpo,
           comprador_telefone: telefoneLimpo,
@@ -98,14 +112,41 @@ export class CorrecaoDadosRifasService {
             ? {
                 status: "pendente",
                 status_validacao: null,
+                validado_em: null,
+                validado_por: null,
                 log_automacao: null,
                 data_reserva: agora,
+                ...(bilhete.status_pagamento_banco === "DECLINED"
+                  ? { status_pagamento_banco: "IN_ANALYSIS" }
+                  : {}),
               }
             : {}),
         };
 
-        transaction.update(bilheteSnap.ref || bilhetesRefs[i], payload);
+        operacoesBilhetes.push({
+          ref: bilheteSnap.ref || bilhetesRefs[i],
+          payload,
+        });
         atualizadas += 1;
+      }
+
+      const todosPixOrderIds = Array.from(
+        new Set([...pixOrderIdsRecusados, ...pixOrderIdsCorrecaoPendente]),
+      );
+      const pagamentosSnaps = await Promise.all(
+        todosPixOrderIds.map(async (orderId) => {
+          const querySnap = await transaction.get(
+            db.collection("pagamentos_pix").where("pix_order_id", "==", orderId).limit(1),
+          );
+          if (!querySnap.empty) {
+            return querySnap.docs[0];
+          }
+          return transaction.get(db.collection("pagamentos_pix").doc(orderId));
+        }),
+      );
+
+      for (const op of operacoesBilhetes) {
+        transaction.update(op.ref, op.payload);
       }
 
       compradoresIds.forEach((compradorId) => {
@@ -114,6 +155,32 @@ export class CorrecaoDadosRifasService {
           nome: nomeLimpo,
           telefone: telefoneLimpo,
           email: emailLimpo,
+        });
+      });
+
+      pagamentosSnaps.forEach((pagSnap, index) => {
+        if (!pagSnap?.exists) return;
+        const orderId = todosPixOrderIds[index];
+        const dadosPag = pagSnap.data() || {};
+        const eraRecusado = pixOrderIdsRecusados.has(orderId);
+        const pagRef = pagSnap.ref || db.collection("pagamentos_pix").doc(orderId);
+
+        transaction.update(pagRef, {
+          comprador_nome: nomeLimpo,
+          comprador_telefone: telefoneLimpo,
+          comprador_email: emailLimpo,
+          motivo_recusa: null,
+          motivo_negacao: null,
+          ...(eraRecusado
+            ? {
+                status_validacao: "pendente",
+                validado_em: null,
+                validado_por: null,
+                ...(dadosPag.status_pagamento_banco === "DECLINED"
+                  ? { status_pagamento_banco: "IN_ANALYSIS" }
+                  : {}),
+              }
+            : {}),
         });
       });
     });

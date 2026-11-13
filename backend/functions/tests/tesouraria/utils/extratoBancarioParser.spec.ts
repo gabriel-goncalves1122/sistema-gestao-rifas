@@ -3,6 +3,7 @@ import {
   normalizarIdentificadorPix,
   extrairEndToEndId,
   extrairTxidDeTexto,
+  sanitizarNomePagadorExtrato,
   parsearExtratoCsv,
   parsearExtratoOfx,
   parsearExtratoBancario,
@@ -46,6 +47,18 @@ describe("extratoBancarioParser", () => {
     });
   });
 
+  describe("sanitizarNomePagadorExtrato", () => {
+    it("deve remover prefixos como 'Pix ', 'Transferência Pix ', 'TED ' e aspas", () => {
+      expect(sanitizarNomePagadorExtrato("Pix Gabriel Gonçalves Sampaio")).toBe("Gabriel Gonçalves Sampaio");
+      expect(sanitizarNomePagadorExtrato("PIX MARIANA SOUZA")).toBe("MARIANA SOUZA");
+      expect(sanitizarNomePagadorExtrato("Transferência Pix João Silva")).toBe("João Silva");
+      expect(sanitizarNomePagadorExtrato('"Pix Lucas Gomes"')).toBe("Lucas Gomes");
+      expect(sanitizarNomePagadorExtrato("Gabriel Gonçalves Sampaio")).toBe("Gabriel Gonçalves Sampaio");
+      expect(sanitizarNomePagadorExtrato("")).toBeUndefined();
+      expect(sanitizarNomePagadorExtrato(undefined)).toBeUndefined();
+    });
+  });
+
   describe("parsearExtratoCsv", () => {
     it("deve fazer parse do CSV da InfinitePay com cabeçalhos padrão", () => {
       const csv = `Data,Origem - Nome,Origem - CPF/CNPJ,Valor,Identificador,ID Transação (E2E)
@@ -73,6 +86,22 @@ describe("extratoBancarioParser", () => {
       expect(transacoes[0].valor).toBe(30);
       expect(transacoes[0].nomePagador).toBe("JOAO DA SILVA");
       expect(transacoes[0].txid).toBe("RIFA1234567890AB");
+    });
+
+    it("deve fazer parse do extrato real da InfinitePay com coluna Hora, prefixo 'Pix ' no Nome e filtro de débitos", () => {
+      const csv = `Data,Hora,Tipo de transação,Nome,Detalhe,Valor
+2026-11-11,16:40:58,Pix,Pix Gabriel Gonçalves Sampaio,Recebido,"+R$ 20,00"
+2026-11-11,16:07:01,Pix,Pix Gabriel Gonçalves Sampaio,Recebido,"+R$ 10,00"
+2026-11-11,15:30:00,Pix,Pix Fulano de Tal,Enviado,"-R$ 50,00"
+`;
+      const transacoes = parsearExtratoCsv(csv);
+      expect(transacoes).toHaveLength(2); // O débito/enviado (-50.00) deve ser descartado
+      expect(transacoes[0].data).toBe("2026-11-11T16:40:58");
+      expect(transacoes[0].valor).toBe(20);
+      expect(transacoes[0].nomePagador).toBe("Gabriel Gonçalves Sampaio");
+      expect(transacoes[1].data).toBe("2026-11-11T16:07:01");
+      expect(transacoes[1].valor).toBe(10);
+      expect(transacoes[1].nomePagador).toBe("Gabriel Gonçalves Sampaio");
     });
 
     it("deve ignorar transações com status Negada ou Cancelada (InfinitePay oficial)", () => {

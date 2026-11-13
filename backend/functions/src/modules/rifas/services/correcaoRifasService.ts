@@ -1,18 +1,16 @@
 // ============================================================================
 // ARQUIVO: backend/functions/src/modules/rifas/services/correcaoRifasService.ts
 // ============================================================================
-import * as admin from "firebase-admin";
-
-import { Bilhete } from "../../types/models";
 import { DadosCorrecaoRifas } from "../types/rifasTypes";
 import { obterContextoAderidoPorEmail } from "../helpers/usuarioRifasHelper";
+import { CorrecaoRifasRepository } from "../repositories/correcaoRifasRepository";
 
 /**
  * Valida a presença obrigatória de rifas, dados cadastrais e URL do novo comprovante para correção.
  *
  * @param {string[]} numerosRifas - Lista de números de rifas a corrigir.
  * @param {DadosCorrecaoRifas} dados - Dados da correção contendo novo comprovante.
- * @throws {Error} Dispara "INVALID_DATA" se algum dado obrigatório estiver faltando.
+ * @throws {Error} Dispara `"INVALID_DATA"` se algum dado obrigatório estiver faltando.
  */
 function validarDadosCorrecao(numerosRifas: string[], dados: DadosCorrecaoRifas): void {
   if (!Array.isArray(numerosRifas) || numerosRifas.length === 0) {
@@ -30,20 +28,15 @@ function validarDadosCorrecao(numerosRifas: string[], dados: DadosCorrecaoRifas)
 
 export class CorrecaoRifasService {
   /**
-   * Reenvia um novo comprovante e dados cadastrais atualizados para bilhetes que foram recusados pela tesouraria.
-   * Regras de negócio:
-   * - Apenas bilhetes do vendedor logado com `status === 'recusado'` são atualizados;
-   * - O status do bilhete é revertido para 'pendente' para nova validação da tesouraria;
-   * - Limpa o motivo de recusa anterior e a flag de pendência;
-   * - Atualiza atômica e simultaneamente o comprador na coleção 'compradores'.
+   * Reenvia um novo comprovante e dados cadastrais atualizados para bilhetes recusados pela tesouraria,
+   * revertendo-os para `'pendente'` e atualizando o comprador correspondente.
    *
    * @param {string} emailLogado - Email do aderido autenticado.
    * @param {string[]} numerosRifas - Lista de números das rifas recusadas.
    * @param {DadosCorrecaoRifas} dadosAtualizados - Novos dados e URL do comprovante reanexado.
    * @returns {Promise<boolean>} Retorna `true` se processado com sucesso.
-   * @throws {Error} Se falhar a validação ou se a transação do banco for abortada.
-   * @transactional Executa em transação Firestore com consistência entre bilhetes e compradores.
-   * @sideEffects Atualiza documentos em 'bilhetes' e 'compradores'.
+   * @throws {Error} `"INVALID_DATA"`, `"USER_NOT_FOUND"` ou erro de persistência.
+   * @transactional Executa em transação Firestore via `CorrecaoRifasRepository`.
    */
   static async corrigirRifasRecusadas(
     emailLogado: string,
@@ -52,87 +45,33 @@ export class CorrecaoRifasService {
   ): Promise<boolean> {
     validarDadosCorrecao(numerosRifas, dadosAtualizados);
 
-    const db = admin.firestore();
     const contextoAderido = await obterContextoAderidoPorEmail(emailLogado);
-
-    const nomeLimpo = String(dadosAtualizados.nome).trim();
-    const telefoneLimpo = String(dadosAtualizados.telefone).trim();
-    const emailLimpo = String(dadosAtualizados.email || "").trim() || null;
     const agora = new Date().toISOString();
 
     try {
-      await db.runTransaction(async (transaction) => {
-        const bilhetesRefs = numerosRifas.map((numero) =>
-          db.collection("bilhetes").doc(numero),
-        );
-        const bilhetesSnaps =
-          typeof transaction.getAll === "function"
-            ? await transaction.getAll(...bilhetesRefs)
-            : await Promise.all(
-                bilhetesRefs.map((ref) => transaction.get(ref)),
-              );
-
-        const compradoresIds = new Set<string>();
-
-        for (let i = 0; i < bilhetesSnaps.length; i++) {
-          const bilheteSnap = bilhetesSnaps[i];
-          const bilheteRef = bilheteSnap.ref || bilhetesRefs[i];
-
-          if (!bilheteSnap.exists) continue;
-
-          const dadosBilhete = bilheteSnap.data() as Bilhete;
-
-          const podeCorrigir =
-            dadosBilhete?.vendedor_id === contextoAderido.idAderido &&
-            dadosBilhete?.status === "recusado";
-
-          if (!podeCorrigir) continue;
-
-          if (dadosBilhete.comprador_id) {
-            compradoresIds.add(dadosBilhete.comprador_id);
-          }
-
-          transaction.update(bilheteRef, {
-            status: "pendente",
-            comprador_nome: nomeLimpo,
-            comprador_telefone: telefoneLimpo,
-            comprador_email: emailLimpo,
-            comprovante_url: dadosAtualizados.comprovanteUrl,
-            motivo_recusa: null,
-            correcao_pendente: null,
-            log_automacao: null,
-            data_reserva: agora,
-          });
-        }
-
-        compradoresIds.forEach((compradorId) => {
-          const compradorRef = db.collection("compradores").doc(compradorId);
-          transaction.update(compradorRef, {
-            nome: nomeLimpo,
-            telefone: telefoneLimpo,
-            email: emailLimpo,
-          });
-        });
+      await CorrecaoRifasRepository.corrigirBilhetesRecusadosAtomicamente({
+        idAderido: contextoAderido.idAderido,
+        numerosRifas,
+        dados: dadosAtualizados,
+        agora,
       });
 
       return true;
     } catch (error) {
       console.error("[CorrecaoRifasService] Erro ao corrigir rifas:", error);
-
       throw new Error("Falha ao salvar a correção no banco de dados.");
     }
   }
 
   /**
    * Cancela em definitivo a venda de rifas recusadas, liberando os bilhetes de volta
-   * para o inventário com status 'disponivel' e removendo o comprador vinculado.
+   * para o inventário com status `'disponivel'` e removendo o comprador vinculado.
    *
    * @param {string} emailLogado - Email do aderido autenticado.
    * @param {string[]} numerosRifas - Lista de números de bilhetes recusados a liberar.
-   * @returns {Promise<boolean>} Retorna true caso a transação seja concluída com sucesso.
-   * @throws {Error} Lança "USER_NOT_FOUND" se o aderido não existir ou erro se a transação falhar.
-   * @transactional Executa em transação Firestore garantindo atomicidade e idempotência.
-   * @sideEffects Atualiza bilhetes para 'disponivel' e remove os compradores correspondentes.
+   * @returns {Promise<boolean>} Retorna `true` caso a transação seja concluída com sucesso.
+   * @throws {Error} `"INVALID_DATA"`, `"USER_NOT_FOUND"` ou erro de persistência.
+   * @transactional Executa em transação Firestore via `CorrecaoRifasRepository`.
    */
   static async desistirRifasRecusadas(
     emailLogado: string,
@@ -142,69 +81,12 @@ export class CorrecaoRifasService {
       throw new Error("INVALID_DATA");
     }
 
-    const db = admin.firestore();
     const contextoAderido = await obterContextoAderidoPorEmail(emailLogado);
 
     try {
-      await db.runTransaction(async (transaction) => {
-        const bilhetesRefs = numerosRifas.map((numero) =>
-          db.collection("bilhetes").doc(numero),
-        );
-        const bilhetesSnaps =
-          typeof transaction.getAll === "function"
-            ? await transaction.getAll(...bilhetesRefs)
-            : await Promise.all(
-                bilhetesRefs.map((ref) => transaction.get(ref)),
-              );
-
-        const compradoresIds = new Set<string>();
-
-        for (let i = 0; i < bilhetesSnaps.length; i++) {
-          const bilheteSnap = bilhetesSnaps[i];
-          const bilheteRef = bilheteSnap.ref || bilhetesRefs[i];
-
-          if (!bilheteSnap.exists) continue;
-
-          const dadosBilhete = bilheteSnap.data() as Bilhete;
-
-          const podeDesistir =
-            dadosBilhete?.vendedor_id === contextoAderido.idAderido &&
-            dadosBilhete?.status === "recusado";
-
-          if (!podeDesistir) continue;
-
-          if (dadosBilhete.comprador_id) {
-            compradoresIds.add(dadosBilhete.comprador_id);
-          }
-
-          transaction.update(bilheteRef, {
-            status: "disponivel",
-            comprador_id: admin.firestore.FieldValue.delete(),
-            comprador_nome: admin.firestore.FieldValue.delete(),
-            comprador_telefone: admin.firestore.FieldValue.delete(),
-            comprador_email: admin.firestore.FieldValue.delete(),
-            data_reserva: admin.firestore.FieldValue.delete(),
-            data_pagamento: admin.firestore.FieldValue.delete(),
-            data_expiracao: admin.firestore.FieldValue.delete(),
-            sessao_checkout_id: admin.firestore.FieldValue.delete(),
-            comprovante_url: admin.firestore.FieldValue.delete(),
-            log_automacao: admin.firestore.FieldValue.delete(),
-            motivo_recusa: admin.firestore.FieldValue.delete(),
-            correcao_pendente: admin.firestore.FieldValue.delete(),
-            pix_order_id: admin.firestore.FieldValue.delete(),
-            pix_qr_code_id: admin.firestore.FieldValue.delete(),
-            pix_reference_id: admin.firestore.FieldValue.delete(),
-            status_pagamento_banco: admin.firestore.FieldValue.delete(),
-            status_validacao: admin.firestore.FieldValue.delete(),
-            valor_bruto: admin.firestore.FieldValue.delete(),
-            valor_pago: 0,
-          });
-        }
-
-        compradoresIds.forEach((compradorId) => {
-          const compradorRef = db.collection("compradores").doc(compradorId);
-          transaction.delete(compradorRef);
-        });
+      await CorrecaoRifasRepository.liberarBilhetesRecusadosAtomicamente({
+        idAderido: contextoAderido.idAderido,
+        numerosRifas,
       });
 
       return true;

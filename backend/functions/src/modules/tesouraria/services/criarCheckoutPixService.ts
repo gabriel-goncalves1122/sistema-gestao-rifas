@@ -1,226 +1,28 @@
-import * as admin from "firebase-admin";
+// ============================================================================
+// ARQUIVO: backend/functions/src/modules/tesouraria/services/criarCheckoutPixService.ts
+// ============================================================================
 
-import { Bilhete, PagamentoPix } from "../../types/models";
-import {
-  calcularValorPixCentavos,
-  calcularValorPixReais,
-  dataExpiracaoPix,
-  montarCompradorPix,
-  montarIdempotencyKeyPix,
-  montarPagamentoPix,
-  montarReferenceIdPix,
-  montarRespostaCheckoutPix,
-  normalizarDadosCheckoutPix,
-  isRifaDisponivelParaPix,
-  montarBilheteReservadoPix,
-} from "../helpers/checkoutPixHelper";
-import {
-  compensarErroCriacaoPix,
-  isPagamentoPixAtivoValido,
-  montarRespostaPagamentoPix,
-  obterPagamentoAtivoPorLockPix,
-  STATUS_PAGAMENTO_PIX_ATIVO,
-  verificarDisponibilidadeRifasPix,
-  erroMensagem,
-  persistirPedidoMercadoPagoNoFirestore,
-} from "../helpers/checkoutPixFirestoreHelper";
 import { CheckoutPixResposta, CriarCheckoutPixPayload } from "../types/checkoutPixTypes";
-import { obterContextoAderidoPorEmail } from "../../rifas/helpers/usuarioRifasHelper";
-import { PaymentProviderFactory } from "../../../shared/payments/paymentProviderFactory";
+import { CheckoutStrategyFactory } from "../checkout/checkoutStrategyFactory";
 
 export class CriarCheckoutPixService {
   /**
-   * Cria uma nova cobrança Pix para o conjunto de rifas selecionadas consumindo
-   * o provedor de pagamento desacoplado ativo (Mercado Pago ou Pix EMV Offline).
+   * Cria uma nova cobrança Pix para o conjunto de rifas selecionadas delegando
+   * para a estratégia orientada a objetos configurada (Mercado Pago ou Pix Normal/EMV Offline).
    *
    * @param {string} uid - Identificador do aderido vendedor.
    * @param {string} emailLogado - E-mail do aderido autenticado.
    * @param {CriarCheckoutPixPayload} payload - Dados cadastrais do comprador e lista de rifas.
    * @returns {Promise<CheckoutPixResposta>} Resposta com ID do pagamento, QR Code e Copia-e-Cola.
-   * @throws {Error} "UNAUTHORIZED", "RIFA_NOT_FOUND" ou "RIFA_INDISPONIVEL".
-   * @transactional Executa validação de concorrência e reserva atômica no Firestore.
+   * @throws {Error} `"UNAUTHORIZED"`, `"RIFA_NOT_FOUND"` ou `"RIFA_INDISPONIVEL"`.
+   * @transactional Executa validação de concorrência e reserva atômica no Firestore via estratégia.
    */
   static async executar(
     uid: string,
     emailLogado: string,
     payload: CriarCheckoutPixPayload,
   ): Promise<CheckoutPixResposta> {
-    if (!uid || !emailLogado) throw new Error("UNAUTHORIZED");
-
-    const db = admin.firestore();
-    const dados = normalizarDadosCheckoutPix(payload);
-    const contextoAderido = await obterContextoAderidoPorEmail(emailLogado);
-    const compradorRef = db.collection("compradores").doc();
-    const pagamentoRef = db.collection("pagamentos_pix").doc();
-    const referenceId = montarReferenceIdPix(compradorRef.id);
-    const idempotencyKey = montarIdempotencyKeyPix({
-      vendedorId: contextoAderido.idAderido,
-      numerosRifas: dados.numerosRifas,
-      documento: dados.documento,
-      email: dados.email,
-    });
-    const lockRef = db.collection("pagamentos_pix_idempotencia").doc(idempotencyKey);
-    const expiraEm = dataExpiracaoPix();
-
-    const pagamentoAtivo = await obterPagamentoAtivoPorLockPix({ db, lockRef });
-    if (pagamentoAtivo) return montarRespostaPagamentoPix(pagamentoAtivo);
-
-    // Pre-check rápido fora da transação
-    await verificarDisponibilidadeRifasPix(db, dados.numerosRifas, payload.sessaoCheckoutId, contextoAderido.idAderido);
-
-    const agora = new Date().toISOString();
-    const valorBruto = calcularValorPixReais(dados.numerosRifas);
-    const comprador = montarCompradorPix(compradorRef.id, dados, agora);
-    const pagamento = montarPagamentoPix({
-      pagamentoId: pagamentoRef.id,
-      compradorId: compradorRef.id,
-      referenceId,
-      idempotencyKey,
-      contextoAderido,
-      dados,
-      valorBruto,
-      agora,
-      expiraEm,
-    });
-
-    const existente = await db.runTransaction(async (transaction) => {
-      const lockSnap = await transaction.get(lockRef);
-
-      if (lockSnap.exists) {
-        const paymentId = String(lockSnap.data()?.payment_id || "");
-        if (paymentId) {
-          const existenteRef = db.collection("pagamentos_pix").doc(paymentId);
-          const existenteSnap = await transaction.get(existenteRef);
-          if (existenteSnap.exists) {
-            const pagamentoExistente = existenteSnap.data() as PagamentoPix;
-            const ativoValido =
-              typeof isPagamentoPixAtivoValido === "function"
-                ? isPagamentoPixAtivoValido(pagamentoExistente)
-                : STATUS_PAGAMENTO_PIX_ATIVO.includes(
-                    String(pagamentoExistente.status_pagamento_banco),
-                  );
-            if (ativoValido) {
-              return pagamentoExistente;
-            }
-          }
-        }
-      }
-
-      const rifasRefs = dados.numerosRifas.map((numero) => ({
-        numero,
-        ref: db.collection("bilhetes").doc(numero),
-      }));
-
-      for (const { ref } of rifasRefs) {
-        const snap = await transaction.get(ref);
-        if (!snap.exists) throw new Error("RIFA_NOT_FOUND");
-        const data = snap.data() as Bilhete;
-        const disponivel = isRifaDisponivelParaPix(data, payload.sessaoCheckoutId, contextoAderido.idAderido);
-
-        if (!disponivel) throw new Error("RIFA_INDISPONIVEL");
-      }
-
-      transaction.set(compradorRef, comprador);
-      transaction.set(pagamentoRef, pagamento);
-      transaction.set(lockRef, {
-        payment_id: pagamentoRef.id,
-        vendedor_id: contextoAderido.idAderido,
-        numeros_rifas: [...dados.numerosRifas].sort(),
-        criado_em: agora,
-      });
-
-      const valorRifa = valorBruto / dados.numerosRifas.length;
-      rifasRefs.forEach(({ numero, ref }) => {
-        const bilhete = montarBilheteReservadoPix({
-          numero,
-          compradorId: compradorRef.id,
-          referenceId,
-          contextoAderido,
-          dados,
-          valorRifa,
-          agora,
-          expiraEm,
-        });
-        transaction.set(ref, bilhete, { merge: true });
-      });
-
-      return null;
-    });
-
-    if (existente) return montarRespostaPagamentoPix(existente);
-
-    const provedor = PaymentProviderFactory.obterProvedor();
-    let respostaProvedor: any;
-    let orderId = "";
-
-    try {
-      const cobrancaCriada = await provedor.criarCobranca({
-        referenceId,
-        nome: dados.nome,
-        telefone: dados.telefone,
-        email: dados.email,
-        documento: dados.documento,
-        numerosRifas: dados.numerosRifas,
-        valorCentavos: calcularValorPixCentavos(dados.numerosRifas),
-        expirationDate: expiraEm,
-      });
-
-      orderId = cobrancaCriada.orderId;
-      respostaProvedor = cobrancaCriada.rawResponse;
-
-      if (!orderId) throw new Error("PROVEDOR_ORDER_INVALIDO");
-
-      const qrCode = {
-        id: orderId,
-        copiaECola: cobrancaCriada.copiaECola,
-        qrCodeImagemUrl: cobrancaCriada.qrCodeImagemUrl || null,
-        qrCodeBase64: cobrancaCriada.qrCodeBase64 || null,
-        expiraEm: cobrancaCriada.expiraEm || expiraEm,
-      };
-
-      await persistirPedidoMercadoPagoNoFirestore({
-        db,
-        pagamentoRef,
-        orderId,
-        qrCode,
-        expiraEmFallback: expiraEm,
-        numerosRifas: dados.numerosRifas,
-        respostaMercadoPago: respostaProvedor,
-      });
-
-      return montarRespostaCheckoutPix({
-        id: pagamentoRef.id,
-        status: "WAITING",
-        qrCode,
-        numerosRifas: dados.numerosRifas,
-      });
-    } catch (error) {
-      if (!orderId) {
-        await compensarErroCriacaoPix({
-          db,
-          pagamentoRef,
-          lockRef,
-          numerosRifas: dados.numerosRifas,
-          referenceId,
-          compradorId: compradorRef.id,
-          error,
-        });
-      } else {
-        await db.runTransaction(async (transaction) => {
-          transaction.set(
-            pagamentoRef,
-            {
-              pix_order_id: orderId,
-              status_pagamento_banco: "WAITING",
-              raw_mercadopago: respostaProvedor || null,
-              erro_criacao: erroMensagem(error),
-            },
-            { merge: true },
-          );
-        });
-      }
-
-      throw error;
-    }
+    const strategy = CheckoutStrategyFactory.obterParaCriacao();
+    return await strategy.criarCheckout(uid, emailLogado, payload);
   }
 }

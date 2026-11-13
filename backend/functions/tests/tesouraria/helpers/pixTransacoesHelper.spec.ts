@@ -65,7 +65,10 @@ describe("Helper: pixTransacoesHelper", () => {
 
   it("Deve mapear status de pagamento para o contrato Pix", () => {
     expect(statusPagamento("pago")).toBe("PAID");
+    expect(statusPagamento("pago", "IN_ANALYSIS")).toBe("PAID");
     expect(statusPagamento("recusado")).toBe("DECLINED");
+    expect(statusPagamento("recusado", "PAID")).toBe("DECLINED");
+    expect(statusPagamento("recusado", "CANCELED")).toBe("CANCELED");
     expect(statusPagamento("pendente")).toBe("WAITING");
     expect(statusPagamento("reservado")).toBe("WAITING");
     expect(statusPagamento("reservado", "PAID")).toBe("PAID");

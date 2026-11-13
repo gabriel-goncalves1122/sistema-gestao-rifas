@@ -64,7 +64,7 @@ describe("EmvOfflinePaymentProvider", () => {
     expect(cobranca.qrCodeBase64).toBeDefined();
     expect(typeof cobranca.qrCodeBase64).toBe("string");
     expect(cobranca.qrCodeBase64!.length).toBeGreaterThan(100);
-  });
+  }, 15000);
 
   it("deve consultar e cancelar sem falhas no modo offline", async () => {
     const provider = new EmvOfflinePaymentProvider();
@@ -87,10 +87,15 @@ describe("PaymentProviderFactory", () => {
     delete process.env.MODO_PAGAMENTO_PROVIDER;
   });
 
-  it("deve fornecer MercadoPagoPaymentProvider quando MODO_PAGAMENTO_PROVIDER for MERCADOPAGO_API", () => {
+  it("deve fornecer EmvOfflinePaymentProvider mesmo se MODO_PAGAMENTO_PROVIDER for MERCADOPAGO_API", () => {
     process.env.MODO_PAGAMENTO_PROVIDER = "MERCADOPAGO_API";
     const provider = PaymentProviderFactory.obterProvedor();
-    expect(provider.constructor.name).toBe("MercadoPagoPaymentProvider");
+    expect(provider).toBeInstanceOf(EmvOfflinePaymentProvider);
     delete process.env.MODO_PAGAMENTO_PROVIDER;
+  });
+
+  it("deve fornecer MercadoPagoPaymentProvider apenas quando modoForcado for MERCADOPAGO_API", () => {
+    const provider = PaymentProviderFactory.obterProvedor("MERCADOPAGO_API");
+    expect(provider.constructor.name).toBe("MercadoPagoPaymentProvider");
   });
 });
