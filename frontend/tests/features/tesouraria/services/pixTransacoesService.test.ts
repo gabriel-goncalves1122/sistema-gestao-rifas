@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { pixTransacoesService } from "@/features/tesouraria/services/pixTransacoesService";
 import { PixTransacao } from "@/features/tesouraria/types/pixTransacoes";
-import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 import { fetchAPI } from "@/shared/services/api";
 
 vi.mock("@/shared/services/api", () => ({

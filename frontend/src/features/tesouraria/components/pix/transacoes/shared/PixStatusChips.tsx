@@ -3,9 +3,7 @@ import { Chip } from "@mui/material";
 import {
   StatusPagamentoPix,
 } from "../../../../types/pixTransacoes";
-import {
-  obterLabelStatusPagamento,
-} from "../../../../utils/pixTransacoesUtils";
+import { obterLabelStatusPagamento } from "../../../../utils/pixTransacoesStatusUtils";
 
 interface StatusPagamentoChipProps {
   status: StatusPagamentoPix;

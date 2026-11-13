@@ -32,6 +32,7 @@ interface UsePixStateMachineParams {
   sessaoCheckoutId: string;
   numerosRifas: string[];
   invalidarDadosPainel: () => Promise<void>;
+  onSuccess?: () => void;
 }
 
 /**
@@ -42,6 +43,7 @@ export function usePixStateMachine({
   sessaoCheckoutId,
   numerosRifas,
   invalidarDadosPainel,
+  onSuccess,
 }: UsePixStateMachineParams) {
   const [cobrancaPix, setCobrancaPix] = useState<CheckoutPixCobranca | null>(
     () => checkoutStorage.get().cobrancaPix,
@@ -194,29 +196,30 @@ export function usePixStateMachine({
   );
 
   /**
-   * Confirma o envio de comprovante bancário ou declaração de pagamento,
+   * Confirma o envio de comprovante bancário obrigatório,
    * fazendo upload seguro e garantindo transição das rifas para status 'pendente' em análise.
    */
   const confirmarEnvioComprovante = useCallback(
     async (
-      arquivoComprovante?: File | null,
+      arquivoComprovante: File,
       hashComprovante?: string | null,
       mimeType?: string,
     ) => {
       if (!cobrancaPix) return;
 
+      if (!arquivoComprovante) {
+        setErro("Anexe o comprovante de pagamento antes de enviar.");
+        return;
+      }
+
       setEnviandoComprovante(true);
       setErro(null);
 
       try {
-        let comprovanteUrl: string | null = null;
-
-        if (arquivoComprovante) {
-          comprovanteUrl = await storageService.uploadComprovante(
-            arquivoComprovante,
-            mimeType,
-          );
-        }
+        const comprovanteUrl = await storageService.uploadComprovante(
+          arquivoComprovante,
+          mimeType,
+        );
 
         await checkoutPixService.confirmarEnvioPix(
           cobrancaPix.id,
@@ -230,6 +233,7 @@ export function usePixStateMachine({
         }
 
         await invalidarDadosPainel?.();
+        onSuccess?.();
       } catch (error: unknown) {
         if (isMounted.current) {
           setErro(
@@ -245,7 +249,7 @@ export function usePixStateMachine({
         }
       }
     },
-    [cobrancaPix, invalidarDadosPainel],
+    [cobrancaPix, invalidarDadosPainel, onSuccess],
   );
 
   /**

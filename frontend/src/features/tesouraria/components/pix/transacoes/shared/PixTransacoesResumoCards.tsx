@@ -1,18 +1,15 @@
-
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import LinkOffOutlinedIcon from "@mui/icons-material/LinkOffOutlined";
 import ReportProblemOutlinedIcon from "@mui/icons-material/ReportProblemOutlined";
 import TaskAltOutlinedIcon from "@mui/icons-material/TaskAltOutlined";
 import { Box, Paper, Typography } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
-import {
-  formatarMoedaPix,
-  obterIndicadoresConsolidados,
-} from "../../../../utils/pixTransacoesUtils";
+import { obterIndicadoresConsolidados } from "../../../../utils/pixTransacoesMetricasUtils";
 
 interface PixTransacoesResumoCardsProps {
   resumo: PixTransacoesResumo;
@@ -81,7 +78,7 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
   const ind = obterIndicadoresConsolidados(resumo);
   const descricaoConfirmados =
     ind.comprovantes.valorRecebido > 0
-      ? `${ind.totalGeral.transacoesPagas} confirmados (${formatarMoedaPix(ind.pix.recebidoLiquido)} Pix • ${formatarMoedaPix(ind.comprovantes.valorRecebido)} Comp.)`
+      ? `${ind.totalGeral.transacoesPagas} confirmados (${formatarMoeda(ind.pix.recebidoLiquido)} Pix • ${formatarMoeda(ind.comprovantes.valorRecebido)} Comp.)`
       : `${ind.totalGeral.transacoesPagas} pagamentos confirmados`;
 
   return (
@@ -99,14 +96,14 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
     >
       <CardResumo
         titulo="Total Recebido (Líq.)"
-        valor={formatarMoedaPix(ind.totalGeral.recebidoLiquido)}
+        valor={formatarMoeda(ind.totalGeral.recebidoLiquido)}
         descricao={descricaoConfirmados}
         icone={<AccountBalanceWalletIcon />}
       />
 
       <CardResumo
         titulo="Ticket Médio"
-        valor={formatarMoedaPix(resumo.ticketMedio)}
+        valor={formatarMoeda(resumo.ticketMedio)}
         descricao="Gasto médio por pix pago"
         icone={<TaskAltOutlinedIcon />}
       />
@@ -114,14 +111,14 @@ export function PixTransacoesResumoCards({ resumo }: PixTransacoesResumoCardsPro
       <CardResumo
         titulo="Aguardando Pagamento"
         valor={`${ind.totalGeral.transacoesPendentes}`}
-        descricao={`Total pendente: ${formatarMoedaPix(ind.totalGeral.valorPendenteBruto)}`}
+        descricao={`Total pendente: ${formatarMoeda(ind.totalGeral.valorPendenteBruto)}`}
         icone={<LinkOffOutlinedIcon />}
       />
 
       <CardResumo
         titulo="Canceladas/Erros"
         valor={`${resumo.quantidadeCanceladas}`}
-        descricao={`Total cancelado: ${formatarMoedaPix(resumo.totalCancelado)}`}
+        descricao={`Total cancelado: ${formatarMoeda(resumo.totalCancelado)}`}
         icone={<ReportProblemOutlinedIcon />}
       />
     </Box>

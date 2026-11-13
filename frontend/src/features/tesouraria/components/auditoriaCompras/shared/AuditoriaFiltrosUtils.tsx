@@ -1,7 +1,7 @@
 import { Box, Chip } from "@mui/material";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import { colors } from "@/shared/tokens/colors";
-import { STATUS_FILTROS_AUDITORIA_COMPRAS } from "../../../utils/auditoriaComprasUtils";
+import { STATUS_FILTROS_AUDITORIA_COMPRAS } from "../../../utils/auditoriaComprasFiltrosUtils";
 import {
   FiltroOrigemAuditoria,
   StatusAuditoriaCompras,

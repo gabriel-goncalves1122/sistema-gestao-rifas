@@ -7,7 +7,7 @@ import {
 import {
   pixPagamentoConfirmadoBanco,
   podeValidarPixTransacao,
-} from "../utils/pixTransacoesUtils";
+} from "../utils/pixTransacoesStatusUtils";
 
 /**
  * Feedback exibido após conclusão de uma ação de validação em lote.

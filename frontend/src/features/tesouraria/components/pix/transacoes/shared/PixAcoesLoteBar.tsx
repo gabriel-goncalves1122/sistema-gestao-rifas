@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { colors } from "@/shared/tokens/colors";
@@ -25,7 +26,6 @@ import {
   PixTransacao,
   ResultadoLoteValidacaoTransacoes,
 } from "../../../../types/pixTransacoes";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
 
 /**
  * Propriedades da barra flutuante de ações em lote da Tesouraria Pix.
@@ -91,7 +91,7 @@ export function PixAcoesLoteBar({
     return acc + (Number.isFinite(valor) ? valor : 0);
   }, 0);
 
-  const labelQuantidade = `${quantidade} ${quantidade === 1 ? "selecionada" : "selecionadas"} (${formatarMoedaPix(valorTotal)})`;
+  const labelQuantidade = `${quantidade} ${quantidade === 1 ? "selecionada" : "selecionadas"} (${formatarMoeda(valorTotal)})`;
 
   const handleAceitarLote = async () => {
     if (!onAceitarLote) return;
@@ -286,7 +286,7 @@ export function PixAcoesLoteBar({
           <Typography sx={{ mb: 2, color: colors.cinzaTexto }}>
             Você está prestes a negar <b>{quantidade}</b>{" "}
             {quantidade === 1 ? "transação selecionada" : "transações selecionadas"}{" "}
-            totalizando <b>{formatarMoedaPix(valorTotal)}</b>. Informe o motivo:
+            totalizando <b>{formatarMoeda(valorTotal)}</b>. Informe o motivo:
           </Typography>
           <TextField
             autoFocus

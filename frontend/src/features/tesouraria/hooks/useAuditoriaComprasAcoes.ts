@@ -3,7 +3,7 @@ import { auditoriaComprasService } from "../services/auditoriaComprasService";
 import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import { extrairMensagemErro } from "@/shared/utils/errors";
 import { sanitizarDadosCliente } from "@/shared/utils/sanitizadores";
-import { normalizarTexto } from "../utils/auditoriaComprasUtils";
+import { normalizarTexto } from "@/shared/utils/formatadores";
 
 interface DadosEdicaoComprador {
   nome: string;

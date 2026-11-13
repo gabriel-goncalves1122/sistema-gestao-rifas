@@ -11,10 +11,8 @@ import {
   PixTransacao,
   ResultadoLoteValidacaoTransacoes,
 } from "../types/pixTransacoes";
-import {
-  calcularResumoPixTransacoes,
-  filtrarPixTransacoes,
-} from "../utils/pixTransacoesUtils";
+import { calcularResumoPixTransacoes } from "../utils/pixTransacoesMetricasUtils";
+import { filtrarPixTransacoes } from "../utils/pixTransacoesFiltrosUtils";
 
 function resumoPossuiDados(resumo: PixTransacoesResumo | null) {
   if (!resumo) return false;

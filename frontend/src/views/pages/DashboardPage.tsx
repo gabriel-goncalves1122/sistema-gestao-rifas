@@ -18,6 +18,7 @@ import { AppLoadingScreen } from "@/shared/components/AppLoadingScreen";
 import { DashboardSidebar } from "@/shared/components/DashboardSidebar";
 import { DashboardHeader } from "@/views/components/dashboard/DashboardHeader";
 import { checkoutStorage } from "@/features/aderidos/utils/checkoutStorage";
+import { cancelarCheckoutPendente } from "@/features/aderidos/utils/cancelarCheckoutPendente";
 import { useDashboardPrefetch } from "@/views/hooks/useDashboardPrefetch";
 
 export type Contexto = "aderido" | "tesouraria" | "secretaria";
@@ -107,7 +108,8 @@ export function DashboardPage() {
     });
   }, []);
 
-  const fazerLogout = () => {
+  const fazerLogout = async () => {
+    await cancelarCheckoutPendente();
     sessionStorage.clear();
     checkoutStorage.clear();
     handleLogout();

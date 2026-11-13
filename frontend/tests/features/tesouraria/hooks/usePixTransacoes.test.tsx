@@ -9,7 +9,7 @@ import {
   PixTransacoesResumo,
   PixTransacao,
 } from "@/features/tesouraria/types/pixTransacoes";
-import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 
 vi.mock("@/features/tesouraria/services/pixTransacoesService", () => ({
   pixTransacoesService: {

@@ -7,7 +7,7 @@ import {
   ResultadoLoteValidacaoTransacoes,
   StatusValidacaoPix,
 } from "../types/pixTransacoes";
-import { RESUMO_PIX_TRANSACOES_VAZIO } from "../utils/pixTransacoesUtils";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "../utils/pixTransacoesMetricasUtils";
 
 const STATUS_VALIDACAO_PIX: StatusValidacaoPix[] = ["aceita", "negada"];
 

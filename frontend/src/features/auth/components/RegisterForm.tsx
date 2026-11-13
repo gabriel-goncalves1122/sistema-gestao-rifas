@@ -22,7 +22,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import { registerSchema, RegisterFormData } from "../schemas/registerSchema";
 import { authStyles } from "../styles/authStyles";
-import { formatarCpf, somenteNumeros } from "../utils/formatadoresAuth";
+import { formatarCpf, somenteNumeros } from "@/shared/utils/formatadores";
 
 interface RegisterFormProps {
   error?: string | null;

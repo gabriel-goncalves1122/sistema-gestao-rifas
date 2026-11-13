@@ -1,8 +1,9 @@
 import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import { Box, Paper, Stack, Typography } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { PixAderidoResumo } from "../../../../utils/pixAderidosUtils";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
+
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
@@ -125,7 +126,7 @@ export function PixAderidoResumoCard({
                 mt: 0.35,
               }}
             >
-              {formatarMoedaPix(aderido.totalArrecadado)}
+              {formatarMoeda(aderido.totalArrecadado)}
             </Typography>
             {temSplit && (
               <Typography
@@ -136,7 +137,7 @@ export function PixAderidoResumoCard({
                   fontStyle: "italic",
                 }}
               >
-                Pix: {formatarMoedaPix(aderido.valorPix || 0)} • Comp: {formatarMoedaPix(aderido.valorComprovante || 0)}
+                Pix: {formatarMoeda(aderido.valorPix || 0)} • Comp: {formatarMoeda(aderido.valorComprovante || 0)}
               </Typography>
             )}
           </Box>

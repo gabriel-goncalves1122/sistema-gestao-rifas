@@ -1,17 +1,17 @@
 import { memo } from "react";
 import { Box, Checkbox, Paper, Stack, Typography } from "@mui/material";
+import {
+  formatarData,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 
 import { PixTransacao } from "../../../../types/pixTransacoes";
-import {
-  formatarDataPix,
-  formatarMoedaPix,
-  formatarRifasPix,
-  podeValidarPixTransacao,
-} from "../../../../utils/pixTransacoesUtils";
+import { formatarRifasPix } from "../../../../utils/pixTransacoesFiltrosUtils";
+import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesStatusUtils";
 import { PixOrigemChip } from "../shared/PixOrigemChip";
 import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 
@@ -50,7 +50,7 @@ export const PixTransacaoCard = memo(function PixTransacaoCard({
       : transacao.valorBruto;
 
   const aderidoLabel = transacao.aderido?.nome || "Sem aderido vinculado";
-  const dataLabel = formatarDataPix(
+  const dataLabel = formatarData(
     transacao.dataPagamento || transacao.dataCriacao,
   );
   const elegivelSelecao = Boolean(
@@ -135,7 +135,7 @@ export const PixTransacaoCard = memo(function PixTransacaoCard({
                   whiteSpace: "nowrap",
                 }}
               >
-                {formatarMoedaPix(valor)}
+                {formatarMoeda(valor)}
               </Typography>
               <PixOrigemChip origem={transacao.origem} />
             </Stack>

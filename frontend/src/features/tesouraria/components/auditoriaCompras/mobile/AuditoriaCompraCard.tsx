@@ -6,12 +6,13 @@ import { AuditoriaStatusChip } from "../shared/AuditoriaStatusChip";
 import { AuditoriaOrigemChip } from "../shared/AuditoriaOrigemChip";
 import { AuditoriaCorrecaoChip } from "../shared/AuditoriaCorrecaoChip";
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
+
 import {
-  formatarDataAuditoria,
-  formatarMoedaAuditoria,
+  formatarTelefone,
+  formatarDataCurta,
+  formatarMoeda,
   normalizarTexto,
-} from "../../../utils/auditoriaComprasUtils";
-import { formatarTelefone } from "@/shared/utils/formatadores";
+} from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -113,7 +114,7 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
                 lineHeight: 1.25,
               }}
             >
-              {formatarDataAuditoria(compra.dataReserva)}
+              {formatarDataCurta(compra.dataReserva)}
               {compra.compradorTelefone
                 ? ` • ${formatarTelefone(compra.compradorTelefone)}`
                 : ""}
@@ -133,7 +134,7 @@ export const AuditoriaCompraCard = memo(function AuditoriaCompraCard({
                 whiteSpace: "nowrap",
               }}
             >
-              {formatarMoedaAuditoria(compra.valorTotal)}
+              {formatarMoeda(compra.valorTotal)}
             </Typography>
             <Typography
               sx={{

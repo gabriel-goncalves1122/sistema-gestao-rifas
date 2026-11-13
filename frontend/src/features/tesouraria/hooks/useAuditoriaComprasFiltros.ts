@@ -7,7 +7,7 @@ import {
   FILTROS_AUDITORIA_COMPRAS_VAZIOS,
   filtrarComprasAuditaveis,
   filtrosAuditoriaAtivos,
-} from "../utils/auditoriaComprasUtils";
+} from "../utils/auditoriaComprasFiltrosUtils";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 
 /**

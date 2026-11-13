@@ -5,9 +5,10 @@ import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { CircularProgress, IconButton, Stack, Tooltip } from "@mui/material";
+import { normalizarTexto } from "@/shared/utils/formatadores";
 
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
-import { normalizarTexto } from "../../../utils/auditoriaComprasUtils";
+
 import { colors } from "@/shared/tokens/colors";
 
 interface AuditoriaCompraActionsProps {

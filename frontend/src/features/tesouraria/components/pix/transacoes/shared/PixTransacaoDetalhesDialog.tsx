@@ -1,16 +1,14 @@
-import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
-  IconButton,
   Stack,
   Typography,
 } from "@mui/material";
+import {
+  formatarData,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 
+import { ResponsiveDialogShell } from "@/shared/components/ResponsiveDialogShell";
 import { VisualizadorComprovante } from "@/shared/components/VisualizadorComprovante";
 import { colors } from "@/shared/tokens/colors";
 import { typographyScale as typography } from "@/shared/tokens/typography";
@@ -18,12 +16,8 @@ import { typographyScale as typography } from "@/shared/tokens/typography";
 import { useTesourariaLayout } from "../../../../hooks/useTesourariaLayout";
 import { layout } from "../../../../styles/layout";
 import { PixTransacao } from "../../../../types/pixTransacoes";
-import {
-  formatarDataPix,
-  formatarMoedaPix,
-  formatarRifasPix,
-  obterLabelStatusPagamento,
-} from "../../../../utils/pixTransacoesUtils";
+import { formatarRifasPix } from "../../../../utils/pixTransacoesFiltrosUtils";
+import { obterLabelStatusPagamento } from "../../../../utils/pixTransacoesStatusUtils";
 import { PixOrigemChip } from "./PixOrigemChip";
 import { PixTransacaoAcoes } from "./PixTransacaoAcoes";
 
@@ -103,7 +97,7 @@ export function PixTransacaoDetalhesDialog({
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <PixOrigemChip origem={transacao.origem} />
         <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.8rem", fontWeight: 700 }}>
-          {formatarDataPix(transacao.dataPagamento || transacao.dataCriacao)}
+          {formatarData(transacao.dataPagamento || transacao.dataCriacao)}
         </Typography>
       </Stack>
 
@@ -124,7 +118,7 @@ export function PixTransacaoDetalhesDialog({
           }
         />
         <CampoDetalhe label="Rifas" valor={formatarRifasPix(transacao)} />
-        <CampoDetalhe label="Valor" valor={formatarMoedaPix(valor)} />
+        <CampoDetalhe label="Valor" valor={formatarMoeda(valor)} />
         <CampoDetalhe label="Identificador" valor={identificador} />
         <CampoDetalhe
           label="Status do pagamento"
@@ -155,118 +149,54 @@ export function PixTransacaoDetalhesDialog({
 
   if (isMobile) {
     return (
-      <Drawer
-        anchor="bottom"
+      <ResponsiveDialogShell
         open
         onClose={onClose}
-        PaperProps={{
-          sx: {
-            ...layout.drawerPaper,
-            maxHeight: "92dvh",
-            pb: "max(16px, env(safe-area-inset-bottom))",
-          },
-        }}
+        isMobile
+        title="Detalhes da transação Pix"
+        closeAriaLabel="Fechar detalhes da transação Pix"
+        actions={acoes}
       >
-        <Stack spacing={2} sx={{ height: "100%", overflow: "hidden" }}>
-          <Box sx={layout.drawerPullHandle} />
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Typography sx={{ ...typography.sectionTitle, fontSize: "1.2rem" }}>
-              Detalhes da transação Pix
-            </Typography>
-            <IconButton
-              aria-label="Fechar detalhes da transação Pix"
-              onClick={onClose}
-              size="small"
-              sx={{ color: colors.cinzaTexto }}
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-          <Stack spacing={2} sx={{ flex: 1, overflowY: "auto", px: 0.5, pb: 1 }}>
-            {dadosCompra}
-            <VisualizadorComprovante
-              url={transacao.comprovanteUrl}
-              alturaMaxima={340}
-            />
-          </Stack>
-          <Box sx={{ pt: 1.25, borderTop: `1px solid ${colors.borda}` }}>
-            {acoes}
-          </Box>
+        <Stack spacing={2}>
+          {dadosCompra}
+          <VisualizadorComprovante
+            url={transacao.comprovanteUrl}
+            alturaMaxima={340}
+          />
         </Stack>
-      </Drawer>
+      </ResponsiveDialogShell>
     );
   }
 
   return (
-    <Dialog
+    <ResponsiveDialogShell
       open
       onClose={onClose}
-      fullWidth
+      isMobile={false}
+      title="Detalhes da transação Pix"
+      titleId="pix-transacao-detalhes-titulo"
+      closeAriaLabel="Fechar detalhes da transação Pix"
       maxWidth="lg"
-      aria-labelledby="pix-transacao-detalhes-titulo"
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          bgcolor: colors.branco,
-          border: `1px solid ${colors.borda}`,
-        },
-      }}
+      contentSx={{ pt: 1, pb: 2.5 }}
+      actions={acoes}
     >
-      <DialogTitle
-        id="pix-transacao-detalhes-titulo"
-        sx={{ ...typography.sectionTitle, pr: 7 }}
-      >
-        Detalhes da transação Pix
-        <IconButton
-          aria-label="Fechar detalhes da transação Pix"
-          onClick={onClose}
-          sx={{
-            position: "absolute",
-            right: 12,
-            top: 12,
-            borderRadius: 2,
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={{ pt: 1, pb: 2.5 }}>
-        <Box
-          data-testid="pix-detalhes-split-view"
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1.1fr 0.9fr" },
-            gap: 2.5,
-            alignItems: "stretch",
-          }}
-        >
-          <Box>{dadosCompra}</Box>
-          <Box sx={{ minHeight: 420 }}>
-            <VisualizadorComprovante
-              url={transacao.comprovanteUrl}
-              alturaMaxima="100%"
-            />
-          </Box>
-        </Box>
-      </DialogContent>
-
-      <DialogActions
+      <Box
+        data-testid="pix-detalhes-split-view"
         sx={{
-          px: 3,
-          py: 2,
-          borderTop: `1px solid ${colors.borda}`,
-          justifyContent: "flex-end",
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "1.1fr 0.9fr" },
+          gap: 2.5,
+          alignItems: "stretch",
         }}
       >
-        {acoes}
-      </DialogActions>
-    </Dialog>
+        <Box>{dadosCompra}</Box>
+        <Box sx={{ minHeight: 420 }}>
+          <VisualizadorComprovante
+            url={transacao.comprovanteUrl}
+            alturaMaxima="100%"
+          />
+        </Box>
+      </Box>
+    </ResponsiveDialogShell>
   );
 }

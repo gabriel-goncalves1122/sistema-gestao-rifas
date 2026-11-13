@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { pixTransacoesMock } from "@/features/tesouraria/mocks/pixTransacoesMock";
 import { PixTransacao } from "@/features/tesouraria/types/pixTransacoes";
-import {
-  calcularResumoPixTransacoes,
-  filtrarPixTransacoes,
-  formatarMoedaPix,
-  obterLabelStatusPagamento,
-} from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { calcularResumoPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
+import { filtrarPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesFiltrosUtils";
+import { obterLabelStatusPagamento } from "@/features/tesouraria/utils/pixTransacoesStatusUtils";
 
 function criarTransacao(
   parcial: Partial<PixTransacao>,
@@ -27,8 +25,8 @@ function criarTransacao(
 
 describe("Utils: pixTransacoesUtils", () => {
   it("Deve formatar moeda brasileira com fallback seguro", () => {
-    expect(formatarMoedaPix(50)).toMatch(/R\$\s*50,00/);
-    expect(formatarMoedaPix(undefined)).toMatch(/R\$\s*0,00/);
+    expect(formatarMoeda(50)).toMatch(/R\$\s*50,00/);
+    expect(formatarMoeda(undefined)).toMatch(/R\$\s*0,00/);
   });
 
   it("Deve traduzir status Pix", () => {
@@ -41,7 +39,6 @@ describe("Utils: pixTransacoesUtils", () => {
 
     expect(resumo.totalRecebido).toBe(49.5);
     expect(resumo.quantidadePagas).toBe(2);
-
 
     expect(resumo.ticketMedio).toBe(24.75);
   });

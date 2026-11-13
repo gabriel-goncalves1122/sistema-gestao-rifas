@@ -1,86 +1,15 @@
-
-import {
-  formatarData as formatarDataPix,
-  formatarMoeda as formatarMoedaPix,
-  somenteNumeros,
-} from "@/shared/utils/formatadores";
+// ============================================================================
+// ARQUIVO: frontend/src/features/tesouraria/utils/pixTransacoesMetricasUtils.ts
+// ============================================================================
 import {
   PixTransacao,
-  PixTransacoesFiltros,
   PixTransacoesResumo,
   PixTransacoesSerieTemporal,
-  StatusPagamentoPix,
-  StatusValidacaoUI,
 } from "../types/pixTransacoes";
 
 /**
- * Verifica se a transação Pix possui ao menos um bilhete de rifa associado.
- *
- * @param {PixTransacao} transacao - Transação avaliada.
- * @returns {boolean} `true` se contiver bilhetes vinculados.
+ * Estado inicial zerado para o resumo consolidado de transações Pix e comprovantes da Tesouraria.
  */
-export function pixTransacaoTemRifas(transacao: PixTransacao): boolean {
-  return Boolean(transacao.rifas && transacao.rifas.length > 0);
-}
-
-/**
- * Avalia se o pagamento da transação foi confirmado/liquidado pelo banco ou gateway ('PAID' ou 'AUTHORIZED').
- *
- * @param {PixTransacao} transacao - Transação avaliada.
- * @returns {boolean} `true` se liquidado pelo gateway bancário.
- */
-export function pixPagamentoConfirmadoBanco(transacao: PixTransacao): boolean {
-  return ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento);
-}
-
-/**
- * Determina o status visual de validação da transação para exibição de Badges/Pills na interface da Tesouraria.
- * - 'sem_confirmacao_bancaria': banco ainda não liquidou e não há comprovante para análise;
- * - 'aceita' / 'negada': decisão final já proferida pela tesouraria ou bilhetes liquidados;
- * - 'pendente_validacao': liquidado no banco, em análise ou comprovante aguardando conferência da tesouraria.
- *
- * @param {PixTransacao} transacao - Transação avaliada.
- * @returns {StatusValidacaoUI} Estado visual para a interface.
- */
-export function obterStatusValidacaoPix(transacao: PixTransacao): StatusValidacaoUI {
-  if (transacao.statusValidacao) {
-    return transacao.statusValidacao;
-  }
-
-  if (transacao.rifas && transacao.rifas.length > 0) {
-    if (transacao.rifas.every((r) => r.status === "pago")) {
-      return "aceita";
-    }
-    if (transacao.rifas.every((r) => r.status === "recusado")) {
-      return "negada";
-    }
-  }
-
-  if (
-    transacao.origem === "COMPROVANTE" ||
-    Boolean(transacao.comprovanteUrl) ||
-    transacao.statusPagamento === "IN_ANALYSIS" ||
-    pixPagamentoConfirmadoBanco(transacao)
-  ) {
-    return "pendente_validacao";
-  }
-
-  return "sem_confirmacao_bancaria";
-}
-
-/**
- * Determina se a tesouraria pode realizar ações de aprovação ou recusa manual sobre a transação.
- * Válido para qualquer transação pendente de validação (Pix confirmados/em análise ou Comprovantes).
- *
- * @param {PixTransacao} transacao - Transação avaliada.
- * @returns {boolean} `true` se os botões de ação devem ser habilitados.
- */
-export function podeValidarPixTransacao(transacao: PixTransacao): boolean {
-  return obterStatusValidacaoPix(transacao) === "pendente_validacao";
-}
-
-export { formatarDataPix, formatarMoedaPix };
-
 export const RESUMO_PIX_TRANSACOES_VAZIO: PixTransacoesResumo = {
   totalRecebido: 0,
   totalPendente: 0,
@@ -121,95 +50,8 @@ export const RESUMO_PIX_TRANSACOES_VAZIO: PixTransacoesResumo = {
 };
 
 /**
- * Auxiliar interno de busca textual que avalia termos comuns e numéricos sanitizados (CPF, telefone, rifas).
- *
- * @param {string | undefined | null} valor - Conteúdo do campo a verificar.
- * @param {string} termo - Termo textual em minúsculas.
- * @param {string} termoNumerico - Termo contendo apenas dígitos numéricos.
- * @returns {boolean} `true` se o campo corresponder ao termo.
+ * Estrutura normalizada de indicadores consolidados por canal (Pix, Comprovantes e Total Geral).
  */
-function campoContemTermo(
-  valor: string | undefined | null,
-  termo: string,
-  termoNumerico: string,
-): boolean {
-  const texto = String(valor || "").toLowerCase();
-
-  return (
-    texto.includes(termo) ||
-    (termoNumerico.length > 0 && somenteNumeros(texto).includes(termoNumerico))
-  );
-}
-
-/**
- * Avalia se uma transação atende aos filtros rápidos pré-selecionados na toolbar ('novas', 'recusadas', 'aguardando_pagamento').
- *
- * @param {PixTransacao} transacao - Transação avaliada.
- * @param {PixTransacoesFiltros["status"]} status - Filtro rápido ativo.
- * @returns {boolean} `true` se atender ao filtro.
- */
-function atendeFiltroRapido(
-  transacao: PixTransacao,
-  status: PixTransacoesFiltros["status"],
-): boolean {
-  if (status === "novas") return podeValidarPixTransacao(transacao);
-  if (status === "aprovadas") {
-    return (
-      transacao.statusValidacao === "aceita" ||
-      obterStatusValidacaoPix(transacao) === "aceita"
-    );
-  }
-  if (status === "recusadas") {
-    return (
-      transacao.statusValidacao === "negada" ||
-      obterStatusValidacaoPix(transacao) === "negada"
-    );
-  }
-  if (status === "aguardando_pagamento") {
-    return (
-      !podeValidarPixTransacao(transacao) &&
-      !["aceita", "negada"].includes(transacao.statusValidacao || "")
-    );
-  }
-  if (status === "todas") return true;
-
-  return true;
-}
-
-/**
- * Formata os números dos bilhetes de rifa da transação em uma string separada por vírgula.
- *
- * @param {PixTransacao} transacao - Transação contendo a lista de rifas.
- * @returns {string} String legível dos números ou "Sem rifas".
- */
-export function formatarRifasPix(transacao: PixTransacao): string {
-  const numeros = (transacao.rifas || [])
-    .map((rifa) => rifa.numero)
-    .filter(Boolean);
-
-  return numeros.length > 0 ? numeros.join(", ") : "Sem rifas";
-}
-
-/**
- * Converte a chave enum do status bancário em rótulo em português para renderização na UI.
- *
- * @param {StatusPagamentoPix} status - Status bruto da transação.
- * @returns {string} Rótulo amigável (ex: 'Aguardando', 'Pago', 'Em análise').
- */
-export function obterLabelStatusPagamento(status: StatusPagamentoPix): string {
-  const labels: Record<StatusPagamentoPix, string> = {
-    WAITING: "Aguardando",
-    PAID: "Pago",
-    AUTHORIZED: "Autorizado",
-    IN_ANALYSIS: "Em análise",
-    DECLINED: "Negado",
-    CANCELED: "Cancelado",
-    ERROR: "Erro",
-  };
-
-  return labels[status] || status;
-}
-
 export interface IndicadoresConsolidadosTesouraria {
   pix: {
     rifasPagas: number;
@@ -268,25 +110,25 @@ export function obterIndicadoresConsolidados(
 
   const totalGeralTransacoesPagas =
     resumo.totalGeralTransacoesPagas ??
-    (resumo.quantidadePagas + comprovantesTransacoesPagas);
+    resumo.quantidadePagas + comprovantesTransacoesPagas;
   const totalGeralRifasPagas =
     resumo.totalGeralRifasPagas ??
-    ((resumo.pixRifasPagas ?? 0) + comprovantesRifasPagas);
+    (resumo.pixRifasPagas ?? 0) + comprovantesRifasPagas;
   const totalGeralRecebidoBruto =
     resumo.totalGeralRecebidoBruto ??
-    (pixRecebidoBruto + comprovantesValorRecebido);
+    pixRecebidoBruto + comprovantesValorRecebido;
   const totalGeralRecebidoLiquido =
     resumo.totalGeralRecebidoLiquido ??
     Number((pixRecebidoLiquido + comprovantesValorRecebido).toFixed(2));
   const totalGeralTransacoesPendentes =
     resumo.totalGeralTransacoesPendentes ??
-    (resumo.quantidadeAguardando + comprovantesTransacoesPendentes);
+    resumo.quantidadeAguardando + comprovantesTransacoesPendentes;
   const totalGeralRifasPendentes =
     resumo.totalGeralRifasPendentes ??
-    ((resumo.pixRifasAguardando ?? 0) + comprovantesRifasPendentes);
+    (resumo.pixRifasAguardando ?? 0) + comprovantesRifasPendentes;
   const totalGeralValorPendenteBruto =
     resumo.totalGeralValorPendenteBruto ??
-    (pixValorAguardandoBruto + comprovantesValorPendente);
+    pixValorAguardandoBruto + comprovantesValorPendente;
 
   return {
     pix: {
@@ -320,6 +162,20 @@ export function obterIndicadoresConsolidados(
 }
 
 /**
+ * Estima ou lê a quantidade de bilhetes vinculados a uma transação Pix.
+ *
+ * @param {PixTransacao} transacao - Transação avaliada.
+ * @returns {number} Quantidade de bilhetes associada à cobrança.
+ */
+function contarRifasTransacao(transacao: PixTransacao): number {
+  return (
+    transacao.quantidadeRifas ||
+    transacao.rifas?.length ||
+    Math.round((transacao.valorPago || transacao.valorBruto || 0) / 10)
+  );
+}
+
+/**
  * Calcula os totais monetários e contagens resumidas para exibição nos cards do dashboard da Tesouraria Pix.
  * Desconta taxa bancária de 1% (fator 0.99) sobre o valor total recebido.
  *
@@ -332,15 +188,12 @@ export function calcularResumoPixTransacoes(
   const pagas = transacoes.filter((transacao) =>
     ["PAID", "AUTHORIZED"].includes(transacao.statusPagamento),
   );
-
   const aguardando = transacoes.filter((transacao) =>
     ["WAITING", "IN_ANALYSIS"].includes(transacao.statusPagamento),
   );
-
   const canceladas = transacoes.filter((transacao) =>
     ["CANCELED", "DECLINED"].includes(transacao.statusPagamento),
   );
-
   const erros = transacoes.filter(
     (transacao) => transacao.statusPagamento === "ERROR",
   );
@@ -349,32 +202,28 @@ export function calcularResumoPixTransacoes(
     (acc, transacao) => acc + (transacao.valorPago || transacao.valorBruto),
     0,
   );
-
   const totalRecebido = Number(
     pagas.reduce((acc, transacao) => acc + transacao.valorPago * 0.99, 0).toFixed(2),
   );
-
   const totalPendente = aguardando.reduce(
     (acc, transacao) => acc + transacao.valorBruto,
     0,
   );
   const pixValorAguardandoLiquido = Number((totalPendente * 0.99).toFixed(2));
-
   const totalCancelado = canceladas.reduce(
     (acc, transacao) => acc + transacao.valorBruto,
     0,
   );
-
   const totalErros = erros.reduce(
     (acc, transacao) => acc + transacao.valorBruto,
     0,
   );
 
-  const contarRifas = (t: PixTransacao) =>
-    t.quantidadeRifas || t.rifas?.length || Math.round((t.valorPago || t.valorBruto || 0) / 10);
-
-  const pixRifasPagas = pagas.reduce((acc, t) => acc + contarRifas(t), 0);
-  const pixRifasAguardando = aguardando.reduce((acc, t) => acc + contarRifas(t), 0);
+  const pixRifasPagas = pagas.reduce((acc, t) => acc + contarRifasTransacao(t), 0);
+  const pixRifasAguardando = aguardando.reduce(
+    (acc, t) => acc + contarRifasTransacao(t),
+    0,
+  );
 
   return {
     ...RESUMO_PIX_TRANSACOES_VAZIO,
@@ -408,49 +257,6 @@ export function calcularResumoPixTransacoes(
     totalGeralRifasPendentes: pixRifasAguardando,
     totalGeralValorPendenteBruto: totalPendente,
   };
-}
-
-/**
- * Filtra a lista de transações Pix com base no termo de busca textual (comprador, email, CPF, telefone, aderido, rifas)
- * e nos filtros rápidos de status selecionados pelo usuário.
- *
- * @param {PixTransacao[]} transacoes - Lista de transações brutas.
- * @param {PixTransacoesFiltros} filtros - Critérios de filtro informados na barra de ferramentas.
- * @returns {PixTransacao[]} Lista filtrada de transações.
- */
-export function filtrarPixTransacoes(
-  transacoes: PixTransacao[],
-  filtros: PixTransacoesFiltros,
-): PixTransacao[] {
-  const termo = filtros.busca.trim().toLowerCase();
-  const termoNumerico = somenteNumeros(termo);
-
-  return transacoes.filter((transacao) => {
-    if (
-      filtros.origem &&
-      filtros.origem !== "todas" &&
-      transacao.origem !== filtros.origem
-    ) {
-      return false;
-    }
-
-    const camposBusca = [
-      transacao.descricao,
-      transacao.compradorNome,
-      transacao.compradorEmail,
-      transacao.compradorDocumento,
-      transacao.compradorTelefone,
-      transacao.aderido?.nome,
-      transacao.aderido?.cpf,
-      ...(transacao.rifas || []).map((rifa) => rifa.numero),
-    ];
-
-    const buscaValida =
-      !termo ||
-      camposBusca.some((campo) => campoContemTermo(campo, termo, termoNumerico));
-
-    return buscaValida && atendeFiltroRapido(transacao, filtros.status);
-  });
 }
 
 /**

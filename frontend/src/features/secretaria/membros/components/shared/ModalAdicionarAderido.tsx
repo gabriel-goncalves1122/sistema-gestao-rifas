@@ -1,42 +1,30 @@
 import { type ChangeEvent, type MouseEvent, useState } from "react";
 import {
-  Box,
   Button,
   CircularProgress,
-  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
-  TextField,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material/Select";
 import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
-import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 
 import {
-  CURSOS_UNIFEI,
   CARGOS_COMISSAO,
 } from "../../../../../shared/types/constants";
 import type { FormNovoAderido, ModalidadeAdesao } from "../../../../../shared/types/secretaria";
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
-import { SectionTitle } from "@/shared/components/SectionTitle";
 import {
   formatarNomeMembro,
-  formatarTelefone,
   sanitizarTelefoneColagem,
   somenteNumeros,
 } from "../../utils/formatadoresSecretaria";
+import { ModalAdicionarAderidoDadosFields } from "./modalAdicionar/ModalAdicionarAderidoDadosFields";
+import { ModalAdicionarAderidoVinculoFields } from "./modalAdicionar/ModalAdicionarAderidoVinculoFields";
 
 interface ModalAdicionarAderidoProps {
   open: boolean;
@@ -165,189 +153,25 @@ export function ModalAdicionarAderido({
 
       <DialogContent sx={{ p: 3, bgcolor: colors.branco }}>
         <Stack spacing={2.25}>
-          <Stack spacing={1.5}>
-            <SectionTitle>Tipo de cadastro</SectionTitle>
-            <ToggleButtonGroup
-              exclusive
-              fullWidth
-              color="primary"
-              value={form.modalidade_adesao}
-              onChange={handleModalidadeChange}
-              disabled={isSubmitting}
-              sx={{
-                "& .MuiToggleButton-root": {
-                  borderRadius: 2,
-                  py: 1,
-                  fontWeight: 800,
-                },
-              }}
-            >
-              <ToggleButton value="completo">Aderido completo</ToggleButton>
-              <ToggleButton value="meio">Meio-aderido</ToggleButton>
-            </ToggleButtonGroup>
-
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: 2,
-                bgcolor:
-                  form.modalidade_adesao === "completo"
-                    ? "rgba(46, 125, 50, 0.08)"
-                    : "rgba(237, 108, 2, 0.08)",
-                border: "1px solid",
-                borderColor:
-                  form.modalidade_adesao === "completo"
-                    ? "rgba(46, 125, 50, 0.25)"
-                    : "rgba(237, 108, 2, 0.25)",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.25,
-              }}
-            >
-              <ConfirmationNumberIcon
-                color={
-                  form.modalidade_adesao === "completo" ? "primary" : "warning"
-                }
-                sx={{ fontSize: 24 }}
-              />
-              <Box>
-                <Typography
-                  variant="subtitle2"
-                  fontWeight={800}
-                  color="text.primary"
-                >
-                  {form.modalidade_adesao === "completo"
-                    ? "Alocação: 120 Rifas Sequenciais"
-                    : "Alocação: 60 Rifas Sequenciais"}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={600}
-                >
-                  {form.modalidade_adesao === "completo"
-                    ? "Meta financeira: R$ 1.200,00 • Geradas na autorização"
-                    : "Meta financeira: R$ 600,00 • Geradas na autorização"}
-                </Typography>
-              </Box>
-            </Box>
-          </Stack>
+          <ModalAdicionarAderidoVinculoFields
+            form={form}
+            isSubmitting={isSubmitting}
+            vinculoSelecionado={vinculoSelecionado}
+            isComissao={isComissao}
+            cargosMenu={cargosMenu}
+            onModalidadeChange={handleModalidadeChange}
+            onVinculoChange={handleVinculoChange}
+            onChange={handleChange}
+          />
 
           <Divider />
 
-          <Stack spacing={1.5}>
-            <SectionTitle>Identificação</SectionTitle>
-            <TextField
-              name="email"
-              label="E-mail da Keeper *"
-              fullWidth
-              required
-              value={form.email}
-              onChange={handleChange}
-              placeholder="exemplo@unifei.br"
-              disabled={isSubmitting}
-              size="small"
-              sx={components.formField}
-            />
-
-            <TextField
-              name="nome"
-              label="Nome completo"
-              fullWidth
-              value={form.nome}
-              onChange={handleChange}
-              disabled={isSubmitting}
-              size="small"
-              sx={components.formField}
-            />
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={1.5}>
-            <SectionTitle>Dados opcionais</SectionTitle>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <FormControl fullWidth disabled={isSubmitting} size="small" sx={components.selectField}>
-                <InputLabel id="curso-label">Curso</InputLabel>
-                <Select
-                  labelId="curso-label"
-                  name="curso"
-                  value={form.curso}
-                  label="Curso"
-                  onChange={handleChange}
-                >
-                  <MenuItem value="">Não informado</MenuItem>
-                  {CURSOS_UNIFEI.map((curso) => (
-                    <MenuItem key={curso} value={curso.toUpperCase()}>{curso}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                name="dataNascimento"
-                label="Data de Nascimento"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={form.dataNascimento}
-                onChange={handleChange}
-                disabled={isSubmitting}
-                size="small"
-                sx={components.formField}
-              />
-            </Stack>
-
-            <TextField
-              name="telefone"
-              label="Telefone"
-              fullWidth
-              placeholder="(35) 9..."
-              value={formatarTelefone(form.telefone)}
-              onChange={handleTelefoneChange}
-              disabled={isSubmitting}
-              size="small"
-              sx={components.formField}
-              inputProps={{
-                inputMode: "numeric",
-              }}
-            />
-          </Stack>
-
-          <Divider />
-
-          <Stack spacing={1.5}>
-            <SectionTitle>Vínculo</SectionTitle>
-
-            <FormControl fullWidth disabled={isSubmitting} size="small" sx={components.selectField}>
-              <InputLabel id="vinculo-membro-label">Vínculo</InputLabel>
-              <Select
-                labelId="vinculo-membro-label"
-                value={vinculoSelecionado}
-                label="Vínculo"
-                onChange={(event) => handleVinculoChange(event.target.value as VinculoMembro)}
-              >
-                <MenuItem value="aderido">Aderido</MenuItem>
-                <MenuItem value="comissao">Comissão</MenuItem>
-              </Select>
-            </FormControl>
-
-            <Collapse in={isComissao} data-testid="area-comissao">
-              <FormControl fullWidth disabled={isSubmitting} size="small" sx={components.selectField}>
-                <InputLabel id="cargo-comissao-label">Cargo na Comissão</InputLabel>
-                <Select
-                  labelId="cargo-comissao-label"
-                  name="cargo"
-                  value={form.cargo}
-                  label="Cargo na Comissão"
-                  onChange={handleChange}
-                >
-                  {cargosMenu.map((cargo) => (
-                    <MenuItem key={cargo.id} value={cargo.id}>{cargo.label}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Collapse>
-          </Stack>
+          <ModalAdicionarAderidoDadosFields
+            form={form}
+            isSubmitting={isSubmitting}
+            onChange={handleChange}
+            onTelefoneChange={handleTelefoneChange}
+          />
         </Stack>
       </DialogContent>
 

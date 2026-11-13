@@ -1,26 +1,16 @@
 import {
   Alert,
-  Box,
   Button,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import { FormEvent, useEffect, useState } from "react";
 
+import { ResponsiveDialogShell } from "@/shared/components/ResponsiveDialogShell";
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 import { formatarTelefone } from "@/shared/utils/formatadores";
-import { colors } from "@/shared/tokens/colors";
-import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
-import { typographyScale as typography } from "@/shared/tokens/typography";
-import { layout } from "../../../styles/layout";
 import { useTesourariaLayout } from "../../../hooks/useTesourariaLayout";
 
 interface AuditoriaCompraEdicaoDialogProps {
@@ -138,80 +128,24 @@ export function AuditoriaCompraEdicaoDialog({
     </>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer
-        anchor="bottom"
-        open={Boolean(compra)}
-        onClose={onClose}
-        PaperProps={{
-          sx: layout.drawerPaper,
-        }}
-      >
-        {compra && (
-          <Stack
-            component="form"
-            id="auditoria-compra-edicao-form"
-            onSubmit={salvar}
-            spacing={2}
-            sx={{ pb: 2 }}
-          >
-            <Box sx={layout.drawerPullHandle} />
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Box>
-                <Typography sx={{ ...typography.titulo, fontSize: "1.2rem" }}>
-                  Editar dados do comprador
-                </Typography>
-                <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.85rem", mt: 0.2 }}>
-                  Preparado para alterar apenas dados de contato.
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ flex: 1, overflowY: "auto", pb: 1 }}>
-              {conteudoEdicao}
-            </Box>
-            <Box sx={{ pt: 1, borderTop: `1px solid ${colors.borda}` }}>
-              <Stack direction="row" spacing={1.5}>
-                {botoesAcoes}
-              </Stack>
-            </Box>
-          </Stack>
-        )}
-      </Drawer>
-    );
-  }
-
   return (
-    <Dialog
+    <ResponsiveDialogShell
       open={Boolean(compra)}
       onClose={onClose}
+      isMobile={isMobile}
+      title="Editar dados do comprador"
+      subtitle={
+        isMobile
+          ? "Preparado para alterar apenas dados de contato."
+          : "Preparado para alterar apenas dados de contato, sem tocar nos vínculos."
+      }
       maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: surfaces.dialog,
-      }}
+      formId="auditoria-compra-edicao-form"
+      onSubmit={salvar}
+      contentSx={{ pt: 2.75 }}
+      actions={botoesAcoes}
     >
-      <DialogTitle
-        sx={surfaces.dialogTitle}
-      >
-        Editar dados do comprador
-        <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.88rem", mt: 0.45 }}>
-          Preparado para alterar apenas dados de contato, sem tocar nos vínculos.
-        </Typography>
-      </DialogTitle>
-      {compra && (
-        <DialogContent
-          component="form"
-          id="auditoria-compra-edicao-form"
-          onSubmit={salvar}
-          sx={{ pt: 2.75 }}
-        >
-          {conteudoEdicao}
-        </DialogContent>
-      )}
-      <DialogActions sx={surfaces.dialogActions}>
-        {botoesAcoes}
-      </DialogActions>
-    </Dialog>
+      {compra && conteudoEdicao}
+    </ResponsiveDialogShell>
   );
 }

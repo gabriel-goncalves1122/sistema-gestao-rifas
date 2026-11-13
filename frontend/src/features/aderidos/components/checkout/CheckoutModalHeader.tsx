@@ -4,12 +4,14 @@ import { Box, IconButton, Typography } from "@mui/material";
 import { colors } from "@/shared/tokens/colors";
 
 interface CheckoutModalHeaderProps {
-  gerandoPix: boolean;
+  gerandoPix?: boolean;
+  desabilitado?: boolean;
   onClose: () => void;
 }
 
 export function CheckoutModalHeader({
-  gerandoPix,
+  gerandoPix = false,
+  desabilitado = false,
   onClose,
 }: CheckoutModalHeaderProps) {
   return (
@@ -40,6 +42,7 @@ export function CheckoutModalHeader({
 
       <IconButton
         onClick={onClose}
+        disabled={gerandoPix || desabilitado}
         aria-label="Fechar modal de venda"
         sx={{
           bgcolor: "#F1F4F3",

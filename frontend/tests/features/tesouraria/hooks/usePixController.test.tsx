@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePixController } from "@/features/tesouraria/hooks/usePixController";
 import { usePixTransacoes } from "@/features/tesouraria/hooks/usePixTransacoes";
-import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 
 vi.mock("@/features/tesouraria/hooks/usePixTransacoes", () => ({
   usePixTransacoes: vi.fn(),

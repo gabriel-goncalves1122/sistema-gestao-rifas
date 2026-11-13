@@ -3,14 +3,18 @@ import { describe, expect, it } from "vitest";
 import {
   calcularContagensAuditoria,
   calcularResumoAuditoria,
-  criarCsvAuditoriaCompras,
+} from "@/features/tesouraria/utils/auditoriaComprasMetricasUtils";
+import { criarCsvAuditoriaCompras } from "@/features/tesouraria/utils/auditoriaComprasExportUtils";
+import {
   FILTROS_AUDITORIA_COMPRAS_VAZIOS,
   filtrarComprasAuditaveis,
   filtrosAuditoriaAtivos,
   origemLabelAuditoria,
+} from "@/features/tesouraria/utils/auditoriaComprasFiltrosUtils";
+import {
   origemSxAuditoria,
   correcaoPendenteSxAuditoria,
-} from "@/features/tesouraria/utils/auditoriaComprasUtils";
+} from "@/features/tesouraria/styles/auditoriaComprasStyles";
 import { TransacaoTesouraria } from "@/features/tesouraria/types/auditoriaCompras";
 
 const compras: TransacaoTesouraria[] = [

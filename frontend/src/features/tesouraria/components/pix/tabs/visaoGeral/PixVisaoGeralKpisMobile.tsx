@@ -1,10 +1,8 @@
 import { Box, Paper, Typography } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
-import {
-  formatarMoedaPix,
-  obterIndicadoresConsolidados,
-} from "../../../../utils/pixTransacoesUtils";
+import { obterIndicadoresConsolidados } from "../../../../utils/pixTransacoesMetricasUtils";
 import { colors } from "@/shared/tokens/colors";
 
 interface PixVisaoGeralKpisMobileProps {
@@ -19,7 +17,7 @@ export function PixVisaoGeralKpisMobile({
   const kpisMobile = [
     {
       label: "Recebido (Líq)",
-      valor: formatarMoedaPix(ind.totalGeral.recebidoLiquido),
+      valor: formatarMoeda(ind.totalGeral.recebidoLiquido),
       destaque: true,
     },
     {
@@ -32,7 +30,7 @@ export function PixVisaoGeralKpisMobile({
     },
     {
       label: "Ticket médio",
-      valor: formatarMoedaPix(resumo.ticketMedio),
+      valor: formatarMoeda(resumo.ticketMedio),
     },
   ];
 

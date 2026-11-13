@@ -3,15 +3,13 @@ import ConfirmationNumberOutlinedIcon from "@mui/icons-material/ConfirmationNumb
 import PixIcon from "@mui/icons-material/Pix";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
-import {
-  formatarMoedaPix,
-  obterIndicadoresConsolidados,
-} from "../../../../utils/pixTransacoesUtils";
+import { obterIndicadoresConsolidados } from "../../../../utils/pixTransacoesMetricasUtils";
 
 /**
  * Interface de propriedades do componente PixResumoConsolidado.
@@ -116,11 +114,11 @@ export function PixResumoConsolidado({
               mt: 0.5,
             }}
           >
-            {formatarMoedaPix(ind.totalGeral.recebidoLiquido)}
+            {formatarMoeda(ind.totalGeral.recebidoLiquido)}
           </Typography>
 
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mt: 0.25 }}>
-            Valor bruto: {formatarMoedaPix(ind.totalGeral.recebidoBruto)}
+            Valor bruto: {formatarMoeda(ind.totalGeral.recebidoBruto)}
           </Typography>
 
           <Box
@@ -179,11 +177,11 @@ export function PixResumoConsolidado({
               mt: 0.5,
             }}
           >
-            {formatarMoedaPix(ind.pix.recebidoLiquido)}
+            {formatarMoeda(ind.pix.recebidoLiquido)}
           </Typography>
 
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mt: 0.25 }}>
-            Bruto: {formatarMoedaPix(ind.pix.recebidoBruto)} (taxa de 1% deduzida)
+            Bruto: {formatarMoeda(ind.pix.recebidoBruto)} (taxa de 1% deduzida)
           </Typography>
 
           <Box
@@ -209,7 +207,7 @@ export function PixResumoConsolidado({
                 AGUARDANDO
               </Typography>
               <Typography sx={{ color: colors.dourado, fontSize: "1.05rem", fontWeight: 900 }}>
-                {formatarMoedaPix(ind.pix.valorAguardandoBruto)}
+                {formatarMoeda(ind.pix.valorAguardandoBruto)}
               </Typography>
             </Box>
           </Box>
@@ -242,7 +240,7 @@ export function PixResumoConsolidado({
               mt: 0.5,
             }}
           >
-            {formatarMoedaPix(ind.comprovantes.valorRecebido)}
+            {formatarMoeda(ind.comprovantes.valorRecebido)}
           </Typography>
 
           <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.78rem", mt: 0.25 }}>
@@ -272,7 +270,7 @@ export function PixResumoConsolidado({
                 A CONFERIR
               </Typography>
               <Typography sx={{ color: colors.dourado, fontSize: "1.05rem", fontWeight: 900 }}>
-                {formatarMoedaPix(ind.comprovantes.valorPendente)}
+                {formatarMoeda(ind.comprovantes.valorPendente)}
               </Typography>
             </Box>
           </Box>

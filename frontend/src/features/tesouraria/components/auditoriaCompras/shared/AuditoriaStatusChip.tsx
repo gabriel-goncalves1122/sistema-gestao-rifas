@@ -1,6 +1,7 @@
 import { Chip } from "@mui/material";
 
-import { statusLabelAuditoria, statusSxAuditoria } from "../../../utils/auditoriaComprasUtils";
+import { statusLabelAuditoria } from "../../../utils/auditoriaComprasFiltrosUtils";
+import { statusSxAuditoria } from "../../../styles/auditoriaComprasStyles";
 
 export function AuditoriaStatusChip({ status }: { status: string }) {
   return (

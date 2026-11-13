@@ -2,31 +2,20 @@
 // ARQUIVO: frontend/src/features/aderidos/CheckoutModal.tsx
 // ============================================================================
 import {
-  Button,
   Dialog,
   DialogContent,
   Stack,
 } from "@mui/material";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import FlashOnIcon from "@mui/icons-material/FlashOn";
 import { useEffect, useRef, useState } from "react";
 
 import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 
+import { CheckoutCancelarReservaDialog } from "./components/checkout/CheckoutCancelarReservaDialog";
 import { CheckoutModalHeader } from "./components/checkout/CheckoutModalHeader";
 import { CheckoutResumoVenda } from "./components/checkout/CheckoutResumoVenda";
 import { CheckoutNovaApiView } from "./components/checkout/novaApi/CheckoutNovaApiView";
-import { CheckoutMercadoPagoView } from "./components/checkout/mercadopago/CheckoutMercadoPagoView";
 import { usePixStateMachine } from "./hooks/usePixStateMachine";
 import { checkoutStorage } from "./utils/checkoutStorage";
-import { colors } from "@/shared/tokens/colors";
-
-/**
- * Modos de Checkout suportados pela interface:
- * - `nova_api`: Chave direta / InfinitePay com foco em Copia-e-Cola e Comprovante (sem CPF, sem e-mail obrigatório).
- * - `mercadopago`: Gateway com confirmação automática via Webhook (exige CPF e E-mail).
- */
-export type ModoCheckout = "nova_api" | "mercadopago";
 
 /**
  * Propriedades do orquestrador modal de Checkout.
@@ -42,13 +31,11 @@ interface CheckoutModalProps {
   numerosRifas: string[];
   /** Callback para invalidar e recarregar dados do painel */
   invalidarDadosPainel: () => Promise<void>;
-  /** Modo inicial selecionado (padrão: "nova_api") */
-  modoInicial?: ModoCheckout;
 }
 
 /**
  * Conteúdo interno do modal de Checkout.
- * Orquestra a troca entre a Nova API e o Mercado Pago, preservando a máquina de estados Pix.
+ * Orquestra o fluxo único via InfinitePay (EMV Offline + Comprovante), preservando a máquina de estados Pix.
  */
 function CheckoutModalContent({
   open,
@@ -56,10 +43,9 @@ function CheckoutModalContent({
   onSuccess,
   numerosRifas,
   invalidarDadosPainel,
-  modoInicial = "nova_api",
 }: CheckoutModalProps) {
-  const [modoCheckout, setModoCheckout] = useState<ModoCheckout>(modoInicial);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [confirmarCancelamentoOpen, setConfirmarCancelamentoOpen] = useState(false);
   const sessaoCheckoutId = useRef(
     checkoutStorage.get().sessaoCheckoutId || `sessao_${Date.now()}`
   ).current;
@@ -79,10 +65,14 @@ function CheckoutModalContent({
     copiarPix,
     cancelarCobranca: cancelarPix,
     resetarFluxo: resetarFluxoPix,
-    marcarComoExpiradoLocal,
     liberarReservaTotal,
     abortarGeracaoPendente,
-  } = usePixStateMachine({ numerosRifas, sessaoCheckoutId, invalidarDadosPainel });
+  } = usePixStateMachine({
+    numerosRifas,
+    sessaoCheckoutId,
+    invalidarDadosPainel,
+    onSuccess,
+  });
 
   const prevOpen = useRef(false);
 
@@ -105,13 +95,21 @@ function CheckoutModalContent({
       ) {
         // Retoma o fluxo silenciosamente quando a cobrança ativa corresponde às mesmas rifas
       } else if (cobrancaAtual) {
-        resetarFluxoPix();
+        if (cobrancaAtual.status === "aguardando_pagamento") {
+          liberarReservaTotal().catch(console.warn);
+        } else {
+          resetarFluxoPix();
+        }
       }
     }
     prevOpen.current = open;
-  }, [open, resetarFluxoPix, numerosRifas]);
+  }, [open, resetarFluxoPix, liberarReservaTotal, numerosRifas]);
 
   const fecharModal = () => {
+    if (enviandoComprovante) {
+      return;
+    }
+
     if (pollingStatus === "gerando") {
       abortarGeracaoPendente();
       onClose();
@@ -124,12 +122,17 @@ function CheckoutModalContent({
     }
 
     if (pollingStatus === "aguardando_pagamento") {
-      // Fecha a janela mantendo o Pix ativo no storage para envio pelo WhatsApp
-      onClose();
+      setConfirmarCancelamentoOpen(true);
       return;
     }
 
     liberarReservaTotal().catch(console.error);
+    onClose();
+  };
+
+  const handleConfirmarCancelamento = async () => {
+    setConfirmarCancelamentoOpen(false);
+    await liberarReservaTotal();
     onClose();
   };
 
@@ -140,13 +143,14 @@ function CheckoutModalContent({
 
   const numerosRifasEfetivos =
     temMesmasRifasNaCobranca && cobrancaPix
-      ? cobrancaPix.numerosRifas
+      ? cobrancaPix.numerosRifas || numerosRifas
       : numerosRifas;
 
   return (
     <>
       <CheckoutModalHeader
         gerandoPix={pollingStatus === "gerando"}
+        desabilitado={enviandoComprovante}
         onClose={fecharModal}
       />
 
@@ -155,109 +159,22 @@ function CheckoutModalContent({
           {/* Resumo visual do lote de rifas e valor total */}
           <CheckoutResumoVenda numerosRifas={numerosRifasEfetivos} />
 
-          {/* Seletor de Modo de Pagamento (Nova API vs Mercado Pago) */}
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-              p: 0.5,
-              bgcolor: colors.fundoSuave,
-              borderRadius: 2.5,
-              border: `1px solid ${colors.borda}`,
-            }}
-          >
-            <Button
-              fullWidth
-              size="small"
-              onClick={() => setModoCheckout("nova_api")}
-              disabled={Boolean(cobrancaPix) || pollingStatus === "gerando"}
-              startIcon={<FlashOnIcon fontSize="small" />}
-              sx={{
-                borderRadius: 2,
-                py: 0.85,
-                fontWeight: 800,
-                fontSize: { xs: "0.78rem", sm: "0.82rem" },
-                textTransform: "none",
-                transition: "all 0.2s ease",
-                ...(modoCheckout === "nova_api"
-                  ? {
-                      bgcolor: colors.branco,
-                      color: colors.verdeEscuro,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                      "&:hover": { bgcolor: colors.branco },
-                    }
-                  : {
-                      color: colors.cinzaTexto,
-                      "&:hover": { bgcolor: "transparent", color: colors.verdeEscuro },
-                    }),
-              }}
-            >
-              Pix Chave Rápida
-            </Button>
-
-            <Button
-              fullWidth
-              size="small"
-              onClick={() => setModoCheckout("mercadopago")}
-              disabled={Boolean(cobrancaPix) || pollingStatus === "gerando"}
-              startIcon={<AccountBalanceIcon fontSize="small" />}
-              sx={{
-                borderRadius: 2,
-                py: 0.85,
-                fontWeight: 800,
-                fontSize: { xs: "0.78rem", sm: "0.82rem" },
-                textTransform: "none",
-                transition: "all 0.2s ease",
-                ...(modoCheckout === "mercadopago"
-                  ? {
-                      bgcolor: colors.branco,
-                      color: colors.verdeEscuro,
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                      "&:hover": { bgcolor: colors.branco },
-                    }
-                  : {
-                      color: colors.cinzaTexto,
-                      "&:hover": { bgcolor: "transparent", color: colors.verdeEscuro },
-                    }),
-              }}
-            >
-              Mercado Pago
-            </Button>
-          </Stack>
-
-          {/* Renderização Condicional do Fluxo de Checkout Escolhido */}
-          {modoCheckout === "nova_api" ? (
-            <CheckoutNovaApiView
-              numerosRifas={numerosRifasEfetivos}
-              cobrancaPix={cobrancaPix}
-              pollingStatus={pollingStatus}
-              cancelandoPix={cancelandoPix}
-              enviandoComprovante={enviandoComprovante}
-              erroPix={erroPix}
-              gerarCobranca={gerarCobranca}
-              copiarPix={copiarPix}
-              cancelarPix={cancelarPix}
-              resetarFluxoPix={resetarFluxoPix}
-              onSuccess={onSuccess}
-              confirmarEnvioComprovante={confirmarEnvioComprovante}
-              setSnackbarOpen={setSnackbarOpen}
-            />
-          ) : (
-            <CheckoutMercadoPagoView
-              numerosRifas={numerosRifasEfetivos}
-              cobrancaPix={cobrancaPix}
-              pollingStatus={pollingStatus}
-              cancelandoPix={cancelandoPix}
-              erroPix={erroPix}
-              gerarCobranca={gerarCobranca}
-              copiarPix={copiarPix}
-              cancelarPix={cancelarPix}
-              resetarFluxoPix={resetarFluxoPix}
-              marcarComoExpiradoLocal={marcarComoExpiradoLocal}
-              onSuccess={onSuccess}
-              setSnackbarOpen={setSnackbarOpen}
-            />
-          )}
+          {/* Fluxo único de Checkout via InfinitePay (EMV Offline + Comprovante) */}
+          <CheckoutNovaApiView
+            numerosRifas={numerosRifasEfetivos}
+            cobrancaPix={cobrancaPix}
+            pollingStatus={pollingStatus}
+            cancelandoPix={cancelandoPix}
+            enviandoComprovante={enviandoComprovante}
+            erroPix={erroPix}
+            gerarCobranca={gerarCobranca}
+            copiarPix={copiarPix}
+            cancelarPix={cancelarPix}
+            resetarFluxoPix={resetarFluxoPix}
+            onSuccess={onSuccess}
+            confirmarEnvioComprovante={confirmarEnvioComprovante}
+            setSnackbarOpen={setSnackbarOpen}
+          />
         </Stack>
       </DialogContent>
 
@@ -267,6 +184,13 @@ function CheckoutModalContent({
         severidade="success"
         autoHideDuration={2200}
         onClose={() => setSnackbarOpen(false)}
+      />
+
+      <CheckoutCancelarReservaDialog
+        open={confirmarCancelamentoOpen}
+        cancelando={cancelandoPix}
+        onConfirmar={handleConfirmarCancelamento}
+        onVoltar={() => setConfirmarCancelamentoOpen(false)}
       />
     </>
   );

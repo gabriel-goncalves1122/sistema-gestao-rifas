@@ -1,28 +1,24 @@
-import CloseIcon from "@mui/icons-material/Close";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
-  IconButton,
   Stack,
   Typography,
 } from "@mui/material";
 
+import { ResponsiveDialogShell } from "@/shared/components/ResponsiveDialogShell";
+
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
-import {
-  formatarDataAuditoria,
-  formatarMoedaAuditoria,
-} from "../../../utils/auditoriaComprasUtils";
+
 import { AuditoriaStatusChip } from "./AuditoriaStatusChip";
 import { AuditoriaOrigemChip } from "./AuditoriaOrigemChip";
 import { AuditoriaCorrecaoChip } from "./AuditoriaCorrecaoChip";
-import { formatarTelefone } from "@/shared/utils/formatadores";
+import {
+  formatarTelefone,
+  formatarDataCurta,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -137,7 +133,7 @@ export function AuditoriaCompraDetalhesDialog({
                 lineHeight: 1.1,
               }}
             >
-              {formatarMoedaAuditoria(compra.valorTotal)}
+              {formatarMoeda(compra.valorTotal)}
             </Typography>
             <Typography
               sx={{
@@ -217,11 +213,11 @@ export function AuditoriaCompraDetalhesDialog({
         />
         <CampoDetalhe
           label="Data da reserva"
-          valor={formatarDataAuditoria(compra.dataReserva)}
+          valor={formatarDataCurta(compra.dataReserva)}
         />
         <CampoDetalhe
           label="Data do pagamento"
-          valor={formatarDataAuditoria(compra.dataPagamento)}
+          valor={formatarDataCurta(compra.dataPagamento)}
         />
         {txidIdentificador && (
           <CampoDetalhe
@@ -250,89 +246,25 @@ export function AuditoriaCompraDetalhesDialog({
     </Stack>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer
-        anchor="bottom"
-        open={Boolean(compra)}
-        onClose={onClose}
-        PaperProps={{
-          sx: layout.drawerPaper,
-        }}
-      >
-        {compra && (
-          <Stack spacing={2} sx={{ pb: 2 }}>
-            <Box sx={layout.drawerPullHandle} />
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <Typography sx={{ ...typography.titulo, fontSize: "1.18rem" }}>
-                Detalhes da compra
-              </Typography>
-              <IconButton
-                aria-label="Fechar detalhes da compra"
-                onClick={onClose}
-                size="small"
-                sx={{ color: colors.cinzaTexto }}
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            <Box sx={{ flex: 1, overflowY: "auto", px: 0.25, pb: 1 }}>
-              {conteudoDetalhes}
-            </Box>
-            <Box sx={{ pt: 1, borderTop: `1px solid ${colors.borda}` }}>
-              <Button
-                fullWidth
-                onClick={onClose}
-                sx={components.botaoSecundario}
-              >
-                Fechar
-              </Button>
-            </Box>
-          </Stack>
-        )}
-      </Drawer>
-    );
-  }
-
   return (
-    <Dialog
+    <ResponsiveDialogShell
       open={Boolean(compra)}
       onClose={onClose}
+      isMobile={isMobile}
+      title="Detalhes da compra"
+      closeAriaLabel="Fechar detalhes da compra"
       maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: surfaces.dialog,
-      }}
-    >
-      <DialogTitle sx={{ ...surfaces.dialogTitle, pr: 6 }}>
-        Detalhes da compra
-        <IconButton
-          aria-label="Fechar detalhes da compra"
+      actions={
+        <Button
+          fullWidth={isMobile}
           onClick={onClose}
-          sx={{
-            position: "absolute",
-            right: 12,
-            top: 12,
-            color: colors.cinzaTexto,
-          }}
+          sx={components.botaoSecundario}
         >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      {compra && (
-        <DialogContent sx={{ pt: 2.25 }}>{conteudoDetalhes}</DialogContent>
-      )}
-      <DialogActions sx={surfaces.dialogActions}>
-        <Button onClick={onClose} sx={components.botaoSecundario}>
           Fechar
         </Button>
-      </DialogActions>
-    </Dialog>
+      }
+    >
+      {compra && conteudoDetalhes}
+    </ResponsiveDialogShell>
   );
 }

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PixRecebimentosTemporalChart } from "@/features/tesouraria/components/pix/tabs/visaoGeral/PixRecebimentosTemporalChart";
 import { pixTransacoesMock } from "@/features/tesouraria/mocks/pixTransacoesMock";
-import { calcularResumoPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { calcularResumoPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 import { montarDadosTemporaisPix } from "@/features/tesouraria/utils/pixVisaoGeralUtils";
 
 vi.mock("recharts", async () => {

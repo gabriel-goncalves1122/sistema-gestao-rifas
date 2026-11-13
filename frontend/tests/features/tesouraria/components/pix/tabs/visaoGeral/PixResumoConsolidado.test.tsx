@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { PixResumoConsolidado } from "@/features/tesouraria/components/pix/tabs/visaoGeral/PixResumoConsolidado";
 import { PixTransacoesResumo } from "@/features/tesouraria/types/pixTransacoes";
-import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { RESUMO_PIX_TRANSACOES_VAZIO } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 
 describe("Componente: PixResumoConsolidado", () => {
   it("Deve renderizar os 3 canais consolidados (Total Geral, Pix e Comprovantes)", () => {

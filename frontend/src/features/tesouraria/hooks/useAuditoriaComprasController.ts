@@ -5,8 +5,8 @@ import { TransacaoTesouraria } from "../types/auditoriaCompras";
 import {
   calcularContagensAuditoria,
   calcularResumoAuditoria,
-  criarCsvAuditoriaCompras,
-} from "../utils/auditoriaComprasUtils";
+} from "../utils/auditoriaComprasMetricasUtils";
+import { criarCsvAuditoriaCompras } from "../utils/auditoriaComprasExportUtils";
 import { auditoriaComprasService } from "../services/auditoriaComprasService";
 
 import { useAuditoriaComprasFiltros } from "./useAuditoriaComprasFiltros";

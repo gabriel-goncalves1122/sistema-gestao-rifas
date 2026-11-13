@@ -1,12 +1,12 @@
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import {
+  formatarData,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixAderidoResumo } from "../../../../utils/pixAderidosUtils";
-import {
-  formatarDataPix,
-  formatarMoedaPix,
-} from "../../../../utils/pixTransacoesUtils";
 
 /**
  * Propriedades da listagem de transações relacionadas a um aderido.
@@ -139,7 +139,7 @@ export function PixAderidoTransacoesLista({
                       fontWeight: 500,
                     }}
                   >
-                    {formatarDataPix(
+                    {formatarData(
                       transacao.dataPagamento || transacao.dataCriacao,
                     )}{" "}
                     • {qtdRifas} rifa(s)
@@ -155,7 +155,7 @@ export function PixAderidoTransacoesLista({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {formatarMoedaPix(transacao.valorPago)}
+                  {formatarMoeda(transacao.valorPago)}
                 </Typography>
               </Paper>
             );

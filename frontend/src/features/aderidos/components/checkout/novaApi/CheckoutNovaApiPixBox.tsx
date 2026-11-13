@@ -45,9 +45,9 @@ interface CheckoutNovaApiPixBoxProps {
   onResetPix?: () => void;
   /** Callback disparado ao concluir com sucesso */
   onSuccess?: () => void;
-  /** Callback para submeter o comprovante ou confirmação de pagamento */
+  /** Callback para submeter o comprovante obrigatório de pagamento */
   onConfirmarEnvio?: (
-    arquivo: File | null,
+    arquivo: File,
     resultado: ResultadoValidacaoArquivo | null,
   ) => void;
 }
@@ -86,7 +86,7 @@ export function CheckoutNovaApiPixBox({
   };
 
   const handleSubmeterEnvio = () => {
-    if (onConfirmarEnvio) {
+    if (onConfirmarEnvio && arquivoComprovante) {
       onConfirmarEnvio(arquivoComprovante, resultadoValidacao);
     }
   };
@@ -165,12 +165,25 @@ export function CheckoutNovaApiPixBox({
           disabled={enviandoComprovante || cancelando}
         />
 
+        {!arquivoComprovante && (
+          <Typography
+            sx={{
+              fontSize: "0.8rem",
+              color: colors.cinzaTexto,
+              textAlign: "center",
+              mt: -0.25,
+            }}
+          >
+            * Anexe o comprovante de pagamento acima para liberar o envio à Tesouraria.
+          </Typography>
+        )}
+
         {onConfirmarEnvio && (
           <Button
             onClick={handleSubmeterEnvio}
             variant="contained"
             fullWidth
-            disabled={enviandoComprovante || cancelando}
+            disabled={enviandoComprovante || cancelando || !arquivoComprovante}
             startIcon={
               enviandoComprovante ? (
                 <CircularProgress size={20} color="inherit" />
@@ -192,9 +205,7 @@ export function CheckoutNovaApiPixBox({
           >
             {enviandoComprovante
               ? "Enviando comprovante..."
-              : arquivoComprovante
-                ? "Enviar Comprovante para Análise"
-                : "Confirmar Pagamento Realizado"}
+              : "Enviar Comprovante para Análise"}
           </Button>
         )}
       </Stack>

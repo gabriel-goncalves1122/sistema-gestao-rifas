@@ -1,25 +1,15 @@
 import { useState } from "react";
-import CloseIcon from "@mui/icons-material/Close";
 import ReplyOutlinedIcon from "@mui/icons-material/ReplyOutlined";
 import {
-  Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
-  IconButton,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 
+import { ResponsiveDialogShell } from "@/shared/components/ResponsiveDialogShell";
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
 import { colors } from "@/shared/tokens/colors";
-import { typographyScale as typography } from "@/shared/tokens/typography";
 import { components } from "@/shared/tokens/components";
-import { layout } from "../../../styles/layout";
 import { useTesourariaLayout } from "../../../hooks/useTesourariaLayout";
 
 interface NotificarCorrecaoDialogProps {
@@ -110,94 +100,21 @@ export function NotificarCorrecaoDialog({
     </>
   );
 
-  if (isMobile) {
-    return (
-      <Drawer
-        anchor="bottom"
-        open={aberto}
-        onClose={handleClose}
-        PaperProps={{
-          sx: layout.drawerPaper,
-        }}
-      >
-        <Stack
-          component="form"
-          onSubmit={handleSubmit}
-          spacing={2}
-          sx={{ pb: 2 }}
-        >
-          <Box sx={layout.drawerPullHandle} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Box>
-              <Typography sx={{ ...typography.titulo, fontSize: "1.2rem" }}>
-                Solicitar Correção de Dados
-              </Typography>
-              <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.85rem", mt: 0.2 }}>
-                Aderido: {compra.vendedorNome}
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ flex: 1, overflowY: "auto", pb: 1 }}>
-            {conteudoCorrecao}
-          </Box>
-          <Box sx={{ pt: 1, borderTop: `1px solid ${colors.borda}` }}>
-            <Stack direction="row" spacing={1.5}>
-              {botoesAcoes}
-            </Stack>
-          </Box>
-        </Stack>
-      </Drawer>
-    );
-  }
-
   return (
-    <Dialog
+    <ResponsiveDialogShell
       open={aberto}
       onClose={handleClose}
-      fullWidth
+      isMobile={isMobile}
+      title="Solicitar Correção de Dados"
+      subtitle={`Aderido: ${compra.vendedorNome}`}
+      closeAriaLabel="Fechar solicitação de correção"
+      closeDisabled={notificando}
       maxWidth="sm"
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          boxShadow: "0 24px 48px rgba(2, 27, 22, 0.15)",
-        },
-      }}
+      onSubmit={handleSubmit}
+      contentSx={{ p: 3, borderColor: colors.fundoEscuro }}
+      actions={botoesAcoes}
     >
-      <form onSubmit={handleSubmit}>
-        <DialogTitle
-          sx={{
-            m: 0,
-            p: 3,
-            pb: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Stack spacing={0.5}>
-            <Typography sx={typography.h2}>Solicitar Correção de Dados</Typography>
-            <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.88rem" }}>
-              Aderido: {compra.vendedorNome}
-            </Typography>
-          </Stack>
-
-          <IconButton
-            onClick={handleClose}
-            disabled={notificando}
-            sx={{ color: colors.cinzaDisabled }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-
-        <DialogContent dividers sx={{ p: 3, borderColor: colors.fundoEscuro }}>
-          {conteudoCorrecao}
-        </DialogContent>
-
-        <DialogActions sx={{ p: 3, pt: 2 }}>
-          {botoesAcoes}
-        </DialogActions>
-      </form>
-    </Dialog>
+      {conteudoCorrecao}
+    </ResponsiveDialogShell>
   );
 }

@@ -13,17 +13,17 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import {
+  formatarData,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { components } from "@/shared/tokens/components";
 import { surfaces } from "@/shared/tokens/surfaces";
 
 import { PixTransacao } from "../../../../types/pixTransacoes";
-import {
-  formatarDataPix,
-  formatarMoedaPix,
-  podeValidarPixTransacao,
-} from "../../../../utils/pixTransacoesUtils";
+import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesStatusUtils";
 import { PixOrigemChip } from "../shared/PixOrigemChip";
 import { PixTransacaoAcoes } from "../shared/PixTransacaoAcoes";
 import { PixTransacaoDetalhesDialog } from "../shared/PixTransacaoDetalhesDialog";
@@ -220,7 +220,7 @@ export function PixTransacoesTable({
                   </TableCell>
 
                   <TableCell sx={{ color: colors.cinzaTexto, fontWeight: 700 }}>
-                    {formatarDataPix(
+                    {formatarData(
                       transacao.dataPagamento || transacao.dataCriacao,
                     )}
                   </TableCell>
@@ -251,7 +251,7 @@ export function PixTransacoesTable({
                           fontWeight: 950,
                         }}
                       >
-                        {formatarMoedaPix(valor)}
+                        {formatarMoeda(valor)}
                       </Typography>
                       <PixOrigemChip origem={transacao.origem} />
                     </Stack>

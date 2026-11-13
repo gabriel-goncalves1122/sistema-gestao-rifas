@@ -14,15 +14,16 @@ import {
 } from "@mui/material";
 
 import { TransacaoTesouraria } from "../../../types/auditoriaCompras";
-import {
-  formatarDataAuditoria,
-  formatarMoedaAuditoria,
-} from "../../../utils/auditoriaComprasUtils";
+
 import { AuditoriaCompraActions } from "../shared/AuditoriaCompraActions";
 import { AuditoriaStatusChip } from "../shared/AuditoriaStatusChip";
 import { AuditoriaOrigemChip } from "../shared/AuditoriaOrigemChip";
 import { AuditoriaCorrecaoChip } from "../shared/AuditoriaCorrecaoChip";
-import { formatarTelefone } from "@/shared/utils/formatadores";
+import {
+  formatarTelefone,
+  formatarDataCurta,
+  formatarMoeda,
+} from "@/shared/utils/formatadores";
 import { colors } from "@/shared/tokens/colors";
 import { surfaces } from "@/shared/tokens/surfaces";
 import { components } from "@/shared/tokens/components";
@@ -118,7 +119,7 @@ export function AuditoriaComprasTable({
             >
               <TableCell sx={{ minWidth: 115 }}>
                 <Typography sx={typography.bodyDestaque}>
-                  {formatarDataAuditoria(compra.dataReserva)}
+                  {formatarDataCurta(compra.dataReserva)}
                 </Typography>
                 <Typography sx={typography.bodyPequeno}>Reserva</Typography>
               </TableCell>
@@ -208,7 +209,7 @@ export function AuditoriaComprasTable({
               </TableCell>
               <TableCell align="right" sx={{ minWidth: 110 }}>
                 <Box sx={components.labelVerde}>
-                  {formatarMoedaAuditoria(compra.valorTotal)}
+                  {formatarMoeda(compra.valorTotal)}
                 </Box>
               </TableCell>
               <TableCell align="right" onClick={(e) => e.stopPropagation()}>

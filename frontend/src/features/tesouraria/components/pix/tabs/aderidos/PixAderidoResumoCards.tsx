@@ -6,11 +6,11 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 import { PixAderidoResumo } from "../../../../utils/pixAderidosUtils";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
 
 /**
  * Propriedades dos cartões de resumo financeiro e meta do aderido.
@@ -86,7 +86,7 @@ export function PixAderidoResumoCards({ aderido }: PixAderidoResumoCardsProps) {
               mt: 0.25,
             }}
           >
-            {formatarMoedaPix(aderido.totalArrecadado)}
+            {formatarMoeda(aderido.totalArrecadado)}
           </Typography>
         </Box>
 
@@ -100,7 +100,7 @@ export function PixAderidoResumoCards({ aderido }: PixAderidoResumoCardsProps) {
           >
             <Chip
               size="small"
-              label={`Pix: ${formatarMoedaPix(aderido.valorPix || 0)}`}
+              label={`Pix: ${formatarMoeda(aderido.valorPix || 0)}`}
               sx={{
                 height: 20,
                 fontSize: "0.68rem",
@@ -111,7 +111,7 @@ export function PixAderidoResumoCards({ aderido }: PixAderidoResumoCardsProps) {
             />
             <Chip
               size="small"
-              label={`Comp: ${formatarMoedaPix(aderido.valorComprovante || 0)}`}
+              label={`Comp: ${formatarMoeda(aderido.valorComprovante || 0)}`}
               sx={{
                 height: 20,
                 fontSize: "0.68rem",

@@ -46,9 +46,9 @@ interface CheckoutNovaApiViewProps {
   resetarFluxoPix: () => void;
   /** Callback ao finalizar a venda com sucesso */
   onSuccess: () => void;
-  /** Callback para envio do comprovante */
+  /** Callback para envio do comprovante obrigatório */
   confirmarEnvioComprovante: (
-    arquivo: File | null,
+    arquivo: File,
     hash?: string | null,
     mime?: string,
   ) => void;
@@ -106,7 +106,7 @@ export function CheckoutNovaApiView({
     });
 
   const handleConfirmarEnvio = (
-    arquivo: File | null,
+    arquivo: File,
     resultado: ResultadoValidacaoArquivo | null,
   ) => {
     confirmarEnvioComprovante(

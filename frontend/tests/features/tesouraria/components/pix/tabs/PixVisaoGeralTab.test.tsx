@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PixVisaoGeralTab } from "@/features/tesouraria/components/pix/tabs/PixVisaoGeralTab";
 import { pixTransacoesMock } from "@/features/tesouraria/mocks/pixTransacoesMock";
-import { calcularResumoPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesUtils";
+import { calcularResumoPixTransacoes } from "@/features/tesouraria/utils/pixTransacoesMetricasUtils";
 
 vi.mock("recharts", async () => {
   const OriginalRecharts = await vi.importActual<any>("recharts");

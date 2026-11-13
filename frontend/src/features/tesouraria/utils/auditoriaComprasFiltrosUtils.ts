@@ -1,21 +1,17 @@
+// ============================================================================
+// ARQUIVO: frontend/src/features/tesouraria/utils/auditoriaComprasFiltrosUtils.ts
+// ============================================================================
+import { normalizarTexto, somenteNumeros } from "@/shared/utils/formatadores";
 import {
-  formatarDataCurta as formatarDataAuditoria,
-  formatarMoeda as formatarMoedaAuditoria,
-  normalizarTexto,
-  somenteNumeros,
-} from "@/shared/utils/formatadores";
-import {
-  TransacaoTesouraria,
   AuditoriaComprasFiltros,
-  ResumoAuditoriaCompras,
-  ContagensAuditoriaCompras,
-  StatusAuditoriaCompras,
   FiltroOrigemAuditoria,
+  StatusAuditoriaCompras,
+  TransacaoTesouraria,
 } from "../types/auditoriaCompras";
-import { colors } from "@/shared/tokens/colors";
 
-export { formatarDataAuditoria, formatarMoedaAuditoria, normalizarTexto };
-
+/**
+ * Opções de filtro rápido por status na barra de auditoria de compras.
+ */
 export const STATUS_FILTROS_AUDITORIA_COMPRAS: Array<{
   label: string;
   value: StatusAuditoriaCompras;
@@ -26,6 +22,9 @@ export const STATUS_FILTROS_AUDITORIA_COMPRAS: Array<{
   { label: "Recusadas", value: "recusado" },
 ];
 
+/**
+ * Opções de filtro rápido por canal de pagamento na barra de auditoria de compras.
+ */
 export const ORIGEM_FILTROS_AUDITORIA_COMPRAS: Array<{
   label: string;
   value: FiltroOrigemAuditoria;
@@ -35,6 +34,9 @@ export const ORIGEM_FILTROS_AUDITORIA_COMPRAS: Array<{
   { label: "Comprovante", value: "COMPROVANTE" },
 ];
 
+/**
+ * Estado inicial padrão dos filtros da auditoria de compras.
+ */
 export const FILTROS_AUDITORIA_COMPRAS_VAZIOS: AuditoriaComprasFiltros = {
   busca: "",
   status: "todas",
@@ -78,46 +80,6 @@ export function statusLabelAuditoria(status: string): string {
 }
 
 /**
- * Retorna o objeto de estilo MUI `sx` (cores de texto, fundo e borda) correspondente ao status da compra.
- *
- * @param {string} status - Status da compra.
- * @returns {Object} Objeto de estilização compatível com a prop `sx` do MUI.
- */
-export function statusSxAuditoria(status: string) {
-  const statusNormalizado = normalizarTexto(status);
-
-  if (statusNormalizado === "pago") {
-    return {
-      color: colors.branco,
-      bgcolor: colors.verdeEscuro,
-      border: `1px solid ${colors.verdeEscuro}`,
-    };
-  }
-
-  if (statusNormalizado === "pendente") {
-    return {
-      color: colors.amareloEscuro,
-      bgcolor: colors.amareloClaro,
-      border: "1px solid rgba(107, 78, 0, 0.25)",
-    };
-  }
-
-  if (statusNormalizado === "recusado") {
-    return {
-      color: colors.vermelho,
-      bgcolor: colors.vermelhoClaro,
-      border: "1px solid rgba(122, 31, 31, 0.22)",
-    };
-  }
-
-  return {
-    color: colors.cinzaTexto,
-    bgcolor: colors.fundoSuave,
-    border: "1px solid rgba(2, 27, 22, 0.10)",
-  };
-}
-
-/**
  * Retorna o rótulo legível para o canal de origem do pagamento.
  *
  * @param {string} [origem] - Chave da origem ('PIX', 'COMPROVANTE').
@@ -127,44 +89,6 @@ export function origemLabelAuditoria(origem?: string): string {
   const normalizada = String(origem || "").toUpperCase();
   if (normalizada === "PIX") return "Pix";
   return "Comprovante";
-}
-
-/**
- * Retorna os estilos visuais MUI `sx` para identificação rápida do canal de pagamento.
- *
- * @param {string} [origem] - Canal da transação ('PIX' ou 'COMPROVANTE').
- * @returns {Object} Configuração sx com cores e bordas temáticas.
- */
-export function origemSxAuditoria(origem?: string) {
-  const normalizada = String(origem || "").toUpperCase();
-  if (normalizada === "PIX") {
-    return {
-      bgcolor: "rgba(10, 110, 89, 0.12)",
-      color: colors.verdeEscuro,
-      border: "1px solid rgba(10, 110, 89, 0.28)",
-      fontWeight: 800,
-    };
-  }
-  return {
-    bgcolor: "rgba(107, 78, 0, 0.10)",
-    color: colors.amareloEscuro,
-    border: "1px solid rgba(107, 78, 0, 0.22)",
-    fontWeight: 800,
-  };
-}
-
-/**
- * Retorna os estilos MUI `sx` para a tag de alerta quando houver correção cadastral pendente.
- *
- * @returns {Object} Objeto sx com paleta de aviso âmbar.
- */
-export function correcaoPendenteSxAuditoria() {
-  return {
-    bgcolor: "rgba(194, 65, 12, 0.12)",
-    color: "#C2410C",
-    border: "1px solid rgba(194, 65, 12, 0.3)",
-    fontWeight: 850,
-  };
 }
 
 /**
@@ -318,99 +242,6 @@ export function filtrarComprasAuditaveis(
 }
 
 /**
- * Computa as contagens absolutas por status, canal e pendência de correção para exibição nos chips de filtro.
- *
- * @param {TransacaoTesouraria[]} compras - Lista total de compras na base.
- * @returns {ContagensAuditoriaCompras} Objeto com os contadores por categoria.
- */
-export function calcularContagensAuditoria(
-  compras: TransacaoTesouraria[],
-): ContagensAuditoriaCompras {
-  let pago = 0;
-  let pendente = 0;
-  let recusado = 0;
-  let pix = 0;
-  let comprovante = 0;
-  let correcaoPendente = 0;
-
-  for (const compra of compras) {
-    const status = normalizarTexto(compra.status);
-    if (status === "pago") pago += 1;
-    else if (status === "pendente") pendente += 1;
-    else if (status === "recusado") recusado += 1;
-
-    if ((compra.origem || "").toUpperCase() === "PIX") {
-      pix += 1;
-    } else {
-      comprovante += 1;
-    }
-
-    if (compra.correcaoPendente) {
-      correcaoPendente += 1;
-    }
-  }
-
-  return {
-    todas: compras.length,
-    pago,
-    pendente,
-    recusado,
-    pix,
-    comprovante,
-    correcaoPendente,
-  };
-}
-
-/**
- * Computa as contagens e valores consolidados (brutos e líquidos) para os cards de resumo da auditoria.
- *
- * @param {TransacaoTesouraria[]} compras - Lista de compras auditadas.
- * @returns {ResumoAuditoriaCompras} Quantitativos e totais financeiros.
- */
-export function calcularResumoAuditoria(
-  compras: TransacaoTesouraria[],
-): ResumoAuditoriaCompras {
-  const totalRifas = compras.reduce(
-    (acc, compra) => acc + compra.bilhetes.length,
-    0,
-  );
-  const valorTotal = compras.reduce(
-    (acc, compra) => acc + (compra.valorTotal || 0),
-    0,
-  );
-  const valorLiquido = compras.reduce(
-    (acc, compra) => acc + (compra.valorLiquido ?? compra.valorTotal ?? 0),
-    0,
-  );
-  const pagas = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "pago",
-  ).length;
-  const pendentes = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "pendente",
-  ).length;
-  const recusadas = compras.filter(
-    (compra) => normalizarTexto(compra.status) === "recusado",
-  ).length;
-
-  const comprasPix = compras.filter(
-    (compra) => (compra.origem || "").toUpperCase() === "PIX",
-  ).length;
-  const comprasComprovante = compras.length - comprasPix;
-
-  return {
-    totalCompras: compras.length,
-    totalRifas,
-    valorTotal,
-    valorLiquido,
-    comprasPix,
-    comprasComprovante,
-    pagas,
-    pendentes,
-    recusadas,
-  };
-}
-
-/**
  * Verifica se algum filtro além do padrão está ativo na tela de auditoria.
  *
  * @param {AuditoriaComprasFiltros} filtros - Filtros atuais da tela.
@@ -424,55 +255,5 @@ export function filtrosAuditoriaAtivos(filtros: AuditoriaComprasFiltros): boolea
       Boolean(filtros.somenteCorrecaoPendente) ||
       filtros.dataInicio ||
       filtros.dataFim,
-  );
-}
-
-/**
- * Converte a lista de transações de compras em formato CSV compatível com Excel (delimitador ponto-e-vírgula).
- * Inclui canal de origem, valores bruto e líquido, status bancário e pendência de correção.
- *
- * @param {TransacaoTesouraria[]} compras - Lista de compras a exportar.
- * @returns {string} Conteúdo em string CSV pronto para download.
- */
-export function criarCsvAuditoriaCompras(compras: TransacaoTesouraria[]): string {
-  const headers = [
-    "Data Reserva",
-    "Data Pagamento",
-    "Origem",
-    "Status",
-    "Rifas",
-    "Qtd",
-    "Valor Bruto (R$)",
-    "Valor Líquido (R$)",
-    "Status Banco",
-    "Correção Pendente",
-    "Vendedor",
-    "CPF Vendedor",
-    "Comprador",
-    "Email Comprador",
-    "Telefone Comprador",
-    "Comprovante",
-  ];
-  const linhas = compras.map((compra) => [
-    formatarDataAuditoria(compra.dataReserva),
-    formatarDataAuditoria(compra.dataPagamento),
-    origemLabelAuditoria(compra.origem),
-    statusLabelAuditoria(compra.status),
-    `"${compra.bilhetes.join(", ")}"`,
-    compra.bilhetes.length,
-    compra.valorTotal,
-    compra.valorLiquido ?? compra.valorTotal,
-    compra.statusPagamentoBanco || "-",
-    compra.correcaoPendente ? "Sim" : "Não",
-    `"${compra.vendedorNome}"`,
-    `"${compra.vendedorCpf}"`,
-    `"${compra.compradorNome}"`,
-    `"${compra.compradorEmail}"`,
-    `"${compra.compradorTelefone}"`,
-    compra.comprovanteUrl ? "Sim" : "Não",
-  ]);
-
-  return [headers.join(";"), ...linhas.map((linha) => linha.join(";"))].join(
-    "\n",
   );
 }

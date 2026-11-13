@@ -1,10 +1,8 @@
 import { Chip } from "@mui/material";
 import PixIcon from "@mui/icons-material/Pix";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
-import {
-  origemLabelAuditoria,
-  origemSxAuditoria,
-} from "../../../utils/auditoriaComprasUtils";
+import { origemLabelAuditoria } from "../../../utils/auditoriaComprasFiltrosUtils";
+import { origemSxAuditoria } from "../../../styles/auditoriaComprasStyles";
 
 /**
  * Propriedades para renderização do chip identificador do canal de origem da compra.

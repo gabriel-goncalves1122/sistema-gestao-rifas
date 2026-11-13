@@ -17,7 +17,7 @@ import {
 import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { colors } from "@/shared/tokens/colors";
 import { PixTransacao } from "../../../../types/pixTransacoes";
-import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesUtils";
+import { podeValidarPixTransacao } from "../../../../utils/pixTransacoesStatusUtils";
 
 interface PixTransacaoAcoesProps {
   transacao: PixTransacao;

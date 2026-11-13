@@ -1,6 +1,6 @@
 import { Chip, Tooltip } from "@mui/material";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
-import { correcaoPendenteSxAuditoria } from "../../../utils/auditoriaComprasUtils";
+import { correcaoPendenteSxAuditoria } from "../../../styles/auditoriaComprasStyles";
 
 /**
  * Propriedades do componente de sinalização de correção cadastral pendente.

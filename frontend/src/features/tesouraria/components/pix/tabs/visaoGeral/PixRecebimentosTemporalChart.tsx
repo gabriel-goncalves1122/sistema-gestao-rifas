@@ -9,10 +9,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { formatarMoeda } from "@/shared/utils/formatadores";
 
 import { PixTransacoesResumo } from "../../../../types/pixTransacoes";
 import { DadoTemporalPix } from "../../../../types/pixVisaoGeral";
-import { formatarMoedaPix } from "../../../../utils/pixTransacoesUtils";
+
 import { formatarValorEixoPix } from "../../../../utils/pixVisaoGeralUtils";
 import { PixMetricasOperacionais } from "./PixMetricasOperacionais";
 
@@ -130,7 +131,7 @@ export function PixRecebimentosTemporalChart({
               />
               <RechartsTooltip
                 formatter={(value: number, name: string) => [
-                  formatarMoedaPix(value),
+                  formatarMoeda(value),
                   name === "recebido" ? "Recebido" : "Pendente",
                 ]}
                 labelStyle={{ color: "#021B16", fontWeight: 800 }}
