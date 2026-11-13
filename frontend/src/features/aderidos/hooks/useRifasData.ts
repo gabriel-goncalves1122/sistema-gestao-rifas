@@ -49,43 +49,37 @@ export function useRifasData() {
   const rifasQuery = useQuery({
     queryKey: rifasQueryKey,
     queryFn: async () => {
-      try {
-        const dados = await aderidoRifaService.buscarMinhasRifas();
-        const validadas = filtrarApenasRifasValidas(dados);
-        if (usuarioId) {
-          localStorage.setItem(`rifas_cache_${usuarioId}`, JSON.stringify(validadas));
-        }
-        return validadas;
-      } catch {
-        return [];
+      const dados = await aderidoRifaService.buscarMinhasRifas();
+      const validadas = filtrarApenasRifasValidas(dados);
+      if (usuarioId) {
+        localStorage.setItem(`rifas_cache_${usuarioId}`, JSON.stringify(validadas));
       }
+      return validadas;
     },
     enabled: consultasAtivas,
     staleTime: QUERY_STALE_TIME,
     gcTime: QUERY_GC_TIME,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    retry: 1,
   });
 
   const notificacoesQuery = useQuery({
     queryKey: notificacoesQueryKey,
     queryFn: async () => {
-      try {
-        const dados = await buscarNotificacoes();
-        const validadas = filtrarApenasNotificacoesValidas(dados);
-        if (usuarioId) {
-          localStorage.setItem(`notificacoes_cache_${usuarioId}`, JSON.stringify(validadas));
-        }
-        return validadas;
-      } catch {
-        return [];
+      const dados = await buscarNotificacoes();
+      const validadas = filtrarApenasNotificacoesValidas(dados);
+      if (usuarioId) {
+        localStorage.setItem(`notificacoes_cache_${usuarioId}`, JSON.stringify(validadas));
       }
+      return validadas;
     },
     enabled: consultasAtivas,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     staleTime: QUERY_STALE_TIME,
     gcTime: QUERY_GC_TIME,
+    retry: 1,
   });
 
   const minhasRifas = useMemo(() => {
@@ -208,10 +202,20 @@ export function useRifasData() {
         notificacoes.length === 0,
     );
 
+  const erroCarregamento = Boolean(
+    !carregando && rifasQuery.isError && minhasRifas.length === 0,
+  );
+
+  const recarregarDados = useCallback(async () => {
+    await Promise.all([rifasQuery.refetch(), notificacoesQuery.refetch()]);
+  }, [notificacoesQuery, rifasQuery]);
+
   return {
     usuarioAtual,
     usuarioId,
     carregando,
+    erroCarregamento,
+    recarregarDados,
     authCarregando,
     minhasRifas,
     notificacoes,

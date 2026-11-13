@@ -101,7 +101,6 @@ describe("Componente <CheckoutModal />", () => {
         />,
       );
 
-      expect(screen.getByText(/Chave Pix da Comissão/i)).toBeInTheDocument();
       expect(screen.getByTestId("checkout-nome")).toBeInTheDocument();
       expect(screen.getByTestId("checkout-telefone")).toBeInTheDocument();
       expect(screen.getByTestId("checkout-email")).toBeInTheDocument();
@@ -199,9 +198,6 @@ describe("Componente <CheckoutModal />", () => {
         screen.queryByText(/Pix Dinâmico Automático/i),
       ).not.toBeInTheDocument();
       expect(screen.queryByTestId("checkout-documento")).not.toBeInTheDocument();
-      expect(
-        screen.getByText(/Chave Pix da Comissão \(InfinitePay\)/i),
-      ).toBeInTheDocument();
     });
   });
 

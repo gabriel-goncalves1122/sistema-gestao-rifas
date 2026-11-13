@@ -24,6 +24,12 @@ export function AderidosSwipeTransition({
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={visaoAtual}
+        role="region"
+        aria-label={
+          visaoAtual === "recusadas"
+            ? "Aba de correção de vendas recusadas"
+            : "Aba principal de rifas do aderido"
+        }
         data-testid="aderidos-swipe-transition"
         data-visao={visaoAtual}
         initial={{ opacity: reduzirMovimento ? 1 : 0, x: deslocamentoEntrada }}

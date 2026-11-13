@@ -81,4 +81,30 @@ describe("PainelRifasPrincipal", () => {
     expect(screen.getByText("042")).toBeInTheDocument();
     expect(screen.queryByText("001")).not.toBeInTheDocument();
   });
+
+  it("Deve encontrar comprador ignorando acentos e maiúsculas/minúsculas", () => {
+    render(
+      <PainelRifasPrincipal
+        filtro="todas"
+        contadoresRifas={contadores}
+        rifasFiltradas={[
+          { numero: "001", status: "disponivel" },
+          { numero: "099", status: "pago", comprador_nome: "João da Silva" },
+        ]}
+        selecionadas={[]}
+        onChangeFiltro={vi.fn()}
+        onToggleSelecao={vi.fn()}
+        onAbrirDetalhes={vi.fn()}
+      />,
+    );
+
+    const inputBusca = screen.getByPlaceholderText(
+      /buscar nº da rifa ou comprador/i,
+    );
+    fireEvent.change(inputBusca, { target: { value: "joao" } });
+
+    expect(screen.getByText("1 na lista")).toBeInTheDocument();
+    expect(screen.getByText("099")).toBeInTheDocument();
+    expect(screen.queryByText("001")).not.toBeInTheDocument();
+  });
 });

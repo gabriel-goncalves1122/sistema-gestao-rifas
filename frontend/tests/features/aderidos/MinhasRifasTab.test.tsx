@@ -150,4 +150,30 @@ describe("Componente <MinhasRifasTab />", () => {
     expect(screen.getByText(/Vendas recusadas/i)).toBeInTheDocument();
     expect(screen.getByText("Lucas Silva")).toBeInTheDocument();
   });
+
+  it("Deve exibir estado de erro com botão de recarregar quando houver falha de carregamento", () => {
+    const recarregarDados = vi.fn();
+
+    vi.mocked(usePainelAderidoController).mockReturnValue(
+      criarPainelMock({
+        carregando: false,
+        erroCarregamento: true,
+        recarregarDados,
+        minhasRifas: [],
+        rifasFiltradas: [],
+      }),
+    );
+
+    render(<MinhasRifasTab />);
+
+    expect(
+      screen.getByText("Não foi possível carregar suas rifas"),
+    ).toBeInTheDocument();
+
+    const botaoTentar = screen.getByTestId("botao-tentar-novamente-rifas");
+    expect(botaoTentar).toBeInTheDocument();
+
+    fireEvent.click(botaoTentar);
+    expect(recarregarDados).toHaveBeenCalledTimes(1);
+  });
 });

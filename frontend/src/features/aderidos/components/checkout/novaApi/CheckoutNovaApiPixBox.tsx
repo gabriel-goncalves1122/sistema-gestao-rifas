@@ -93,7 +93,7 @@ export function CheckoutNovaApiPixBox({
 
   return (
     <CheckoutPixBoxShell
-      titulo="Chave Pix da Comissão (InfinitePay)"
+      titulo="Chave Pix Copia-e-Cola"
       cobranca={cobranca}
       gerando={gerando}
       ocupado={enviandoComprovante}
@@ -106,7 +106,7 @@ export function CheckoutNovaApiPixBox({
       onSuccess={onSuccess}
     >
       <Stack spacing={1.75}>
-        <Stack
+        {/* <Stack
           direction="row"
           spacing={1}
           alignItems="flex-start"
@@ -131,7 +131,7 @@ export function CheckoutNovaApiPixBox({
             Transfira pelo app do seu banco ou envie o Copia-e-Cola ao comprador.
             Após o pagamento, anexe o comprovante abaixo para validação da comissão.
           </Typography>
-        </Stack>
+        </Stack> */}
 
         <CheckoutQrCodeDisplay qrCodeSrc={qrCodeSrc} />
 
@@ -165,18 +165,7 @@ export function CheckoutNovaApiPixBox({
           disabled={enviandoComprovante || cancelando}
         />
 
-        {!arquivoComprovante && (
-          <Typography
-            sx={{
-              fontSize: "0.8rem",
-              color: colors.cinzaTexto,
-              textAlign: "center",
-              mt: -0.25,
-            }}
-          >
-            * Anexe o comprovante de pagamento acima para liberar o envio à Tesouraria.
-          </Typography>
-        )}
+        {!arquivoComprovante }
 
         {onConfirmarEnvio && (
           <Button

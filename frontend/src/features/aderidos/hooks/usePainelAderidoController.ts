@@ -21,13 +21,11 @@ import {
 } from "../types/painelAderido";
 
 import { aderidoRifaService } from "../services/aderidoRifaService";
-import { agruparRifasRecusadas } from "../utils/agruparRifasRecusadas";
+import { calcularMetricasConsolidadasAderido } from "../utils/calcularMetricasConsolidadasAderido";
 import {
-  calcularValorArrecadado,
   contarNotificacoesNaoLidas,
   filtrarRifasPorStatus,
 } from "../utils/calcularResumoRifas";
-import { calcularContadoresRifas } from "../utils/filtrosRifas";
 import { gerarPdfRelatorioAderido } from "../utils/gerarPdfRelatorioAderido";
 import { obterPrimeiroNomeAderido } from "../utils/obterPrimeiroNomeAderido";
 import { useCheckoutFlow } from "./useCheckoutFlow";
@@ -94,20 +92,13 @@ export function usePainelAderidoController() {
     [dadosPainel.minhasRifas, filtro],
   );
 
-  const gruposRecusados = useMemo(
-    () => agruparRifasRecusadas(dadosPainel.minhasRifas),
+  const metricasConsolidadas = useMemo(
+    () => calcularMetricasConsolidadasAderido(dadosPainel.minhasRifas),
     [dadosPainel.minhasRifas],
   );
 
-  const valorArrecadado = useMemo(
-    () => calcularValorArrecadado(dadosPainel.minhasRifas),
-    [dadosPainel.minhasRifas],
-  );
-
-  const contadoresRifas = useMemo(
-    () => calcularContadoresRifas(dadosPainel.minhasRifas),
-    [dadosPainel.minhasRifas],
-  );
+  const { valorArrecadado, contadoresRifas, gruposRecusados } =
+    metricasConsolidadas;
 
   const notificacoesNaoLidas = useMemo(
     () => contarNotificacoesNaoLidas(dadosPainel.notificacoes),
@@ -235,6 +226,8 @@ export function usePainelAderidoController() {
 
   return {
     carregando: dadosPainel.carregando,
+    erroCarregamento: dadosPainel.erroCarregamento,
+    recarregarDados: dadosPainel.recarregarDados,
     visaoAtual,
     filtro,
     selecionadas: selecao.selecionadas,

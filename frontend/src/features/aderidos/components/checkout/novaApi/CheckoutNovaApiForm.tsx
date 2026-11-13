@@ -111,7 +111,7 @@ export function CheckoutNovaApiForm({
         error={Boolean(errors.email)}
         helperText={
           errors.email?.message ||
-          "Opcional. Preencha caso o comprador deseje receber o comprovante no e-mail."
+          "Preencha caso o comprador deseje receber o comprovante no e-mail. (caixa de spam)"
         }
         placeholder="comprador@email.com"
         {...register("email")}

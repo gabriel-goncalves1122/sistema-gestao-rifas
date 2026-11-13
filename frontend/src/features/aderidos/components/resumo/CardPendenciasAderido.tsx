@@ -1,18 +1,31 @@
 // ============================================================================
 // ARQUIVO: frontend/src/features/aderidos/components/resumo/CardPendenciasAderido.tsx
 // ============================================================================
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { Button, Chip } from "@mui/material";
 
 import { painelAderidoStyles } from "../../styles/painelAderidoStyles";
+import { ResumoCard } from "./ResumoCard";
 
-interface CardPendenciasAderidoProps {
+/**
+ * Propriedades para renderização do card de pendências e recusas de vendas do aderido.
+ */
+export interface CardPendenciasAderidoProps {
+  /** Quantidade total de agrupamentos de vendas com pendência cadastral ou recusa */
   totalPendencias: number;
+  /** Callback para alternar a visão para a aba de vendas recusadas */
   onAbrirRecusadas: () => void;
 }
 
+/**
+ * Card de pendências com a mesma anatomia e dignidade visual do Card de Arrecadação.
+ * Exibe o estado "Sem pendências" harmoniosamente ou sinaliza as correções necessárias com ação direta.
+ *
+ * @param {CardPendenciasAderidoProps} props - Propriedades do componente.
+ * @returns {JSX.Element} Card estruturado com ResumoCard.
+ */
 export function CardPendenciasAderido({
   totalPendencias,
   onAbrirRecusadas,
@@ -21,43 +34,50 @@ export function CardPendenciasAderido({
 
   if (!possuiPendencias) {
     return (
-      <Box sx={painelAderidoStyles.pendenciaOk}>
-        <TaskAltIcon fontSize="small" />
-        <Typography sx={painelAderidoStyles.pendenciaOkTexto}>
-          Sem pendências
-        </Typography>
-      </Box>
+      <ResumoCard
+        icon={<CheckCircleOutlineOutlinedIcon fontSize="small" />}
+        label="Pendências"
+        valor="Sem pendências"
+        descricao="Todas as suas vendas estão em dia e aprovadas."
+        variant="success"
+      />
     );
   }
 
-  return (
+  const acaoBotao = (
     <Button
       type="button"
-      variant="text"
+      variant="outlined"
       onClick={onAbrirRecusadas}
       endIcon={<ArrowForwardIcon fontSize="small" />}
-      sx={painelAderidoStyles.pendenciaAcao}
+      aria-label="Vendas recusadas, corrigir dados"
+      sx={painelAderidoStyles.pendenciaBotao}
     >
-      <Stack direction="row" alignItems="center" gap={1.2} sx={{ minWidth: 0 }}>
-        <Box sx={painelAderidoStyles.pendenciaAcaoIcone}>
-          <ErrorOutlineIcon fontSize="small" />
-        </Box>
-
-        <Box sx={{ minWidth: 0, textAlign: "left" }}>
-          <Typography sx={painelAderidoStyles.pendenciaAcaoTitulo}>
-            Vendas recusadas
-          </Typography>
-          <Typography sx={painelAderidoStyles.pendenciaAcaoSubtitulo}>
-            Corrigir dados
-          </Typography>
-        </Box>
-
-        <Chip
-          size="small"
-          label={totalPendencias}
-          sx={painelAderidoStyles.pendenciaAcaoContador}
-        />
-      </Stack>
+      Corrigir dados
     </Button>
+  );
+
+  const acaoTopo = (
+    <Chip
+      size="small"
+      label={totalPendencias}
+      sx={painelAderidoStyles.pendenciaAcaoContador}
+    />
+  );
+
+  return (
+    <ResumoCard
+      icon={<ErrorOutlineIcon fontSize="small" />}
+      label="Pendências"
+      valor="Vendas recusadas"
+      descricao={
+        totalPendencias === 1
+          ? "1 venda aguarda correção de dados do comprador."
+          : `${totalPendencias} vendas aguardam correção de dados do comprador.`
+      }
+      variant="alert"
+      acao={acaoBotao}
+      acaoTopo={acaoTopo}
+    />
   );
 }

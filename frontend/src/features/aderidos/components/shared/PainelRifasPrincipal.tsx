@@ -18,6 +18,15 @@ interface PainelRifasPrincipalProps {
   onAbrirDetalhes: (rifa: RifaAderido) => void;
 }
 
+function normalizarTexto(texto?: string | null): string {
+  if (!texto) return "";
+  return texto
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export function PainelRifasPrincipal({
   filtro,
   onChangeFiltro,
@@ -30,14 +39,17 @@ export function PainelRifasPrincipal({
   const [buscaNumero, setBuscaNumero] = useState("");
 
   const rifasVisiveis = useMemo(() => {
-    const termo = buscaNumero.trim().toLowerCase();
+    const termo = normalizarTexto(buscaNumero);
     if (!termo) return rifasFiltradas;
 
-    return rifasFiltradas.filter(
-      (rifa) =>
-        rifa.numero.toLowerCase().includes(termo) ||
-        (rifa.comprador_nome || "").toLowerCase().includes(termo),
-    );
+    return rifasFiltradas.filter((rifa) => {
+      const numeroNormalizado = normalizarTexto(rifa.numero);
+      const compradorNormalizado = normalizarTexto(rifa.comprador_nome);
+
+      return (
+        numeroNormalizado.includes(termo) || compradorNormalizado.includes(termo)
+      );
+    });
   }, [rifasFiltradas, buscaNumero]);
 
   return (

@@ -8,6 +8,7 @@ import { CheckoutModal } from "./CheckoutModal";
 import { ModalCorrecaoRecusa } from "./ModalCorrecaoRecusa";
 import { ModalDetalhesRifa } from "./ModalDetalhesRifa";
 import { LoadingRifasState } from "./components/LoadingRifasState";
+import { ErrorRifasState } from "./components/ErrorRifasState";
 
 import { MinhasRifasDesktopView } from "./components/desktop/MinhasRifasDesktopView";
 import { MinhasRifasMobileView } from "./components/mobile/MinhasRifasMobileView";
@@ -31,6 +32,11 @@ export function MinhasRifasTab() {
       >
         {painel.carregando ? (
           <LoadingRifasState />
+        ) : painel.erroCarregamento ? (
+          <ErrorRifasState
+            onTentarNovamente={painel.recarregarDados}
+            carregando={painel.carregando}
+          />
         ) : (
           <ViewComponent
             visaoAtual={painel.visaoAtual}
