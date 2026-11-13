@@ -58,6 +58,10 @@ export function resolverProvedorRegistro(
     return "EMV_OFFLINE";
   }
 
+  if (registro.comprovante_url) {
+    return pixOrderId ? "EMV_OFFLINE" : "COMPROVANTE_PURO";
+  }
+
   if (pixOrderId) {
     return "MERCADOPAGO_API";
   }

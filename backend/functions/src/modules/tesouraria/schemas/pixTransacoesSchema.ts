@@ -40,3 +40,7 @@ export const negarLotePixSchema = yup.object({
     .min(3, "O motivo deve ter pelo menos 3 caracteres.")
     .max(500, "O motivo deve ter no máximo 500 caracteres."),
 });
+
+export const reanalisarOcrTransacaoSchema = yup.object({
+  chaveAcao: yup.string().trim().optional(),
+});

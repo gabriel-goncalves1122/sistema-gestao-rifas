@@ -415,14 +415,16 @@ export abstract class BaseCheckoutStrategy {
     });
 
     if (resultado.compradorEmail) {
-      enviarEmailRecibo(
-        resultado.compradorEmail,
-        resultado.compradorNome || "Comprador",
-        resultado.numerosRifas,
-        "pendente",
-      ).catch((erro) => {
+      try {
+        await enviarEmailRecibo(
+          resultado.compradorEmail,
+          resultado.compradorNome || "Comprador",
+          resultado.numerosRifas,
+          "pendente",
+        );
+      } catch (erro) {
         console.warn("[ConfirmarEnvio] Falha ao disparar e-mail de recebimento:", erro);
-      });
+      }
     }
 
     return {

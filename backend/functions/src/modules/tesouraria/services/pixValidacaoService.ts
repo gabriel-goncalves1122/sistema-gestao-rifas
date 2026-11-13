@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 
 import { enviarEmailRecibo } from "../../rifas/emailService";
 import { ComprasManuaisService } from "./comprasManuaisService";
+import { PixTransacoesService } from "./pixTransacoesService";
 import {
   bilhetePertenceAoPagamento,
   ehChaveManual,
@@ -47,6 +48,7 @@ interface ResultadoInternoDecisaoPix {
   numerosRifas: string[];
   compradorEmail: string | null;
   compradorNome: string;
+  compradorId?: string | null;
 }
 
 export class PixValidacaoService {
@@ -86,14 +88,31 @@ export class PixValidacaoService {
       emailTesouraria: params.emailTesouraria,
     });
 
-    const emailEnviado = resultado.compradorEmail
+    let compradorEmail = resultado.compradorEmail;
+    let compradorNome = resultado.compradorNome;
+
+    if (!compradorEmail && resultado.compradorId) {
+      const compradoresCol = admin.firestore().collection("compradores") as any;
+      if (typeof compradoresCol?.doc === "function") {
+        const compradorDoc = await compradoresCol.doc(resultado.compradorId).get();
+        if (compradorDoc?.exists) {
+          const dadosComprador = compradorDoc.data();
+          compradorEmail = dadosComprador?.email || null;
+          compradorNome = dadosComprador?.nome || compradorNome;
+        }
+      }
+    }
+
+    const emailEnviado = compradorEmail
       ? await enviarEmailRecibo(
-          resultado.compradorEmail,
-          resultado.compradorNome,
+          compradorEmail,
+          compradorNome,
           resultado.numerosRifas,
           "aprovado",
         )
       : false;
+
+    PixTransacoesService.limparCacheMemoria();
 
     return {
       sucesso: true,
@@ -129,6 +148,8 @@ export class PixValidacaoService {
         motivo,
       });
 
+      PixTransacoesService.limparCacheMemoria();
+
       return {
         sucesso: true,
         statusValidacao: "negada",
@@ -145,6 +166,8 @@ export class PixValidacaoService {
       emailTesouraria: params.emailTesouraria,
       motivo,
     });
+
+    PixTransacoesService.limparCacheMemoria();
 
     return {
       sucesso: true,
@@ -342,15 +365,19 @@ export class PixValidacaoService {
 
       let compradorEmail = pagamento.comprador_email || null;
       let compradorNome = pagamento.comprador_nome || "Comprador";
+      let compradorId = pagamento.comprador_id || null;
 
-      if (!compradorEmail) {
+      if (!compradorEmail || !compradorId) {
         for (const snap of bilhetesSnaps) {
           const b = snap.data();
-          if (b?.comprador_email) {
+          if (!compradorEmail && b?.comprador_email) {
             compradorEmail = b.comprador_email;
             compradorNome = b.comprador_nome || compradorNome;
-            break;
           }
+          if (!compradorId && b?.comprador_id) {
+            compradorId = b.comprador_id;
+          }
+          if (compradorEmail && compradorId) break;
         }
       }
 
@@ -358,6 +385,7 @@ export class PixValidacaoService {
         numerosRifas,
         compradorEmail,
         compradorNome,
+        compradorId,
       };
     });
   }
@@ -386,6 +414,7 @@ export class PixValidacaoService {
     const numerosRifas: string[] = [];
     let compradorEmail: string | null = null;
     let compradorNome = "Comprador";
+    let compradorId: string | null = null;
     let vendedorIdFallback: string | null = null;
 
     bilhetesQuery.forEach((doc) => {
@@ -398,6 +427,7 @@ export class PixValidacaoService {
       compradorEmail = compradorEmail || d.comprador_email || null;
       compradorNome =
         compradorNome !== "Comprador" ? compradorNome : d.comprador_nome || "Comprador";
+      compradorId = compradorId || d.comprador_id || null;
       vendedorIdFallback = vendedorIdFallback || d.vendedor_id || null;
 
       const payloadBilhete =
@@ -438,6 +468,7 @@ export class PixValidacaoService {
       numerosRifas,
       compradorEmail,
       compradorNome,
+      compradorId,
     };
   }
 

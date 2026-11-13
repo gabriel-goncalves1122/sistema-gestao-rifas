@@ -28,7 +28,25 @@ import {
   MapaVendedores,
 } from "../helpers/vendedorLookupHelper";
 
+interface CacheDadosTransacoes {
+  dados: {
+    transacoes: PixTransacao[];
+    resumoComprovantes: ResumoComprovantesTesouraria;
+  };
+  expiraEm: number;
+}
+
+const CACHE_TRANSACOES_TTL_MS = 15_000; // 15 segundos de cache em memória para chamadas paralelas
+let cacheDadosTransacoesMemoria: CacheDadosTransacoes | null = null;
+
 export class PixTransacoesService {
+  /**
+   * Limpa o cache em memória (utilizado em testes unitários e após mutações).
+   */
+  static limparCacheMemoria(): void {
+    cacheDadosTransacoesMemoria = null;
+  }
+
   /**
    * Carrega e separa em passagem única os bilhetes de transações Pix automatizadas
    * e os bilhetes de compras manuais por comprovante, enriquecendo vendedores quando necessário.
@@ -40,6 +58,14 @@ export class PixTransacoesService {
     transacoes: PixTransacao[];
     resumoComprovantes: ResumoComprovantesTesouraria;
   }> {
+    const agora = Date.now();
+    if (
+      cacheDadosTransacoesMemoria &&
+      cacheDadosTransacoesMemoria.expiraEm > agora
+    ) {
+      return cacheDadosTransacoesMemoria.dados;
+    }
+
     const db = admin.firestore();
     const bilhetesQuery = aplicarSelectSeguro(
       db
@@ -98,8 +124,14 @@ export class PixTransacoesService {
       );
 
     const resumoComprovantes = calcularResumoComprovantes(bilhetesManuais);
+    const resultado = { transacoes, resumoComprovantes };
 
-    return { transacoes, resumoComprovantes };
+    cacheDadosTransacoesMemoria = {
+      dados: resultado,
+      expiraEm: Date.now() + CACHE_TRANSACOES_TTL_MS,
+    };
+
+    return resultado;
   }
 
   /**

@@ -114,7 +114,7 @@ function resolverProvedorTransacaoDto(transacao: PixTransacao): ProvedorPagament
     return "COMPROVANTE_PURO";
   }
 
-  if (String(transacao.pixOrderId || "").startsWith("RIFA")) {
+  if (String(transacao.pixOrderId || "").startsWith("RIFA") || transacao.comprovanteUrl) {
     return "EMV_OFFLINE";
   }
 
@@ -179,13 +179,18 @@ export function calcularResumoPixTransacoes(
   const transacoesComprovante = transacoes.filter((t) => t.origem === "COMPROVANTE");
 
   const pagas = transacoesPix.filter(transacaoPixEstaValidada);
-  const aguardandoBanco = transacoesPix.filter(
-    (transacao) =>
+  const idsAguardando = new Set<string>();
+  const aguardando = transacoesPix.filter((transacao) => {
+    const ehAguardando =
       transacao.statusPagamento === "WAITING" ||
-      transacao.statusPagamento === "IN_ANALYSIS",
-  );
-  const aguardandoValidacao = transacoesPix.filter(transacaoPixAguardandoValidacao);
-  const aguardando = [...aguardandoBanco, ...aguardandoValidacao];
+      transacao.statusPagamento === "IN_ANALYSIS" ||
+      transacaoPixAguardandoValidacao(transacao);
+    if (!ehAguardando || idsAguardando.has(transacao.id)) {
+      return false;
+    }
+    idsAguardando.add(transacao.id);
+    return true;
+  });
 
   const canceladas = transacoesPix.filter(
     (transacao) =>

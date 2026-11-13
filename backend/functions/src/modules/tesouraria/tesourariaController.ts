@@ -15,6 +15,7 @@ import { aceitarCompraManual } from "./controllers/aceitarCompraManualController
 import { negarCompraManual } from "./controllers/negarCompraManualController";
 import { aceitarLotePixTransacoes } from "./controllers/aceitarLotePixTransacoesController";
 import { negarLotePixTransacoes } from "./controllers/negarLotePixTransacoesController";
+import { reanalisarOcrTransacao } from "./controllers/reanalisarOcrTransacaoController";
 
 export const tesourariaController = {
   atualizarCompradorCompra,
@@ -31,4 +32,5 @@ export const tesourariaController = {
   negarCompraManual,
   aceitarLotePixTransacoes,
   negarLotePixTransacoes,
+  reanalisarOcrTransacao,
 };

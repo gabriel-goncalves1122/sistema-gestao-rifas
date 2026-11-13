@@ -15,6 +15,7 @@ import {
   MapaVendedores,
   resolverVendedorDoBilhete,
 } from "./vendedorLookupHelper";
+import { converterAnaliseOcrParaDto } from "../ocr/contracts/ocrContracts";
 
 export {
   chaveCompra,
@@ -54,6 +55,7 @@ export const CAMPOS_PROJECAO_BILHETE_TESOURARIA = [
   "valor_pago",
   "motivo_recusa",
   "correcao_pendente",
+  "analise_ocr",
 ] as const;
 
 /**
@@ -273,5 +275,10 @@ export function montarPixTransacao(
     provedor,
     comprovanteUrl,
     chaveAcao: chaveBruta,
+    analiseOcr: converterAnaliseOcrParaDto(
+      bilhetesOrdenados.find((b) => Boolean(b.analise_ocr))?.analise_ocr ??
+        base.analise_ocr ??
+        null,
+    ),
   };
 }

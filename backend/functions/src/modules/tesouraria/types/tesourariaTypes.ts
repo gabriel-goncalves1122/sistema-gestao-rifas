@@ -1,4 +1,7 @@
 import { Bilhete, ProvedorPagamento, StatusBilhete } from "../../types/models";
+import type { AnaliseOcrDTO } from "../ocr/contracts/ocrContracts";
+
+export type { AnaliseOcrDTO };
 
 export type StatusPagamentoPix =
   | "WAITING"
@@ -69,6 +72,7 @@ export interface PixTransacao {
   provedor?: ProvedorPagamento;
   comprovanteUrl?: string | null;
   chaveAcao?: string;
+  analiseOcr?: AnaliseOcrDTO | null;
 }
 
 export interface ItemLoteValidacaoTransacao {

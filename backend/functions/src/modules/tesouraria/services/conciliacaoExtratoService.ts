@@ -82,11 +82,17 @@ export class ConciliacaoExtratoService {
       emailsParaEnviar.push(...resultadoChunk.emailsParaEnviar);
     }
 
-    emailsParaEnviar.forEach(({ email, nome, rifas }) => {
-      enviarEmailRecibo(email, nome, rifas, "aprovado").catch((err) => {
-        console.warn(`[ConciliacaoExtrato] Falha ao enviar e-mail para ${email}:`, err);
-      });
-    });
+    const EMAIL_BATCH_SIZE = 3;
+    for (let i = 0; i < emailsParaEnviar.length; i += EMAIL_BATCH_SIZE) {
+      const loteEmails = emailsParaEnviar.slice(i, i + EMAIL_BATCH_SIZE);
+      await Promise.allSettled(
+        loteEmails.map(({ email, nome, rifas }) =>
+          enviarEmailRecibo(email, nome, rifas, "aprovado").catch((err) => {
+            console.warn(`[ConciliacaoExtrato] Falha ao enviar e-mail para ${email}:`, err);
+          }),
+        ),
+      );
+    }
 
     return {
       sucesso: true,

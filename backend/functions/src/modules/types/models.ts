@@ -1,6 +1,7 @@
 // ============================================================================
 // ARQUIVO: backend/functions/src/modules/types/models.ts
 // ============================================================================
+import type { AnaliseOcrFirestore } from "../tesouraria/ocr/contracts/ocrContracts";
 
 // ----------------------------------------------------------------------------
 // CARGOS E PERFIS DO SISTEMA
@@ -175,6 +176,7 @@ export interface Bilhete {
   valor_pago?: number | null;
   validado_em?: string | null;
   validado_por?: string | null;
+  analise_ocr?: AnaliseOcrFirestore | null;
 }
 
 // ----------------------------------------------------------------------------
@@ -216,6 +218,7 @@ export interface PagamentoPix {
   erro_criacao?: string | null;
   necessita_reembolso?: boolean;
   observacao_reembolso?: string | null;
+  analise_ocr?: AnaliseOcrFirestore | null;
 }
 
 // ----------------------------------------------------------------------------

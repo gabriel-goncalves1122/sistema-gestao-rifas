@@ -59,6 +59,12 @@ describe("Helper: origemPagamentoHelper", () => {
       expect(calcularValorLiquido(100, "EMV_OFFLINE")).toBe(100);
       expect(calcularValorLiquido(30, { pix_order_id: "RIFAABC123" })).toBe(30);
       expect(calcularValorLiquido(50, "COMPROVANTE_PURO")).toBe(50);
+      expect(
+        calcularValorLiquido(40, {
+          pix_order_id: "TX_DIRETO_123",
+          comprovante_url: "https://storage/comp.jpg",
+        }),
+      ).toBe(40);
     });
   });
 

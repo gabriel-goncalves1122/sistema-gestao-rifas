@@ -14,6 +14,7 @@ import {
   aceitarPixSchema,
   negarLotePixSchema,
   negarPixSchema,
+  reanalisarOcrTransacaoSchema,
 } from "../schemas/pixTransacoesSchema";
 
 const pixTransacoesRoutes = Router();
@@ -69,6 +70,14 @@ pixTransacoesRoutes.post(
   requireTesourariaOrAdmin,
   validate(negarPixSchema),
   tesourariaController.negarPixTransacao,
+);
+
+pixTransacoesRoutes.post(
+  "/transacoes-bancarias/:transacaoId/reanalisar-ocr",
+  validateToken,
+  requireTesourariaOrAdmin,
+  validate(reanalisarOcrTransacaoSchema),
+  tesourariaController.reanalisarOcrTransacao,
 );
 
 export default pixTransacoesRoutes;
