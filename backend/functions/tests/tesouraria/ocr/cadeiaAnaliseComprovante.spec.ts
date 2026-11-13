@@ -73,4 +73,34 @@ describe("Chain of Responsibility - Análise de Comprovante Pix", () => {
 
     expect(contexto.alertasTexto).toContain("TEXTO_INSUFICIENTE");
   });
+
+  it("extrai corretamente comprovante do Mercado Pago com valor inteiro (R$ 10) e data por extenso com virgula", () => {
+    const texto = `
+      Comprovante de Pagamento
+      Sexta-feira, 13 de novembro de 2026, às 11:26:28.
+      Sua compra R$ 10
+      Total: R$ 10
+      De
+      Lucia Rinaldi
+      CPF: ***.445.458-**
+      PSP: 323 - Mercado Pago
+      Para
+      COMISSAO DE FORMATURA UNIFEI 2026 - ITAJUBA
+      CNPJ: 54.789.437/0001-85
+      PSP: Cloud Walk Meios de Pagamentos e Serviços Ltda.
+      ID da transação Pix
+      E105735212026111314262tfUVXcwN2a
+      Código de autenticação
+      189411592404
+    `;
+
+    const contexto = criarContextoAnaliseInicial(texto);
+    cadeia.executar(contexto);
+
+    expect(contexto.bancoDetectado).toBe("MERCADO PAGO");
+    expect(contexto.valorCentavos).toBe(1000);
+    expect(contexto.dataTransacaoIso).toBe("2026-11-13T11:26:28-03:00");
+    expect(contexto.e2eId).toBe("E105735212026111314262TFUVXCWN2A");
+    expect(contexto.cnpjRecebedorDetectado).toBe("54789437000185");
+  });
 });

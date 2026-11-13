@@ -64,7 +64,8 @@ export class ExtratorValorDataHandler extends BaseAnalisadorHandler {
     const linhas = textoUpper.split(/\r?\n/);
     const prioritarios: number[] = [];
     const secundarios: number[] = [];
-    const regexMoeda = /(?:R\s*\$|RS|BRL)\s*(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/g;
+    const regexMoeda =
+      /(?:R\s*\$|RS|BRL)\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)/g;
 
     for (const linha of linhas) {
       if (PALAVRAS_IGNORAR_VALOR.test(linha)) continue;
@@ -136,7 +137,7 @@ export class ExtratorValorDataHandler extends BaseAnalisadorHandler {
     }
 
     const matchTextual = textoUpper.match(
-      /\b(\d{1,2})[\s/]+(?:DE\s+)?([A-Z]{3,9})[\s/]+(?:DE\s+)?(20\d{2})(?:\s*(?:-|AS)?\s*(\d{2}):(\d{2})(?::(\d{2}))?)?\b/,
+      /\b(\d{1,2})[\s/]+(?:DE\s+)?([A-Z]{3,9})[\s/]+(?:DE\s+)?(20\d{2})(?:[\s,.-]*(?:AS)?\s*(\d{2}):(\d{2})(?::(\d{2}))?)?\b/,
     );
     if (matchTextual) {
       const mesNumero = MESES_PT[matchTextual[2]];
