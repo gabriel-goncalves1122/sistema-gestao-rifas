@@ -32,6 +32,7 @@ import { PixTransacoesService } from "../../../src/modules/tesouraria/services/p
 describe("Service: PixTransacoesService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    PixTransacoesService.limparCacheMemoria();
   });
 
   it("Deve normalizar bilhetes em transações Pix agrupadas por comprovante", async () => {

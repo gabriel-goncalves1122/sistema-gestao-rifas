@@ -57,7 +57,7 @@ export class CheckoutManualRepository extends BaseFirestoreRepository {
       }
 
       if (
-        ["CANCELADO", "CANCELED", "cancelled", "expired", "ERRO_CRIACAO", "DECLINED"].includes(
+        ["ERRO_CRIACAO", "DECLINED"].includes(
           String(pagamento.status_pagamento_banco),
         ) ||
         pagamento.status_validacao === "negada"
@@ -107,6 +107,7 @@ export class CheckoutManualRepository extends BaseFirestoreRepository {
           status_pagamento_banco: "IN_ANALYSIS",
           status_validacao: null,
           motivo_recusa: null,
+          erro_criacao: null,
           comprovante_url: params.comprovanteUrl,
           hash_comprovante: params.hashComprovante || null,
           atualizado_em: agora,

@@ -109,4 +109,38 @@ describe("CorrelacionadorPixService", () => {
     expect(resultado.recebedorBate).toBe(true);
     expect(resultado.veredicto).toBe("CORRELACAO_PARCIAL");
   });
+
+  it("deve reconhecer TXID e data de cobrança anterior das mesmas rifas como CORRELACAO_FORTE sem falso positivo", () => {
+    const contexto = criarContextoAnaliseInicial(
+      "Nu Pagamentos - Comprovante Pix Sabrina",
+    );
+    contexto.txidLido = "RIFAQVOAJWADNM";
+    contexto.txidCandidatos = ["RIFAQVOAJWADNM"];
+    contexto.e2eId = "E18236120202611181018S037BF0A463";
+    contexto.valorCentavos = 1000;
+    contexto.valoresCandidatosCentavos = [1000];
+    contexto.dataTransacaoIso = "2026-11-18T07:18:29-03:00"; // 10:18:29Z
+    contexto.cnpjRecebedorDetectado = "54789437000185";
+    contexto.recebedorDetectado = "8805";
+
+    const pedidoReaberto: PedidoCorrelacaoOcr = {
+      pagamentoId: "pag_002",
+      txidEsperado: "RIFASP5BPGRO4P",
+      txidsAlternativos: ["RIFAQVOAJWADNM"],
+      valorCentavos: 1000,
+      dataCriacaoIso: "2026-11-18T10:55:52.685Z", // 07:55:52 -03:00
+      dataCriacaoOriginalIso: "2026-11-18T10:15:00.000Z", // 07:15:00 -03:00 (1ª tentativa)
+      cnpjRecebedorEsperado: "54789437000185",
+      recebedorAliases: ["8805"],
+    };
+
+    const resultado = correlacionador.correlacionar(contexto, pedidoReaberto, false);
+
+    expect(resultado.txidBate).toBe(true);
+    expect(resultado.valorBate).toBe(true);
+    expect(resultado.veredicto).toBe("CORRELACAO_FORTE");
+    expect(resultado.alertas).not.toContain("TXID_DE_OUTRO_PEDIDO");
+    expect(resultado.alertas).not.toContain("COMPROVANTE_ANTERIOR_AO_PEDIDO");
+    expect(resultado.motivos.some((m) => m.includes("RIFAQVOAJWADNM"))).toBe(true);
+  });
 });

@@ -212,7 +212,6 @@ interface CachePixTransacoes {
         if (analiseAtualizada) {
           atualizarTransacaoLocal(transacaoId, { analiseOcr: analiseAtualizada });
         }
-        await queryClient.invalidateQueries({ queryKey: ["tesouraria", "pix"] });
         return analiseAtualizada;
       } catch (error) {
         console.error("Erro ao reanalisar OCR da transação:", error);

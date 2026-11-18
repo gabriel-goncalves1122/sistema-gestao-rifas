@@ -22,6 +22,7 @@ jest.mock(
   () => ({
     PixTransacoesService: {
       buscarTransacoes: mockBuscarTransacoes,
+      limparCacheMemoria: jest.fn(),
     },
   }),
 );

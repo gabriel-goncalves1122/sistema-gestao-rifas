@@ -9,7 +9,7 @@
     "dev:frontend:network": "npm --prefix frontend run dev:network",
     "dev:emulators": "npm --prefix backend/functions run dev:emulators",
     "emulators:check": "node backend/scripts/verificarPortasEmuladores.mjs",
-    "build:frontend": "npm --prefix frontend run build",
+    "build:frontend": "node scripts/build-frontend-safe.mjs",
     "build:backend": "npm --prefix backend/functions run build",
     "build": "npm run build:backend && npm run build:frontend",
     "test:frontend": "npm --prefix frontend run test:run",

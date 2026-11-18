@@ -66,6 +66,37 @@ describe("EmvOfflinePaymentProvider", () => {
     expect(cobranca.qrCodeBase64!.length).toBeGreaterThan(100);
   }, 15000);
 
+  it("deve gerar o mesmo txid determinístico para as mesmas rifas e mesmo comprador mesmo com referenceId distinto", async () => {
+    const provider = new EmvOfflinePaymentProvider();
+    const base = {
+      nome: "Sabrina Fernandes",
+      telefone: "(73) 99119-7433",
+      valorCentavos: 1000,
+      expirationDate: new Date(Date.now() + 3600000).toISOString(),
+    };
+
+    const primeira = await provider.criarCobranca({
+      ...base,
+      referenceId: "rifas-pix-COMP_1",
+      numerosRifas: ["16094", "16095"],
+    });
+    const segunda = await provider.criarCobranca({
+      ...base,
+      referenceId: "rifas-pix-COMP_2",
+      numerosRifas: ["16095", "16094"],
+    });
+    const outroComprador = await provider.criarCobranca({
+      ...base,
+      telefone: "35999990000",
+      referenceId: "rifas-pix-COMP_3",
+      numerosRifas: ["16094", "16095"],
+    });
+
+    expect(primeira.orderId).toBe(segunda.orderId);
+    expect(primeira.orderId).toMatch(/^RIFA[A-Z0-9]{10}$/);
+    expect(outroComprador.orderId).not.toBe(primeira.orderId);
+  });
+
   it("deve consultar e cancelar sem falhas no modo offline", async () => {
     const provider = new EmvOfflinePaymentProvider();
     const consulta = await provider.consultarCobranca("RIFA_TESTE");

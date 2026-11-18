@@ -129,7 +129,8 @@ export function PixAnaliseOcrDetalhesSection({
 
   const visual = obterConfigVisualAnaliseOcr(analiseOcr);
 
-  const handleReanalisar = async () => {
+  const handleReanalisar = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
     if (!onReanalisarOcr || reanalisando) return;
     setErroReanalise(null);
     try {
@@ -232,7 +233,10 @@ export function PixAnaliseOcrDetalhesSection({
               <ItemChecklistOcr label="TXID RIFA" valor={analiseOcr.txidBate} />
               <ItemChecklistOcr label="Valor" valor={analiseOcr.valorBate} />
               <ItemChecklistOcr label="Recebedor" valor={analiseOcr.recebedorBate} />
-              <ItemChecklistOcr label="E2E único" valor={analiseOcr.e2eUnico} />
+              <ItemChecklistOcr
+                label={analiseOcr.e2eIdDetectado ? "E2E único" : "E2E não lido"}
+                valor={analiseOcr.e2eIdDetectado ? analiseOcr.e2eUnico : null}
+              />
             </Stack>
 
             <Box

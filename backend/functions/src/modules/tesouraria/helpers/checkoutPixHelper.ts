@@ -191,14 +191,19 @@ export function calcularValorPixCentavos(numerosRifas: string[]): number {
 }
 
 /**
- * Calcula o timestamp ISO 8601 de expiração de uma cobrança Pix (15 minutos por padrão).
+ * Calcula o timestamp ISO 8601 de expiração de uma cobrança Pix (60 minutos por padrão
+ * para acomodar o envio de comprovante pelo WhatsApp sem expirações precoces).
  *
  * @param {Date} [dataBase=new Date()] - Data/hora de início para cálculo do tempo limite.
+ * @param {number} [minutosExpiracao=60] - Duração da janela de validade em minutos.
  * @returns {string} Timestamp no padrão ISO 8601 em UTC (sufixo 'Z').
  */
-export function dataExpiracaoPix(dataBase = new Date()): string {
+export function dataExpiracaoPix(
+  dataBase = new Date(),
+  minutosExpiracao = 60,
+): string {
   const expiraEm = new Date(dataBase);
-  expiraEm.setMinutes(expiraEm.getMinutes() + 15);
+  expiraEm.setMinutes(expiraEm.getMinutes() + minutosExpiracao);
 
   // Format to UTC with 'Z' as recommended by Mercado Pago to avoid offset parsing bugs
   return expiraEm.toISOString();

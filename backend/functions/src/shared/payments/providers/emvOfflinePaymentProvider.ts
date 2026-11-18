@@ -2,6 +2,7 @@
 // ARQUIVO: backend/functions/src/shared/payments/providers/emvOfflinePaymentProvider.ts
 // ============================================================================
 
+import crypto from "crypto";
 import QRCode from "qrcode";
 
 import {
@@ -36,12 +37,36 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
 
   /**
    * Gera o identificador único txid da transação para conciliação bancária no extrato.
+   * Quando há rifas e dados do comprador, gera sufixo determinístico para que novas
+   * tentativas após expiração preservem o mesmo código `RIFA...`.
    *
-   * @param {string} referenceId - Identificador de referência do comprador / sessão.
+   * @param {CriarCobrancaProviderInput} input - Dados da cobrança (rifas, comprador e referenceId).
    * @returns {string} Código alfanumérico curto de identificação (máximo 25 caracteres).
    */
-  private gerarTxId(referenceId: string): string {
-    const limpo = referenceId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  private gerarTxId(input: CriarCobrancaProviderInput): string {
+    const rifasOrdenadas = [...(input.numerosRifas || [])]
+      .map((r) => String(r).trim())
+      .filter(Boolean)
+      .sort()
+      .join(",");
+    const chaveComprador =
+      (input.telefone || "").replace(/\D/g, "") ||
+      (input.nome || "").trim().toUpperCase();
+
+    if (rifasOrdenadas && chaveComprador) {
+      const digest = crypto
+        .createHash("sha256")
+        .update(`EMV_TXID|${rifasOrdenadas}|${chaveComprador}`)
+        .digest();
+      const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let sufixo = "";
+      for (let i = 0; i < 10; i++) {
+        sufixo += alfabeto[digest[i] % alfabeto.length];
+      }
+      return `RIFA${sufixo}`;
+    }
+
+    const limpo = input.referenceId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     const sufixo = limpo.slice(-10) || Date.now().toString(36).toUpperCase();
     return `RIFA${sufixo}`.substring(0, 25);
   }
@@ -53,7 +78,7 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
    * @returns {Promise<CriarCobrancaProviderOutput>} Cobrança com QR Code gerado em memória.
    */
   async criarCobranca(input: CriarCobrancaProviderInput): Promise<CriarCobrancaProviderOutput> {
-    const txid = this.gerarTxId(input.referenceId);
+    const txid = this.gerarTxId(input);
 
     const copiaECola = gerarPayloadPixEmv({
       chavePix: this.chavePix,

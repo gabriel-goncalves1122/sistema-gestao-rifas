@@ -163,9 +163,91 @@ describe("Repository: CheckoutManualRepository", () => {
     await expect(
       repo.registrarConfirmacaoEnvio({
         pagamentoId: "PAG_DOC_ID",
+        comprovanteUrl: "https://storage/comprovante.jpg",
         autorizar: () => undefined,
       }),
     ).rejects.toThrow("RIFA_INDISPONIVEL");
+  });
+
+  it("deve reativar pagamento expirado (CANCELED) ao enviar comprovante se os bilhetes estiverem disponíveis", async () => {
+    const mockTx = {
+      get: jest
+        .fn<any>()
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({
+            id: "PAG_EXP_1",
+            vendedor_id: "AD_1",
+            provedor_pagamento: "EMV_OFFLINE",
+            status_pagamento_banco: "CANCELED",
+            numeros_rifas: ["16094"],
+            comprador_email: "sabrina@teste.com",
+            comprador_nome: "Sabrina",
+            comprador_id: "COMP_1",
+            pix_order_id: "RIFAQVOAJWADNM",
+            reference_id: "rifas-pix-COMP_1",
+          }),
+        })
+        .mockResolvedValueOnce({
+          exists: true,
+          data: () => ({
+            numero: "16094",
+            status: "disponivel",
+          }),
+        }),
+      set: mockSet,
+    };
+    mockRunTransaction.mockImplementationOnce(async (cb: any) => cb(mockTx));
+
+    const res = await repo.registrarConfirmacaoEnvio({
+      pagamentoId: "PAG_EXP_1",
+      comprovanteUrl: "https://storage/comprovante_tardio.jpg",
+      hashComprovante: "HASH_TARDIO",
+      autorizar: () => undefined,
+    });
+
+    expect(res.numerosRifas).toEqual(["16094"]);
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status_pagamento_banco: "IN_ANALYSIS",
+        erro_criacao: null,
+        comprovante_url: "https://storage/comprovante_tardio.jpg",
+      }),
+      { merge: true },
+    );
+    expect(mockSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: "pendente",
+        pix_order_id: "RIFAQVOAJWADNM",
+      }),
+      { merge: true },
+    );
+  });
+
+  it("deve bloquear confirmação se pagamento tiver sido recusado (status_validacao negada)", async () => {
+    const mockTx = {
+      get: jest.fn<any>().mockResolvedValueOnce({
+        exists: true,
+        data: () => ({
+          id: "PAG_NEG",
+          provedor_pagamento: "EMV_OFFLINE",
+          status_pagamento_banco: "CANCELED",
+          status_validacao: "negada",
+          numeros_rifas: ["16094"],
+        }),
+      }),
+    };
+    mockRunTransaction.mockImplementationOnce(async (cb: any) => cb(mockTx));
+
+    await expect(
+      repo.registrarConfirmacaoEnvio({
+        pagamentoId: "PAG_NEG",
+        comprovanteUrl: "https://storage/comp.jpg",
+        autorizar: () => undefined,
+      }),
+    ).rejects.toThrow("STATUS_INVALIDO_CONFIRMACAO");
   });
 
   it("deve simular pagamento atualizando documento pai e bilhetes", async () => {

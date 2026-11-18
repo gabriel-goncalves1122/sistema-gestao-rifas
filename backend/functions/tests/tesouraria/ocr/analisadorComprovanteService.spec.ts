@@ -288,4 +288,119 @@ describe("AnalisadorComprovanteService e OcrAnaliseRepository", () => {
     expect(primeira).toBe(true);
     expect(segunda).toBe(false);
   });
+
+  it("deve correlacionar usando txidsAlternativos e dataCriacaoOriginalIso retornados por buscarContextoTentativasAnteriores", async () => {
+    const pagamentoReaberto = criarPagamentoBase(null);
+    pagamentoReaberto.pagamentoId = "pag_novo";
+    pagamentoReaberto.pixOrderId = "RIFASP5BPGRO4P";
+    pagamentoReaberto.referenceId = "rifas-pix-COMP_NOVO";
+    pagamentoReaberto.valorBrutoReais = 10;
+    pagamentoReaberto.dataCriacaoIso = "2026-11-18T10:55:52.685Z";
+    pagamentoReaberto.numerosRifas = ["16094"];
+
+    const repo = criarRepoMock(pagamentoReaberto);
+    repo.buscarContextoTentativasAnteriores = jest.fn().mockResolvedValue({
+      txidsAlternativos: ["RIFAQVOAJWADNM"],
+      dataCriacaoOriginalIso: "2026-11-18T10:15:00.000Z",
+    });
+
+    jest.spyOn(ExtratorDocumentoFactory, "criarPorBuffer").mockReturnValue({
+      tipoArquivo: "PDF",
+      strategy: {
+        suporta: () => true,
+        extrairTexto: jest.fn().mockResolvedValue({
+          tipoArquivo: "PDF",
+          modoExtracao: "PDF_NATIVO",
+          textoBruto: `
+            Nu Pagamentos S.A. - Comprovante Pix
+            Valor: R$ 10,00
+            Data: 18/11/2026 07:18:29
+            CNPJ: 54.789.437/0001-85
+            Identificador: RIFAQVOAJWADNM
+            E18236120202611181018S037BF0A463
+          `,
+          confiancaMediaOcr: null,
+          pdfEscaneado: false,
+        }),
+      },
+    });
+
+    const service = new AnalisadorComprovanteService(
+      repo,
+      new CorrelacionadorPixService(),
+      {} as TesseractWorkerSingleton,
+    );
+
+    const resultado = await service.executarPorPagamentoId("pag_novo", {
+      forcar: true,
+    });
+
+    expect(repo.buscarContextoTentativasAnteriores).toHaveBeenCalledWith(
+      pagamentoReaberto,
+    );
+    expect(resultado?.veredicto).toBe("CORRELACAO_FORTE");
+    expect(resultado?.txidBate).toBe(true);
+    expect(resultado?.alertas).not.toContain("TXID_DE_OUTRO_PEDIDO");
+    expect(resultado?.alertas).not.toContain("COMPROVANTE_ANTERIOR_AO_PEDIDO");
+  });
+
+  it("OcrAnaliseRepository.buscarContextoTentativasAnteriores deve coletar tentativas anteriores não aprovadas das mesmas rifas", async () => {
+    const pagAtual: PagamentoParaAnaliseOcr = {
+      ...criarPagamentoBase(null),
+      pagamentoId: "pag_2",
+      pixOrderId: "RIFASP5BPGRO4P",
+      dataCriacaoIso: "2026-11-18T10:55:52.685Z",
+      numerosRifas: ["16094"],
+    };
+
+    const docsMock = [
+      {
+        id: "pag_2",
+        data: () => ({
+          pix_order_id: "RIFASP5BPGRO4P",
+          numeros_rifas: ["16094"],
+          data_criacao: "2026-11-18T10:55:52.685Z",
+          status_pagamento_banco: "IN_ANALYSIS",
+        }),
+      },
+      {
+        id: "pag_1",
+        data: () => ({
+          pix_order_id: "RIFAQVOAJWADNM",
+          reference_id: "rifas-pix-COMP1",
+          numeros_rifas: ["16094"],
+          data_criacao: "2026-11-18T10:15:00.000Z",
+          status_pagamento_banco: "CANCELED",
+          status_validacao: null,
+        }),
+      },
+      {
+        id: "pag_aprovado",
+        data: () => ({
+          pix_order_id: "RIFAOUTROAPROV",
+          numeros_rifas: ["16094"],
+          data_criacao: "2026-11-18T09:00:00.000Z",
+          status_pagamento_banco: "PAID",
+          status_validacao: "aceita",
+        }),
+      },
+    ];
+
+    const dbMock = {
+      collection: jest.fn(() => ({
+        where: jest.fn(() => ({
+          limit: jest.fn(() => ({
+            get: jest.fn().mockResolvedValue({ empty: false, docs: docsMock }),
+          })),
+        })),
+      })),
+    } as unknown as FirebaseFirestore.Firestore;
+
+    const repo = new OcrAnaliseRepository(dbMock, {} as never);
+    const contexto = await repo.buscarContextoTentativasAnteriores(pagAtual);
+
+    expect(contexto.txidsAlternativos).toContain("RIFAQVOAJWADNM");
+    expect(contexto.txidsAlternativos).not.toContain("RIFAOUTROAPROV");
+    expect(contexto.dataCriacaoOriginalIso).toBe("2026-11-18T10:15:00.000Z");
+  });
 });

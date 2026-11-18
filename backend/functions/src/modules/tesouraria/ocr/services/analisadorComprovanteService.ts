@@ -99,17 +99,24 @@ export class AnalisadorComprovanteService {
         pagamento.pagamentoId,
       );
 
+      const contextoAnterior = this.repository.buscarContextoTentativasAnteriores
+        ? await this.repository.buscarContextoTentativasAnteriores(pagamento)
+        : null;
+
       const correlacao = this.correlacionador.correlacionar(
         contexto,
         {
           pagamentoId: pagamento.pagamentoId,
           txidEsperado,
+          txidsAlternativos: contextoAnterior?.txidsAlternativos ?? [],
           valorCentavos: Math.round(pagamento.valorBrutoReais * 100),
           recebedorEsperado: process.env.PIX_NOME_BENEFICIARIO || "8805",
           recebedorAliases: this.obterAliasesRecebedor(),
           cnpjRecebedorEsperado:
             process.env.PIX_CNPJ_RECEBEDOR || CNPJ_RECEBEDOR_PADRAO,
           dataCriacaoIso: pagamento.dataCriacaoIso,
+          dataCriacaoOriginalIso:
+            contextoAnterior?.dataCriacaoOriginalIso ?? undefined,
         },
         e2eDuplicado,
       );

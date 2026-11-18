@@ -55,6 +55,7 @@ export class CorrelacionadorPixService {
     const avaliacaoTxid = this.avaliarCorrespondenciaTxid(
       contexto.txidCandidatos,
       pedido.txidEsperado,
+      pedido.txidsAlternativos,
     );
     if (avaliacaoTxid.bate) {
       if (avaliacaoTxid.tipoMatch === "EXATO") {
@@ -64,6 +65,11 @@ export class CorrelacionadorPixService {
         score += 40;
         motivos.push(
           `TxID conferido com normalização de leitura OCR (${pedido.txidEsperado}).`,
+        );
+      } else if (avaliacaoTxid.tipoMatch === "TENTATIVA_ANTERIOR") {
+        score += 42;
+        motivos.push(
+          `TxID conferido com cobrança anterior gerada para esta mesma rifa (${avaliacaoTxid.txidMatched}).`,
         );
       } else {
         score += 38;
@@ -143,16 +149,20 @@ export class CorrelacionadorPixService {
       );
     }
 
-    // 5. Conferência temporal (fuso BRT -03:00 vs UTC)
+    // 5. Conferência temporal (fuso BRT -03:00 vs UTC) considerando eventual 1ª tentativa anterior
+    const dataReferenciaPedido = this.escolherDataPedidoMaisAntiga(
+      pedido.dataCriacaoIso,
+      pedido.dataCriacaoOriginalIso,
+    );
     if (
       this.verificarComprovanteAnteriorAoPedido(
         contexto.dataTransacaoIso,
-        pedido.dataCriacaoIso,
+        dataReferenciaPedido,
       )
     ) {
       alertas.add("COMPROVANTE_ANTERIOR_AO_PEDIDO");
       motivos.push(
-        `Data do comprovante (${contexto.dataTransacaoIso}) é anterior à criação do pedido (${pedido.dataCriacaoIso}).`,
+        `Data do comprovante (${contexto.dataTransacaoIso}) é anterior à criação do pedido (${dataReferenciaPedido}).`,
       );
     }
 
@@ -229,26 +239,70 @@ export class CorrelacionadorPixService {
   private avaliarCorrespondenciaTxid(
     candidatos: string[],
     txidEsperado: string,
-  ): { bate: boolean; tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | null; outroPedido: boolean } {
+    txidsAlternativos: string[] = [],
+  ): {
+    bate: boolean;
+    tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | "TENTATIVA_ANTERIOR" | null;
+    outroPedido: boolean;
+    txidMatched?: string;
+  } {
     if (candidatos.length === 0) {
       return { bate: false, tipoMatch: null, outroPedido: false };
     }
 
-    const esperadoUpper = normalizarTextoSemAcentosUpper(txidEsperado).trim();
-    if (candidatos.some((c) => c === esperadoUpper)) {
-      return { bate: true, tipoMatch: "EXATO", outroPedido: false };
+    const matchDireto = this.testarCorrespondenciaContraAlvo(
+      candidatos,
+      txidEsperado,
+    );
+    if (matchDireto.bate) {
+      return {
+        bate: true,
+        tipoMatch: matchDireto.tipoMatch,
+        outroPedido: false,
+      };
     }
 
-    const esperadoNorm = this.normalizarAmbiguidadeEstendidaTxid(esperadoUpper);
+    for (const alternativo of txidsAlternativos) {
+      const matchAlternativo = this.testarCorrespondenciaContraAlvo(
+        candidatos,
+        alternativo,
+      );
+      if (matchAlternativo.bate) {
+        return {
+          bate: true,
+          tipoMatch: "TENTATIVA_ANTERIOR",
+          outroPedido: false,
+          txidMatched: normalizarTextoSemAcentosUpper(alternativo).trim(),
+        };
+      }
+    }
+
+    return { bate: false, tipoMatch: null, outroPedido: true };
+  }
+
+  private testarCorrespondenciaContraAlvo(
+    candidatos: string[],
+    txidAlvo: string,
+  ): { bate: boolean; tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | null } {
+    const alvoUpper = normalizarTextoSemAcentosUpper(txidAlvo).trim();
+    if (!alvoUpper) {
+      return { bate: false, tipoMatch: null };
+    }
+
+    if (candidatos.some((c) => c === alvoUpper)) {
+      return { bate: true, tipoMatch: "EXATO" };
+    }
+
+    const alvoNorm = this.normalizarAmbiguidadeEstendidaTxid(alvoUpper);
     if (
-      esperadoNorm &&
-      candidatos.some((c) => this.normalizarAmbiguidadeEstendidaTxid(c) === esperadoNorm)
+      alvoNorm &&
+      candidatos.some((c) => this.normalizarAmbiguidadeEstendidaTxid(c) === alvoNorm)
     ) {
-      return { bate: true, tipoMatch: "OCR_CHAR", outroPedido: false };
+      return { bate: true, tipoMatch: "OCR_CHAR" };
     }
 
-    if (esperadoUpper.startsWith("RIFA") && esperadoUpper.length >= 10) {
-      const sufixoEsperado = this.normalizarAmbiguidadeEstendidaTxid(esperadoUpper.slice(4));
+    if (alvoUpper.startsWith("RIFA") && alvoUpper.length >= 10) {
+      const sufixoEsperado = this.normalizarAmbiguidadeEstendidaTxid(alvoUpper.slice(4));
       const bateFuzzy = candidatos.some((c) => {
         if (!c.startsWith("RIFA") || c.length < 10) return false;
         const sufixoLido = this.normalizarAmbiguidadeEstendidaTxid(c.slice(4));
@@ -256,11 +310,27 @@ export class CorrelacionadorPixService {
       });
 
       if (bateFuzzy) {
-        return { bate: true, tipoMatch: "FUZZY_1", outroPedido: false };
+        return { bate: true, tipoMatch: "FUZZY_1" };
       }
     }
 
-    return { bate: false, tipoMatch: null, outroPedido: true };
+    return { bate: false, tipoMatch: null };
+  }
+
+  private escolherDataPedidoMaisAntiga(
+    dataAtualIso?: string,
+    dataOriginalIso?: string,
+  ): string | undefined {
+    if (!dataOriginalIso) return dataAtualIso;
+    if (!dataAtualIso) return dataOriginalIso;
+
+    const msAtual = Date.parse(dataAtualIso);
+    const msOriginal = Date.parse(dataOriginalIso);
+    if (Number.isFinite(msAtual) && Number.isFinite(msOriginal)) {
+      return msOriginal < msAtual ? dataOriginalIso : dataAtualIso;
+    }
+
+    return dataOriginalIso;
   }
 
   private avaliarRecebedor(

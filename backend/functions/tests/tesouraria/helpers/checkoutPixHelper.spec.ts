@@ -100,10 +100,10 @@ describe("Helper: checkoutPixHelper", () => {
     });
   });
 
-  it("Deve expirar cobrança Pix em cerca de quinze minutos", () => {
+  it("Deve expirar cobrança Pix em sessenta minutos por padrão", () => {
     const expiraEm = dataExpiracaoPix(new Date("2026-06-09T10:00:00.000Z"));
 
-    expect(expiraEm).toBe("2026-06-09T10:15:00.000Z");
+    expect(expiraEm).toBe("2026-06-09T11:00:00.000Z");
   });
 
   it("Deve montar chave idempotente estável por vendedor, rifas e janela e diferenciar se dados do comprador mudarem", () => {

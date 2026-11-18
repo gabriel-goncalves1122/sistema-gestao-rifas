@@ -24,6 +24,95 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
   ) {}
 
   /**
+   * Busca cobranças anteriores (expiradas/canceladas/abertas) para as mesmas rifas
+   * dentro das últimas 48h para recuperar TxIDs alternativos e a data inicial real
+   * da negociação quando o aderido precisa gerar uma nova cobrança para anexar o print.
+   *
+   * @param {PagamentoParaAnaliseOcr} pagamento - Pagamento atual em análise.
+   * @returns {Promise<{ txidsAlternativos: string[]; dataCriacaoOriginalIso: string | null }>}
+   */
+  async buscarContextoTentativasAnteriores(
+    pagamento: PagamentoParaAnaliseOcr,
+  ): Promise<{
+    txidsAlternativos: string[];
+    dataCriacaoOriginalIso: string | null;
+  }> {
+    if (!pagamento.numerosRifas || pagamento.numerosRifas.length === 0) {
+      return { txidsAlternativos: [], dataCriacaoOriginalIso: null };
+    }
+
+    const snap = await this.db
+      .collection("pagamentos_pix")
+      .where("numeros_rifas", "array-contains", pagamento.numerosRifas[0])
+      .limit(20)
+      .get();
+
+    if (snap.empty) {
+      return { txidsAlternativos: [], dataCriacaoOriginalIso: null };
+    }
+
+    const rifasAtuaisSet = new Set(pagamento.numerosRifas.map(String));
+    const msPedidoAtual = Date.parse(pagamento.dataCriacaoIso || "");
+    const limiteJanelaMs = 48 * 60 * 60 * 1000;
+
+    const txidsAlternativosSet = new Set<string>();
+    let menorTimestampIso: string | null = pagamento.dataCriacaoIso || null;
+    let menorMs = Number.isFinite(msPedidoAtual) ? msPedidoAtual : Infinity;
+
+    for (const docSnap of snap.docs) {
+      if (docSnap.id === pagamento.pagamentoId) continue;
+
+      const dados = docSnap.data() || {};
+      const rifasDoc: string[] = Array.isArray(dados.numeros_rifas)
+        ? dados.numeros_rifas.map(String)
+        : [];
+      const compartilhaRifa = rifasDoc.some((r) => rifasAtuaisSet.has(r));
+      if (!compartilhaRifa) continue;
+
+      const statusBanco = String(dados.status_pagamento_banco || "").toUpperCase();
+      if (
+        dados.status_validacao === "aceita" ||
+        ["PAID", "AUTHORIZED", "APPROVED"].includes(statusBanco)
+      ) {
+        continue;
+      }
+
+      const dataCriacaoDoc = String(dados.data_criacao || "").trim();
+      const msDoc = Date.parse(dataCriacaoDoc);
+      if (Number.isFinite(msPedidoAtual) && Number.isFinite(msDoc)) {
+        if (msDoc > msPedidoAtual || msPedidoAtual - msDoc > limiteJanelaMs) {
+          continue;
+        }
+      }
+
+      if (
+        typeof dados.pix_order_id === "string" &&
+        /^RIFA[A-Z0-9]+$/i.test(dados.pix_order_id.trim())
+      ) {
+        txidsAlternativosSet.add(dados.pix_order_id.trim().toUpperCase());
+      }
+
+      const refBase = String(dados.reference_id || docSnap.id)
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .toUpperCase();
+      if (refBase) {
+        const sufixo = refBase.slice(-10) || refBase;
+        txidsAlternativosSet.add(`RIFA${sufixo}`.substring(0, 25));
+      }
+
+      if (dataCriacaoDoc && Number.isFinite(msDoc) && msDoc < menorMs) {
+        menorMs = msDoc;
+        menorTimestampIso = dataCriacaoDoc;
+      }
+    }
+
+    return {
+      txidsAlternativos: Array.from(txidsAlternativosSet),
+      dataCriacaoOriginalIso: menorTimestampIso,
+    };
+  }
+
+  /**
    * Busca um documento de `pagamentos_pix` pelo ID e normaliza seus metadados para análise.
    *
    * @param {string} pagamentoId - Identificador do documento em `pagamentos_pix`.
@@ -64,49 +153,54 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
    * @returns {Promise<string | null>} ID do documento em `pagamentos_pix` ou `null`.
    */
   async resolverPagamentoIdPorTransacao(transacaoId: string): Promise<string | null> {
-    const limpo = (transacaoId || "").trim();
-    if (!limpo) return null;
+    const bruto = (transacaoId || "").trim();
+    if (!bruto) return null;
 
-    const direto = await this.db.collection("pagamentos_pix").doc(limpo).get();
-    if (direto.exists) {
-      return direto.id;
-    }
+    const limpo = bruto.replace(/^(pix|comp)-/i, "");
+    const candidatos = Array.from(new Set([bruto, limpo].filter(Boolean)));
 
-    const porReference = await this.db
-      .collection("pagamentos_pix")
-      .where("reference_id", "==", limpo)
-      .limit(1)
-      .get();
-    if (!porReference.empty) {
-      return porReference.docs[0].id;
-    }
-
-    const porOrderId = await this.db
-      .collection("pagamentos_pix")
-      .where("pix_order_id", "==", limpo)
-      .limit(1)
-      .get();
-    if (!porOrderId.empty) {
-      return porOrderId.docs[0].id;
-    }
-
-    const bilheteSnap = await this.db.collection("bilhetes").doc(limpo).get();
-    if (bilheteSnap.exists) {
-      const dadosBilhete = bilheteSnap.data() || {};
-      if (typeof dadosBilhete.pagamento_id === "string" && dadosBilhete.pagamento_id) {
-        return dadosBilhete.pagamento_id;
+    for (const candidato of candidatos) {
+      const direto = await this.db.collection("pagamentos_pix").doc(candidato).get();
+      if (direto.exists) {
+        return direto.id;
       }
-      if (
-        typeof dadosBilhete.pix_reference_id === "string" &&
-        dadosBilhete.pix_reference_id
-      ) {
-        const refSnap = await this.db
-          .collection("pagamentos_pix")
-          .where("reference_id", "==", dadosBilhete.pix_reference_id)
-          .limit(1)
-          .get();
-        if (!refSnap.empty) {
-          return refSnap.docs[0].id;
+
+      const porReference = await this.db
+        .collection("pagamentos_pix")
+        .where("reference_id", "==", candidato)
+        .limit(1)
+        .get();
+      if (!porReference.empty) {
+        return porReference.docs[0].id;
+      }
+
+      const porOrderId = await this.db
+        .collection("pagamentos_pix")
+        .where("pix_order_id", "==", candidato)
+        .limit(1)
+        .get();
+      if (!porOrderId.empty) {
+        return porOrderId.docs[0].id;
+      }
+
+      const bilheteSnap = await this.db.collection("bilhetes").doc(candidato).get();
+      if (bilheteSnap.exists) {
+        const dadosBilhete = bilheteSnap.data() || {};
+        if (typeof dadosBilhete.pagamento_id === "string" && dadosBilhete.pagamento_id) {
+          return dadosBilhete.pagamento_id;
+        }
+        if (
+          typeof dadosBilhete.pix_reference_id === "string" &&
+          dadosBilhete.pix_reference_id
+        ) {
+          const refSnap = await this.db
+            .collection("pagamentos_pix")
+            .where("reference_id", "==", dadosBilhete.pix_reference_id)
+            .limit(1)
+            .get();
+          if (!refSnap.empty) {
+            return refSnap.docs[0].id;
+          }
         }
       }
     }

@@ -77,11 +77,13 @@ export interface IAnalisadorComprovanteHandler {
 export interface PedidoCorrelacaoOcr {
   pagamentoId: string;
   txidEsperado: string;
+  txidsAlternativos?: string[];
   valorCentavos: number;
   recebedorEsperado?: string;
   recebedorAliases?: string[];
   cnpjRecebedorEsperado?: string;
   dataCriacaoIso?: string;
+  dataCriacaoOriginalIso?: string;
   toleranciaCentavos?: number;
 }
 
@@ -172,6 +174,12 @@ export interface CompraDiretaParaAnaliseOcr {
 /** Contrato OO do repositório de persistência e Storage para análise OCR. */
 export interface IOcrAnaliseRepository {
   buscarPagamentoPorId(pagamentoId: string): Promise<PagamentoParaAnaliseOcr | null>;
+  buscarContextoTentativasAnteriores?(
+    pagamento: PagamentoParaAnaliseOcr,
+  ): Promise<{
+    txidsAlternativos: string[];
+    dataCriacaoOriginalIso: string | null;
+  }>;
   resolverPagamentoIdPorTransacao(transacaoId: string): Promise<string | null>;
   buscarCompraDiretaPorBilhete?(
     identificador: string,
