@@ -71,6 +71,11 @@ export class CorrelacionadorPixService {
         motivos.push(
           `TxID conferido com cobrança anterior gerada para esta mesma rifa (${avaliacaoTxid.txidMatched}).`,
         );
+      } else if (avaliacaoTxid.tipoMatch === "FUZZY_2") {
+        score += 36;
+        motivos.push(
+          `TxID compatível com tolerância estendida de OCR (lido ${contexto.txidLido}, esperado ${pedido.txidEsperado}).`,
+        );
       } else {
         score += 38;
         motivos.push(
@@ -242,7 +247,7 @@ export class CorrelacionadorPixService {
     txidsAlternativos: string[] = [],
   ): {
     bate: boolean;
-    tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | "TENTATIVA_ANTERIOR" | null;
+    tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | "FUZZY_2" | "TENTATIVA_ANTERIOR" | null;
     outroPedido: boolean;
     txidMatched?: string;
   } {
@@ -283,7 +288,7 @@ export class CorrelacionadorPixService {
   private testarCorrespondenciaContraAlvo(
     candidatos: string[],
     txidAlvo: string,
-  ): { bate: boolean; tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | null } {
+  ): { bate: boolean; tipoMatch: "EXATO" | "OCR_CHAR" | "FUZZY_1" | "FUZZY_2" | null } {
     const alvoUpper = normalizarTextoSemAcentosUpper(txidAlvo).trim();
     if (!alvoUpper) {
       return { bate: false, tipoMatch: null };
@@ -303,14 +308,44 @@ export class CorrelacionadorPixService {
 
     if (alvoUpper.startsWith("RIFA") && alvoUpper.length >= 10) {
       const sufixoEsperado = this.normalizarAmbiguidadeEstendidaTxid(alvoUpper.slice(4));
-      const bateFuzzy = candidatos.some((c) => {
-        if (!c.startsWith("RIFA") || c.length < 10) return false;
-        const sufixoLido = this.normalizarAmbiguidadeEstendidaTxid(c.slice(4));
-        return this.calcularDistanciaEdicao(sufixoLido, sufixoEsperado) <= 1;
-      });
+      const sufixosLidos = candidatos
+        .filter((c) => c.startsWith("RIFA") && c.length >= 10)
+        .map((c) => this.normalizarAmbiguidadeEstendidaTxid(c.slice(4)));
 
-      if (bateFuzzy) {
+      if (
+        sufixosLidos.some(
+          (sufixoLido) =>
+            this.calcularDistanciaEdicao(sufixoLido, sufixoEsperado) <= 1,
+        )
+      ) {
         return { bate: true, tipoMatch: "FUZZY_1" };
+      }
+
+      if (sufixoEsperado.length >= 9) {
+        const bateFuzzy2 = sufixosLidos.some((sufixoLido) => {
+          if (this.calcularDistanciaEdicao(sufixoLido, sufixoEsperado) > 2) {
+            return false;
+          }
+          return (
+            sufixoLido.slice(-7) === sufixoEsperado.slice(-7) ||
+            sufixoLido.slice(0, 7) === sufixoEsperado.slice(0, 7)
+          );
+        });
+
+        if (bateFuzzy2) {
+          return { bate: true, tipoMatch: "FUZZY_2" };
+        }
+
+        // Tolerância específica para fontes finas (ex: C6 Bank) onde 6/8/5 são lidos como S
+        const maskEsperado = sufixoEsperado.replace(/[68S5]/g, "X");
+        const bateFonteFina = sufixosLidos.some((sufixoLido) => {
+          const maskLido = sufixoLido.replace(/[68S5]/g, "X");
+          return this.calcularDistanciaEdicao(maskLido, maskEsperado) <= 1;
+        });
+
+        if (bateFonteFina) {
+          return { bate: true, tipoMatch: "FUZZY_2" };
+        }
       }
     }
 

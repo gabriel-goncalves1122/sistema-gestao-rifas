@@ -99,6 +99,36 @@ export interface ResultadoCorrelacaoOcr {
   motivos: string[];
 }
 
+/** Detalhe de outra compra que compartilhou o mesmo End-to-End ID (`snake_case` Firestore). */
+export interface ConflitoE2eOcrFirestore {
+  pagamento_id: string;
+  transacao_id: string;
+  comprador_nome: string | null;
+  aderido_nome: string | null;
+  numeros_rifas: string[];
+  valor_bruto: number | null;
+  status_validacao: string | null;
+  status_pagamento: string | null;
+  pix_order_id: string | null;
+  comprovante_url: string | null;
+  data_criacao: string | null;
+}
+
+/** Detalhe de outra compra que compartilhou o mesmo End-to-End ID (`camelCase` API/UI). */
+export interface ConflitoE2eOcrDTO {
+  pagamentoId: string;
+  transacaoId: string;
+  compradorNome: string | null;
+  aderidoNome: string | null;
+  numerosRifas: string[];
+  valorBruto: number | null;
+  statusValidacao: string | null;
+  statusPagamento: string | null;
+  pixOrderId: string | null;
+  comprovanteUrl: string | null;
+  dataCriacao: string | null;
+}
+
 /** Estrutura `snake_case` persistida no Firestore (`pagamentos_pix` e `bilhetes`). */
 export interface AnaliseOcrFirestore {
   status_execucao: "CONCLUIDO" | "ERRO";
@@ -117,6 +147,8 @@ export interface AnaliseOcrFirestore {
   cnpj_recebedor_detectado: string | null;
   alertas: CodigoAlertaOcr[];
   motivos: string[];
+  e2e_conflitos?: ConflitoE2eOcrFirestore[];
+  aprovado_automaticamente?: boolean;
   hash_comprovante: string | null;
   tempo_ms: number;
   analisado_em: string;
@@ -141,6 +173,8 @@ export interface AnaliseOcrDTO {
   cnpjRecebedorDetectado: string | null;
   alertas: CodigoAlertaOcr[];
   motivos: string[];
+  e2eConflitos?: ConflitoE2eOcrDTO[];
+  aprovadoAutomaticamente?: boolean;
   tempoMs: number;
   analisadoEm: string;
   erroMensagem?: string | null;
@@ -151,6 +185,8 @@ export interface PagamentoParaAnaliseOcr {
   pagamentoId: string;
   referenceId: string;
   pixOrderId: string | null;
+  vendedorId?: string | null;
+  compradorTelefone?: string | null;
   valorBrutoReais: number;
   statusPagamentoBanco: string;
   comprovanteUrl: string | null;
@@ -187,6 +223,10 @@ export interface IOcrAnaliseRepository {
   adquirirLockComprovanteDireto?(chaveLock: string): Promise<boolean>;
   baixarComprovanteStorage(caminhoOuUrl: string): Promise<Buffer>;
   existeOutroPagamentoComE2e(e2eId: string, pagamentoIdAtual: string): Promise<boolean>;
+  buscarConflitosE2e?(
+    e2eId: string,
+    pagamentoIdAtual: string,
+  ): Promise<ConflitoE2eOcrFirestore[]>;
   salvarAnaliseOcr(
     pagamentoId: string,
     analise: AnaliseOcrFirestore,
@@ -229,6 +269,25 @@ export function converterAnaliseOcrParaDto(
     cnpjRecebedorDetectado: analise.cnpj_recebedor_detectado ?? null,
     alertas: Array.isArray(analise.alertas) ? analise.alertas : [],
     motivos: Array.isArray(analise.motivos) ? analise.motivos : [],
+    e2eConflitos: Array.isArray(analise.e2e_conflitos)
+      ? analise.e2e_conflitos.map((conflito) => ({
+          pagamentoId: conflito.pagamento_id,
+          transacaoId: conflito.transacao_id,
+          compradorNome: conflito.comprador_nome ?? null,
+          aderidoNome: conflito.aderido_nome ?? null,
+          numerosRifas: Array.isArray(conflito.numeros_rifas)
+            ? conflito.numeros_rifas.map(String)
+            : [],
+          valorBruto:
+            typeof conflito.valor_bruto === "number" ? conflito.valor_bruto : null,
+          statusValidacao: conflito.status_validacao ?? null,
+          statusPagamento: conflito.status_pagamento ?? null,
+          pixOrderId: conflito.pix_order_id ?? null,
+          comprovanteUrl: conflito.comprovante_url ?? null,
+          dataCriacao: conflito.data_criacao ?? null,
+        }))
+      : undefined,
+    aprovadoAutomaticamente: Boolean(analise.aprovado_automaticamente),
     tempoMs: typeof analise.tempo_ms === "number" ? analise.tempo_ms : 0,
     analisadoEm: analise.analisado_em,
     erroMensagem: analise.erro_mensagem ?? null,

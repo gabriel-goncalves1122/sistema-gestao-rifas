@@ -63,6 +63,7 @@ describe("AnalisadorComprovanteService e OcrAnaliseRepository", () => {
       .fn()
       .mockResolvedValue(Buffer.from("%PDF-1.4\n...", "ascii")),
     existeOutroPagamentoComE2e: jest.fn().mockResolvedValue(false),
+    buscarConflitosE2e: jest.fn().mockResolvedValue([]),
     salvarAnaliseOcr: jest.fn().mockResolvedValue(undefined),
   });
 
@@ -402,5 +403,161 @@ describe("AnalisadorComprovanteService e OcrAnaliseRepository", () => {
     expect(contexto.txidsAlternativos).toContain("RIFAQVOAJWADNM");
     expect(contexto.txidsAlternativos).not.toContain("RIFAOUTROAPROV");
     expect(contexto.dataCriacaoOriginalIso).toBe("2026-11-18T10:15:00.000Z");
+  });
+
+  it("OcrAnaliseRepository.buscarContextoTentativasAnteriores deve reconhecer tentativa anterior de mesmo vendedor, telefone e valor mesmo com rifas diferentes", async () => {
+    const pagAtual: PagamentoParaAnaliseOcr = {
+      ...criarPagamentoBase(null),
+      pagamentoId: "pag_nova_rifa",
+      pixOrderId: "RIFAABCD999999",
+      vendedorId: "ADER_1",
+      compradorTelefone: "73991197433",
+      valorBrutoReais: 20,
+      dataCriacaoIso: "2026-11-25T14:55:00.000Z",
+      numerosRifas: ["05096", "05097"],
+    };
+
+    const dbMock = {
+      collection: jest.fn(() => ({
+        where: jest.fn((campo: string) => ({
+          limit: jest.fn(() => ({
+            get: jest.fn().mockResolvedValue(
+              campo === "comprador_telefone"
+                ? {
+                    empty: false,
+                    docs: [
+                      {
+                        id: "pag_anterior_outra_rifa",
+                        data: () => ({
+                          pix_order_id: "RIFAABCD111111",
+                          vendedor_id: "ADER_1",
+                          comprador_telefone: "73991197433",
+                          valor_bruto: 20,
+                          numeros_rifas: ["05094", "05095"],
+                          data_criacao: "2026-11-25T14:15:00.000Z",
+                          status_pagamento_banco: "CANCELED",
+                        }),
+                      },
+                    ],
+                  }
+                : { empty: true, docs: [] },
+            ),
+          })),
+        })),
+      })),
+    } as unknown as FirebaseFirestore.Firestore;
+
+    const repo = new OcrAnaliseRepository(dbMock, {} as never);
+    const contexto = await repo.buscarContextoTentativasAnteriores(pagAtual);
+
+    expect(contexto.txidsAlternativos).toContain("RIFAABCD111111");
+    expect(contexto.dataCriacaoOriginalIso).toBe("2026-11-25T14:15:00.000Z");
+  });
+
+  it("deve aprovar automaticamente quando permitirAprovacaoAutomatica=true, score >= 80, CORRELACAO_FORTE e E2E único", async () => {
+    const repo = criarRepoMock(criarPagamentoBase(null));
+    const aprovarMock = jest.fn().mockResolvedValue(undefined);
+
+    jest.spyOn(ExtratorDocumentoFactory, "criarPorBuffer").mockReturnValue({
+      tipoArquivo: "PDF",
+      strategy: {
+        suporta: () => true,
+        extrairTexto: jest.fn().mockResolvedValue({
+          tipoArquivo: "PDF",
+          modoExtracao: "PDF_NATIVO",
+          textoBruto: `
+            Nu Pagamentos S.A. - Comprovante Pix
+            Valor: R$ 20,00
+            Data: 12/11/2026 14:05:00
+            CNPJ: 54.789.437/0001-85
+            ID: RIFAAB12CD34EF
+            E18236120202611121705ABC12345678
+          `,
+          confiancaMediaOcr: null,
+          pdfEscaneado: false,
+        }),
+      },
+    });
+
+    const service = new AnalisadorComprovanteService(
+      repo,
+      new CorrelacionadorPixService(),
+      {} as TesseractWorkerSingleton,
+      undefined,
+      aprovarMock,
+    );
+
+    const resultado = await service.executarPorPagamentoId("pag_001", {
+      forcar: true,
+      permitirAprovacaoAutomatica: true,
+    });
+
+    expect(resultado?.veredicto).toBe("CORRELACAO_FORTE");
+    expect(resultado?.score).toBeGreaterThanOrEqual(80);
+    expect(resultado?.aprovadoAutomaticamente).toBe(true);
+    expect(aprovarMock).toHaveBeenCalledWith("RIFAAB12CD34EF", "RIFAAB12CD34EF");
+  });
+
+  it("NÃO deve aprovar automaticamente quando permitirAprovacaoAutomatica=false (reanálise manual) ou quando houver conflito E2E", async () => {
+    const repo = criarRepoMock(criarPagamentoBase(null));
+    repo.buscarConflitosE2e = jest.fn().mockResolvedValue([
+      {
+        pagamento_id: "pag_conflito",
+        transacao_id: "pix-RIFAOLD123456",
+        comprador_nome: "João Anterior",
+        aderido_nome: "Aderido Teste",
+        numeros_rifas: ["0099"],
+        valor_bruto: 20,
+        status_validacao: "aceita",
+        status_pagamento: "PAID",
+        pix_order_id: "RIFAOLD123456",
+        comprovante_url: "https://storage/outro.png",
+        data_criacao: "2026-11-12T16:00:00.000Z",
+      },
+    ]);
+    const aprovarMock = jest.fn().mockResolvedValue(undefined);
+
+    jest.spyOn(ExtratorDocumentoFactory, "criarPorBuffer").mockReturnValue({
+      tipoArquivo: "PDF",
+      strategy: {
+        suporta: () => true,
+        extrairTexto: jest.fn().mockResolvedValue({
+          tipoArquivo: "PDF",
+          modoExtracao: "PDF_NATIVO",
+          textoBruto: `
+            Nu Pagamentos S.A. - Comprovante Pix
+            Valor: R$ 20,00
+            Data: 12/11/2026 14:05:00
+            CNPJ: 54.789.437/0001-85
+            ID: RIFAAB12CD34EF
+            E18236120202611121705ABC12345678
+          `,
+          confiancaMediaOcr: null,
+          pdfEscaneado: false,
+        }),
+      },
+    });
+
+    const service = new AnalisadorComprovanteService(
+      repo,
+      new CorrelacionadorPixService(),
+      {} as TesseractWorkerSingleton,
+      undefined,
+      aprovarMock,
+    );
+
+    const resultado = await service.executarPorPagamentoId("pag_001", {
+      forcar: true,
+      permitirAprovacaoAutomatica: true,
+    });
+
+    expect(aprovarMock).not.toHaveBeenCalled();
+    expect(resultado?.aprovadoAutomaticamente).toBe(false);
+    expect(resultado?.veredicto).toBe("SUSPEITO");
+    expect(resultado?.e2eConflitos).toHaveLength(1);
+    expect(resultado?.e2eConflitos?.[0]?.compradorNome).toBe("João Anterior");
+    expect(
+      resultado?.motivos.some((m) => m.includes("João Anterior")),
+    ).toBe(true);
   });
 });

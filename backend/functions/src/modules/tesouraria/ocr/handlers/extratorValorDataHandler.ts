@@ -65,19 +65,26 @@ export class ExtratorValorDataHandler extends BaseAnalisadorHandler {
     const prioritarios: number[] = [];
     const secundarios: number[] = [];
     const regexMoeda =
-      /(?:R\s*\$|RS|BRL)\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)/g;
+      /(?:R\s*\$|RS|BRL)\s*(\d{1,3}(?:\.\d{3})+(?:,\d{2})?|\d+(?:,\d{2})?)/g;
 
     for (const linha of linhas) {
       if (PALAVRAS_IGNORAR_VALOR.test(linha)) continue;
 
       for (const match of linha.matchAll(regexMoeda)) {
-        const centavos = this.parseValorBrasileiroParaCentavos(match[1]);
+        const brutoMatch = match[1];
+        const centavos = this.parseValorBrasileiroParaCentavos(brutoMatch);
         if (centavos === null) continue;
 
         if (PALAVRAS_CHAVE_VALOR.test(linha)) {
           prioritarios.push(centavos);
         } else {
           secundarios.push(centavos);
+        }
+
+        // Quando o OCR omite a vírgula decimal (ex: "R$ 20,00" -> "R$ 2000"),
+        // registra também o valor dividido por 100 como candidato secundário.
+        if (!/[.,]/.test(brutoMatch) && brutoMatch.length >= 4 && brutoMatch.endsWith("00")) {
+          secundarios.push(Math.round(centavos / 100));
         }
       }
     }

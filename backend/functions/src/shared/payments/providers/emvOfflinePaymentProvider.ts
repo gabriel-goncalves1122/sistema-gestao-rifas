@@ -14,6 +14,8 @@ import {
 } from "../types/paymentProviderTypes";
 import { gerarPayloadPixEmv } from "../utils/emvPixUtils";
 
+const ALFABETO_OCR_SAFE = "ACEFHJKMNPRTWXY3479";
+
 /**
  * Provedor de Pagamentos Pix EMV Offline (Contingência e Chave Direta).
  *
@@ -35,10 +37,20 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
     this.cidadeBeneficiario = process.env.PIX_CIDADE_BENEFICIARIO || "ITAJUBA";
   }
 
+  private gerarSegmentoOcrSafe(semente: string, tamanho: number): string {
+    const digest = crypto.createHash("sha256").update(semente).digest();
+    let resultado = "";
+    for (let i = 0; i < tamanho; i++) {
+      resultado += ALFABETO_OCR_SAFE[digest[i] % ALFABETO_OCR_SAFE.length];
+    }
+    return resultado;
+  }
+
   /**
    * Gera o identificador único txid da transação para conciliação bancária no extrato.
-   * Quando há rifas e dados do comprador, gera sufixo determinístico para que novas
-   * tentativas após expiração preservem o mesmo código `RIFA...`.
+   * Utiliza alfabeto estritamente livre de ambiguidades visuais (`ALFABETO_OCR_SAFE`)
+   * e estrutura composta (`RIFA` + 4 chars do comprador + 6 chars das rifas), garantindo
+   * leitura fiel pelo OCR e estabilidade do prefixo do comprador mesmo se trocar de rifas.
    *
    * @param {CriarCobrancaProviderInput} input - Dados da cobrança (rifas, comprador e referenceId).
    * @returns {string} Código alfanumérico curto de identificação (máximo 25 caracteres).
@@ -54,16 +66,15 @@ export class EmvOfflinePaymentProvider implements IPaymentProvider {
       (input.nome || "").trim().toUpperCase();
 
     if (rifasOrdenadas && chaveComprador) {
-      const digest = crypto
-        .createHash("sha256")
-        .update(`EMV_TXID|${rifasOrdenadas}|${chaveComprador}`)
-        .digest();
-      const alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-      let sufixo = "";
-      for (let i = 0; i < 10; i++) {
-        sufixo += alfabeto[digest[i] % alfabeto.length];
-      }
-      return `RIFA${sufixo}`;
+      const prefixoComprador = this.gerarSegmentoOcrSafe(
+        `EMV_COMP|${chaveComprador}`,
+        4,
+      );
+      const sufixoRifas = this.gerarSegmentoOcrSafe(
+        `EMV_RIFAS|${rifasOrdenadas}`,
+        6,
+      );
+      return `RIFA${prefixoComprador}${sufixoRifas}`;
     }
 
     const limpo = input.referenceId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();

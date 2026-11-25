@@ -20,7 +20,6 @@
         "tests",
         "scripts",
         "coverage",
-        "*.traineddata",
         "/check*.js",
         "/check*.cjs",
         "/verificar_*.cjs",

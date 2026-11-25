@@ -7,6 +7,7 @@ import * as admin from "firebase-admin";
 import {
   AnaliseOcrFirestore,
   CompraDiretaParaAnaliseOcr,
+  ConflitoE2eOcrFirestore,
   IOcrAnaliseRepository,
   PagamentoParaAnaliseOcr,
 } from "../contracts/ocrContracts";
@@ -37,17 +38,41 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
     txidsAlternativos: string[];
     dataCriacaoOriginalIso: string | null;
   }> {
-    if (!pagamento.numerosRifas || pagamento.numerosRifas.length === 0) {
+    const temRifas = Boolean(pagamento.numerosRifas && pagamento.numerosRifas.length > 0);
+    const telefoneLimpo = (pagamento.compradorTelefone || "").trim();
+    if (!temRifas && !telefoneLimpo) {
       return { txidsAlternativos: [], dataCriacaoOriginalIso: null };
     }
 
-    const snap = await this.db
-      .collection("pagamentos_pix")
-      .where("numeros_rifas", "array-contains", pagamento.numerosRifas[0])
-      .limit(20)
-      .get();
+    const docsCandidatos = new Map<string, FirebaseFirestore.DocumentData>();
 
-    if (snap.empty) {
+    const [snapRifas, snapComprador] = await Promise.all([
+      temRifas
+        ? this.db
+            .collection("pagamentos_pix")
+            .where("numeros_rifas", "array-contains", pagamento.numerosRifas[0])
+            .limit(20)
+            .get()
+        : Promise.resolve(null),
+      pagamento.vendedorId && telefoneLimpo
+        ? this.db
+            .collection("pagamentos_pix")
+            .where("comprador_telefone", "==", telefoneLimpo)
+            .limit(20)
+            .get()
+        : Promise.resolve(null),
+    ]);
+
+    for (const d of snapRifas?.docs || []) {
+      docsCandidatos.set(d.id, d.data() || {});
+    }
+    for (const d of snapComprador?.docs || []) {
+      if (!docsCandidatos.has(d.id)) {
+        docsCandidatos.set(d.id, d.data() || {});
+      }
+    }
+
+    if (docsCandidatos.size === 0) {
       return { txidsAlternativos: [], dataCriacaoOriginalIso: null };
     }
 
@@ -59,15 +84,21 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
     let menorTimestampIso: string | null = pagamento.dataCriacaoIso || null;
     let menorMs = Number.isFinite(msPedidoAtual) ? msPedidoAtual : Infinity;
 
-    for (const docSnap of snap.docs) {
-      if (docSnap.id === pagamento.pagamentoId) continue;
+    for (const [docId, dados] of docsCandidatos.entries()) {
+      if (docId === pagamento.pagamentoId) continue;
 
-      const dados = docSnap.data() || {};
       const rifasDoc: string[] = Array.isArray(dados.numeros_rifas)
         ? dados.numeros_rifas.map(String)
         : [];
       const compartilhaRifa = rifasDoc.some((r) => rifasAtuaisSet.has(r));
-      if (!compartilhaRifa) continue;
+      const mesmoCompradorMesmoValor =
+        Boolean(pagamento.vendedorId) &&
+        Boolean(telefoneLimpo) &&
+        dados.vendedor_id === pagamento.vendedorId &&
+        dados.comprador_telefone === telefoneLimpo &&
+        Number(dados.valor_bruto ?? 0) === pagamento.valorBrutoReais;
+
+      if (!compartilhaRifa && !mesmoCompradorMesmoValor) continue;
 
       const statusBanco = String(dados.status_pagamento_banco || "").toUpperCase();
       if (
@@ -92,7 +123,7 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
         txidsAlternativosSet.add(dados.pix_order_id.trim().toUpperCase());
       }
 
-      const refBase = String(dados.reference_id || docSnap.id)
+      const refBase = String(dados.reference_id || docId)
         .replace(/[^a-zA-Z0-9]/g, "")
         .toUpperCase();
       if (refBase) {
@@ -131,6 +162,11 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
       pagamentoId: snap.id,
       referenceId: String(dados.reference_id || snap.id),
       pixOrderId: typeof dados.pix_order_id === "string" ? dados.pix_order_id : null,
+      vendedorId: typeof dados.vendedor_id === "string" ? dados.vendedor_id : null,
+      compradorTelefone:
+        typeof dados.comprador_telefone === "string"
+          ? dados.comprador_telefone
+          : null,
       valorBrutoReais: Number(dados.valor_bruto ?? dados.valor_pago ?? 0),
       statusPagamentoBanco: String(dados.status_pagamento_banco || ""),
       comprovanteUrl:
@@ -254,6 +290,107 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
   }
 
   /**
+   * Busca compras distintas (`pagamentos_pix` ou `bilhetes` diretos) que já utilizaram
+   * o mesmo End-to-End ID Pix, retornando metadados suficientes para exibir e comparar
+   * na tela de análise da Tesouraria.
+   *
+   * @param {string} e2eId - End-to-End ID de 32 caracteres normalizado.
+   * @param {string} pagamentoIdAtual - ID do pagamento ou bilhete em análise.
+   * @returns {Promise<ConflitoE2eOcrFirestore[]>} Lista deduplicada de compras conflitantes.
+   */
+  async buscarConflitosE2e(
+    e2eId: string,
+    pagamentoIdAtual: string,
+  ): Promise<ConflitoE2eOcrFirestore[]> {
+    if (!e2eId) return [];
+
+    const conflitos: ConflitoE2eOcrFirestore[] = [];
+    const vistos = new Set<string>();
+
+    const snapPagamentos = await this.db
+      .collection("pagamentos_pix")
+      .where("analise_ocr.e2e_id_detectado", "==", e2eId)
+      .limit(10)
+      .get();
+
+    for (const doc of snapPagamentos.docs) {
+      if (doc.id === pagamentoIdAtual) continue;
+      const d = doc.data() || {};
+      const chave = String(d.pix_order_id || doc.id);
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
+
+      conflitos.push({
+        pagamento_id: doc.id,
+        transacao_id: d.pix_order_id ? `pix-${d.pix_order_id}` : `pix-${doc.id}`,
+        comprador_nome: typeof d.comprador_nome === "string" ? d.comprador_nome : null,
+        aderido_nome: typeof d.vendedor_nome === "string" ? d.vendedor_nome : null,
+        numeros_rifas: Array.isArray(d.numeros_rifas)
+          ? d.numeros_rifas.map(String)
+          : [],
+        valor_bruto: typeof d.valor_bruto === "number" ? d.valor_bruto : null,
+        status_validacao:
+          typeof d.status_validacao === "string" ? d.status_validacao : null,
+        status_pagamento:
+          typeof d.status_pagamento_banco === "string"
+            ? d.status_pagamento_banco
+            : null,
+        pix_order_id: typeof d.pix_order_id === "string" ? d.pix_order_id : null,
+        comprovante_url:
+          typeof d.comprovante_url === "string" ? d.comprovante_url : null,
+        data_criacao: typeof d.data_criacao === "string" ? d.data_criacao : null,
+      });
+    }
+
+    if (conflitos.length < 5 && typeof this.db.collection === "function") {
+      const snapBilhetes = await this.db
+        .collection("bilhetes")
+        .where("analise_ocr.e2e_id_detectado", "==", e2eId)
+        .limit(10)
+        .get();
+
+      for (const doc of snapBilhetes?.docs || []) {
+        if (doc.id === pagamentoIdAtual) continue;
+        const b = doc.data() || {};
+        if (b.pix_reference_id || b.pix_order_id) {
+          const chavePix = String(b.pix_order_id || b.pix_reference_id);
+          if (vistos.has(chavePix)) continue;
+        }
+        const chaveDireta = String(b.comprovante_url || b.comprador_id || doc.id);
+        if (vistos.has(chaveDireta)) continue;
+        vistos.add(chaveDireta);
+
+        conflitos.push({
+          pagamento_id: String(b.comprador_id || doc.id),
+          transacao_id: String(b.comprador_id || doc.id),
+          comprador_nome:
+            typeof b.comprador_nome === "string" ? b.comprador_nome : null,
+          aderido_nome:
+            typeof b.vendedor_nome === "string" ? b.vendedor_nome : null,
+          numeros_rifas: [doc.id],
+          valor_bruto:
+            typeof b.valor_bruto === "number" ? b.valor_bruto : VALOR_RIFA_PADRAO_REAIS,
+          status_validacao:
+            typeof b.status_validacao === "string" ? b.status_validacao : null,
+          status_pagamento:
+            typeof b.status_pagamento_banco === "string"
+              ? b.status_pagamento_banco
+              : typeof b.status === "string"
+                ? b.status
+                : null,
+          pix_order_id: null,
+          comprovante_url:
+            typeof b.comprovante_url === "string" ? b.comprovante_url : null,
+          data_criacao:
+            typeof b.data_reserva === "string" ? b.data_reserva : null,
+        });
+      }
+    }
+
+    return conflitos.slice(0, 5);
+  }
+
+  /**
    * Verifica se o mesmo End-to-End ID Pix já foi detectado em outra compra distinta,
    * prevenindo reutilização de comprovante válido em pedidos diferentes.
    *
@@ -265,15 +402,8 @@ export class OcrAnaliseRepository implements IOcrAnaliseRepository {
     e2eId: string,
     pagamentoIdAtual: string,
   ): Promise<boolean> {
-    if (!e2eId) return false;
-
-    const snap = await this.db
-      .collection("pagamentos_pix")
-      .where("analise_ocr.e2e_id_detectado", "==", e2eId)
-      .limit(5)
-      .get();
-
-    return snap.docs.some((doc) => doc.id !== pagamentoIdAtual);
+    const conflitos = await this.buscarConflitosE2e(e2eId, pagamentoIdAtual);
+    return conflitos.length > 0;
   }
 
   /**

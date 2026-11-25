@@ -143,4 +143,55 @@ describe("CorrelacionadorPixService", () => {
     expect(resultado.alertas).not.toContain("COMPROVANTE_ANTERIOR_AO_PEDIDO");
     expect(resultado.motivos.some((m) => m.includes("RIFAQVOAJWADNM"))).toBe(true);
   });
+
+  it("deve aceitar TXID com ruído OCR de 2 caracteres mantendo 7+ chars de sufixo idênticos (ex: RIFA3UECY4F6ZL -> RIFAGSUECY4F6ZL)", () => {
+    const contexto = criarContextoAnaliseInicial("Comprovante Nubank");
+    contexto.txidLido = "RIFAGSUECY4F6ZL";
+    contexto.txidCandidatos = ["RIFAGSUECY4F6ZL"];
+    contexto.e2eId = "E18236120202611211929S04577DEBA3";
+    contexto.valorCentavos = 1000;
+    contexto.valoresCandidatosCentavos = [1000];
+    contexto.dataTransacaoIso = "2026-11-21T16:29:33-03:00";
+    contexto.cnpjRecebedorDetectado = "54789437000185";
+
+    const pedido: PedidoCorrelacaoOcr = {
+      pagamentoId: "pag_003",
+      txidEsperado: "RIFA3UECY4F6ZL",
+      valorCentavos: 1000,
+      dataCriacaoIso: "2026-11-21T19:20:00.000Z",
+      cnpjRecebedorEsperado: "54789437000185",
+    };
+
+    const resultado = correlacionador.correlacionar(contexto, pedido, false);
+
+    expect(resultado.txidBate).toBe(true);
+    expect(resultado.veredicto).toBe("CORRELACAO_FORTE");
+    expect(resultado.score).toBeGreaterThanOrEqual(80);
+    expect(resultado.alertas).not.toContain("TXID_DE_OUTRO_PEDIDO");
+  });
+
+  it("deve aceitar TXID de fonte fina (C6 Bank) com troca de 6/8/5 por S (RIFA6LKWB88876 -> RIFASLKWBSSS76)", () => {
+    const contexto = criarContextoAnaliseInicial("Comprovante C6 Bank");
+    contexto.txidLido = "RIFASLKWBSSS76";
+    contexto.txidCandidatos = ["RIFASLKWBSSS76"];
+    contexto.valorCentavos = 200000;
+    contexto.valoresCandidatosCentavos = [200000, 2000];
+    contexto.dataTransacaoIso = "2026-11-25T00:00:00-03:00";
+    contexto.cnpjRecebedorDetectado = "54789437000185";
+
+    const pedido: PedidoCorrelacaoOcr = {
+      pagamentoId: "pag_c6",
+      txidEsperado: "RIFA6LKWB88876",
+      valorCentavos: 2000,
+      dataCriacaoIso: "2026-11-25T14:20:00.000Z",
+      cnpjRecebedorEsperado: "54789437000185",
+    };
+
+    const resultado = correlacionador.correlacionar(contexto, pedido, false);
+
+    expect(resultado.txidBate).toBe(true);
+    expect(resultado.valorBate).toBe(true);
+    expect(resultado.recebedorBate).toBe(true);
+    expect(resultado.veredicto).toBe("CORRELACAO_FORTE");
+  });
 });

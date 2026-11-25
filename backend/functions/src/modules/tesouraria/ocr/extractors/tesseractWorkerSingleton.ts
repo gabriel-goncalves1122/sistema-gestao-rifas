@@ -22,6 +22,7 @@ export class TesseractWorkerSingleton {
   private static instancia: TesseractWorkerSingleton | null = null;
   private worker: Worker | null = null;
   private inicializando: Promise<Worker> | null = null;
+  private filaReconhecimento: Promise<unknown> = Promise.resolve();
 
   private constructor() {}
 
@@ -69,19 +70,27 @@ export class TesseractWorkerSingleton {
   }
 
   /**
-   * Executa OCR sobre o buffer da imagem usando o worker compartilhado.
+   * Executa OCR sobre o buffer da imagem usando o worker compartilhado,
+   * serializando execuções concorrentes para evitar picos de memória e race conditions no WASM.
    *
    * @param {Buffer} bufferImagem - Bytes de imagem PNG/JPEG/WebP.
    * @returns {Promise<ResultadoReconhecimentoTesseract>} Texto extraído e confiança média (0-100).
    */
   async reconhecer(bufferImagem: Buffer): Promise<ResultadoReconhecimentoTesseract> {
-    const worker = await this.obterWorkerPronto();
-    const { data } = await worker.recognize(bufferImagem);
+    const execucao = this.filaReconhecimento
+      .catch(() => undefined)
+      .then(async () => {
+        const worker = await this.obterWorkerPronto();
+        const { data } = await worker.recognize(bufferImagem);
 
-    return {
-      texto: data.text || "",
-      confiancaMedia: typeof data.confidence === "number" ? data.confidence : 0,
-    };
+        return {
+          texto: data.text || "",
+          confiancaMedia: typeof data.confidence === "number" ? data.confidence : 0,
+        };
+      });
+
+    this.filaReconhecimento = execucao;
+    return execucao;
   }
 
   /**

@@ -7,10 +7,13 @@ import { createHash } from "node:crypto";
 import {
   AnaliseOcrDTO,
   AnaliseOcrFirestore,
+  ConflitoE2eOcrFirestore,
   IAnalisadorComprovanteHandler,
   IOcrAnaliseRepository,
+  ResultadoCorrelacaoOcr,
   converterAnaliseOcrParaDto,
 } from "../contracts/ocrContracts";
+import { PixValidacaoService } from "../../services/pixValidacaoService";
 import { ExtratorDocumentoFactory } from "../extractors/extratorDocumentoFactory";
 import { TesseractWorkerSingleton } from "../extractors/tesseractWorkerSingleton";
 import { criarCadeiaAnaliseComprovantePadrao } from "../handlers/cadeiaAnaliseComprovanteFactory";
@@ -40,19 +43,30 @@ export class AnalisadorComprovanteService {
     private readonly correlacionador: CorrelacionadorPixService = new CorrelacionadorPixService(),
     private readonly workerSingleton: TesseractWorkerSingleton = TesseractWorkerSingleton.obterInstancia(),
     private readonly criarCadeia: () => IAnalisadorComprovanteHandler = criarCadeiaAnaliseComprovantePadrao,
+    private readonly aprovarAutomaticamente: (
+      transacaoId: string,
+      chaveAcao?: string,
+    ) => Promise<void> = async (transacaoId, chaveAcao) => {
+      await PixValidacaoService.aceitarTransacao({
+        transacaoId,
+        chaveAcao,
+        uidTesouraria: "OCR_AUTOMATICO",
+        emailTesouraria: "OCR_AUTOMATICO",
+      });
+    },
   ) {}
 
   /**
    * Analisa o comprovante de um documento em `pagamentos_pix`.
    *
    * @param {string} pagamentoId - Identificador do pagamento no Firestore.
-   * @param {{ forcar?: boolean }} [opcoes] - Se `forcar: true`, ignora cache de mesmo hash.
+   * @param {{ forcar?: boolean; permitirAprovacaoAutomatica?: boolean }} [opcoes] - Controle de cache e aprovação automática >= 80%.
    * @returns {Promise<AnaliseOcrDTO | null>} DTO da análise ou `null` quando não elegível.
-   * @sideEffects Faz download no Firebase Storage e grava `analise_ocr` no Firestore.
+   * @sideEffects Faz download no Firebase Storage, grava `analise_ocr` no Firestore e pode aprovar automaticamente se atingir >= 80%.
    */
   async executarPorPagamentoId(
     pagamentoId: string,
-    opcoes: { forcar?: boolean } = {},
+    opcoes: { forcar?: boolean; permitirAprovacaoAutomatica?: boolean } = {},
   ): Promise<AnaliseOcrDTO | null> {
     const inicioMs = performance.now();
     const pagamento = await this.repository.buscarPagamentoPorId(pagamentoId);
@@ -86,22 +100,32 @@ export class AnalisadorComprovanteService {
       const contexto = criarContextoAnaliseInicial(extracao.textoBruto);
       this.criarCadeia().executar(contexto);
 
-      const e2eDuplicado = contexto.e2eId
-        ? await this.repository.existeOutroPagamentoComE2e(
-            contexto.e2eId,
-            pagamento.pagamentoId,
-          )
-        : false;
-
       const txidEsperado = this.derivarTxidEsperado(
         pagamento.pixOrderId,
         pagamento.referenceId,
         pagamento.pagamentoId,
       );
 
-      const contextoAnterior = this.repository.buscarContextoTentativasAnteriores
-        ? await this.repository.buscarContextoTentativasAnteriores(pagamento)
-        : null;
+      const [e2eConflitos, contextoAnterior] = await Promise.all([
+        contexto.e2eId && this.repository.buscarConflitosE2e
+          ? this.repository.buscarConflitosE2e(
+              contexto.e2eId,
+              pagamento.pagamentoId,
+            )
+          : Promise.resolve([] as ConflitoE2eOcrFirestore[]),
+        this.repository.buscarContextoTentativasAnteriores
+          ? this.repository.buscarContextoTentativasAnteriores(pagamento)
+          : Promise.resolve(null),
+      ]);
+
+      const e2eDuplicado = contexto.e2eId
+        ? e2eConflitos.length > 0 ||
+          (!this.repository.buscarConflitosE2e &&
+            (await this.repository.existeOutroPagamentoComE2e(
+              contexto.e2eId,
+              pagamento.pagamentoId,
+            )))
+        : false;
 
       const correlacao = this.correlacionador.correlacionar(
         contexto,
@@ -121,6 +145,11 @@ export class AnalisadorComprovanteService {
         e2eDuplicado,
       );
 
+      const motivosFinais = this.enriquecerMotivosComConflitosE2e(
+        correlacao.motivos,
+        e2eConflitos,
+      );
+
       const analiseFirestore: AnaliseOcrFirestore = {
         status_execucao: "CONCLUIDO",
         veredicto: correlacao.veredicto,
@@ -137,7 +166,9 @@ export class AnalisadorComprovanteService {
         recebedor_detectado: contexto.recebedorDetectado,
         cnpj_recebedor_detectado: contexto.cnpjRecebedorDetectado,
         alertas: correlacao.alertas,
-        motivos: correlacao.motivos,
+        motivos: motivosFinais,
+        ...(e2eConflitos.length > 0 ? { e2e_conflitos: e2eConflitos } : {}),
+        aprovado_automaticamente: false,
         hash_comprovante: hashCalculado,
         tempo_ms: Math.round(performance.now() - inicioMs),
         analisado_em: new Date().toISOString(),
@@ -149,6 +180,25 @@ export class AnalisadorComprovanteService {
         analiseFirestore,
         pagamento.comprovanteUrl,
       );
+
+      if (
+        this.deveAprovarAutomaticamente(correlacao, contexto.e2eId, opcoes)
+      ) {
+        const aprovadoAuto = await this.tentarAprovacaoAutomatica(
+          pagamento.pixOrderId || pagamento.pagamentoId,
+          pagamento.pixOrderId || undefined,
+        );
+        if (aprovadoAuto) {
+          analiseFirestore.aprovado_automaticamente = true;
+          await this.repository
+            .salvarAnaliseOcr(
+              pagamento.pagamentoId,
+              analiseFirestore,
+              pagamento.comprovanteUrl,
+            )
+            .catch(() => {});
+        }
+      }
 
       return converterAnaliseOcrParaDto(analiseFirestore);
     } catch (error) {
@@ -200,7 +250,7 @@ export class AnalisadorComprovanteService {
    */
   async executarPorBilheteDireto(
     identificador: string,
-    opcoes: { forcar?: boolean } = {},
+    opcoes: { forcar?: boolean; permitirAprovacaoAutomatica?: boolean } = {},
   ): Promise<AnaliseOcrDTO | null> {
     if (
       !this.repository.buscarCompraDiretaPorBilhete ||
@@ -233,11 +283,21 @@ export class AnalisadorComprovanteService {
       const contexto = criarContextoAnaliseInicial(extracao.textoBruto);
       this.criarCadeia().executar(contexto);
 
+      const e2eConflitos: ConflitoE2eOcrFirestore[] = contexto.e2eId
+        ? this.repository.buscarConflitosE2e
+          ? await this.repository.buscarConflitosE2e(
+              contexto.e2eId,
+              compra.identificador,
+            )
+          : []
+        : [];
       const e2eDuplicado = contexto.e2eId
-        ? await this.repository.existeOutroPagamentoComE2e(
-            contexto.e2eId,
-            compra.identificador,
-          )
+        ? e2eConflitos.length > 0 ||
+          (!this.repository.buscarConflitosE2e &&
+            (await this.repository.existeOutroPagamentoComE2e(
+              contexto.e2eId,
+              compra.identificador,
+            )))
         : false;
 
       const correlacao = this.correlacionador.correlacionar(
@@ -253,6 +313,11 @@ export class AnalisadorComprovanteService {
           dataCriacaoIso: compra.dataCriacaoIso,
         },
         e2eDuplicado,
+      );
+
+      const motivosFinais = this.enriquecerMotivosComConflitosE2e(
+        correlacao.motivos,
+        e2eConflitos,
       );
 
       const analiseFirestore: AnaliseOcrFirestore = {
@@ -271,7 +336,9 @@ export class AnalisadorComprovanteService {
         recebedor_detectado: contexto.recebedorDetectado,
         cnpj_recebedor_detectado: contexto.cnpjRecebedorDetectado,
         alertas: correlacao.alertas,
-        motivos: correlacao.motivos,
+        motivos: motivosFinais,
+        ...(e2eConflitos.length > 0 ? { e2e_conflitos: e2eConflitos } : {}),
+        aprovado_automaticamente: false,
         hash_comprovante: hashCalculado,
         tempo_ms: Math.round(performance.now() - inicioMs),
         analisado_em: new Date().toISOString(),
@@ -283,6 +350,25 @@ export class AnalisadorComprovanteService {
         compra.comprovanteUrl,
         analiseFirestore,
       );
+
+      if (
+        this.deveAprovarAutomaticamente(correlacao, contexto.e2eId, opcoes)
+      ) {
+        const aprovadoAuto = await this.tentarAprovacaoAutomatica(
+          compra.identificador,
+          compra.compradorId ? `manual-${compra.compradorId}` : undefined,
+        );
+        if (aprovadoAuto) {
+          analiseFirestore.aprovado_automaticamente = true;
+          await this.repository
+            .salvarAnaliseOcrCompraDireta(
+              compra.numerosRifas,
+              compra.comprovanteUrl,
+              analiseFirestore,
+            )
+            .catch(() => {});
+        }
+      }
 
       return converterAnaliseOcrParaDto(analiseFirestore);
     } catch (error) {
@@ -364,6 +450,52 @@ export class AnalisadorComprovanteService {
     const base = (referenceId || pagamentoId).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
     const sufixo = base.slice(-10) || base;
     return `RIFA${sufixo}`.substring(0, 25);
+  }
+
+  private deveAprovarAutomaticamente(
+    correlacao: ResultadoCorrelacaoOcr,
+    e2eIdDetectado: string | null,
+    opcoes: { permitirAprovacaoAutomatica?: boolean },
+  ): boolean {
+    return Boolean(
+      opcoes.permitirAprovacaoAutomatica &&
+        correlacao.veredicto === "CORRELACAO_FORTE" &&
+        correlacao.score >= 80 &&
+        Boolean(e2eIdDetectado) &&
+        correlacao.e2eUnico === true,
+    );
+  }
+
+  private async tentarAprovacaoAutomatica(
+    transacaoId: string,
+    chaveAcao?: string,
+  ): Promise<boolean> {
+    try {
+      await this.aprovarAutomaticamente(transacaoId, chaveAcao);
+      return true;
+    } catch (erro) {
+      console.warn(
+        `[AnalisadorComprovanteService] Auto-aprovação >=80% ignorada/falhou para ${transacaoId}:`,
+        erro,
+      );
+      return false;
+    }
+  }
+
+  private enriquecerMotivosComConflitosE2e(
+    motivos: string[],
+    conflitos: ConflitoE2eOcrFirestore[],
+  ): string[] {
+    if (conflitos.length === 0) return motivos;
+
+    const extras = conflitos.map((c) => {
+      const comprador = c.comprador_nome || "Comprador não identificado";
+      const rifas = c.numeros_rifas.length > 0 ? c.numeros_rifas.join(", ") : "sem rifas";
+      const status = c.status_validacao || c.status_pagamento || "pendente";
+      return `Conflito E2E detectado com compra de ${comprador} (rifas: ${rifas}, status: ${status}).`;
+    });
+
+    return [...motivos, ...extras];
   }
 
   private obterAliasesRecebedor(): string[] {

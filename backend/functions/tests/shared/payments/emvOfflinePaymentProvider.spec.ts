@@ -93,8 +93,19 @@ describe("EmvOfflinePaymentProvider", () => {
     });
 
     expect(primeira.orderId).toBe(segunda.orderId);
-    expect(primeira.orderId).toMatch(/^RIFA[A-Z0-9]{10}$/);
+    expect(primeira.orderId).toMatch(/^RIFA[ACEFHJKMNPRTWXY3479]{10}$/);
     expect(outroComprador.orderId).not.toBe(primeira.orderId);
+
+    const outrasRifasMesmoComprador = await provider.criarCobranca({
+      ...base,
+      referenceId: "rifas-pix-COMP_4",
+      numerosRifas: ["99001", "99002"],
+    });
+    // Prefixo de 4 caracteres do comprador mantém estabilidade visual mesmo ao trocar rifas
+    expect(outrasRifasMesmoComprador.orderId.slice(0, 8)).toBe(
+      primeira.orderId.slice(0, 8),
+    );
+    expect(outrasRifasMesmoComprador.orderId).not.toBe(primeira.orderId);
   });
 
   it("deve consultar e cancelar sem falhas no modo offline", async () => {

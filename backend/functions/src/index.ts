@@ -171,7 +171,7 @@ export const api = onRequest(
   {
     region: "southamerica-east1",
     timeoutSeconds: 180,
-    memory: "512MiB",
+    memory: "1GiB",
     invoker: "public",
 
     // O CORS fica centralizado no Express.
@@ -191,7 +191,4 @@ export { onCreateUserSetClaims } from "./modules/auth/authTriggers";
 // ============================================================================
 
 export { limparPixExpirados } from "./modules/tesouraria/tesourariaCrons";
-export {
-  analisarComprovanteOcrTrigger,
-  analisarComprovanteBilheteDiretoOcrTrigger,
-} from "./modules/tesouraria/ocr/ocrTriggers";
+export { analisarComprovanteOcrTrigger } from "./modules/tesouraria/ocr/ocrTriggers";

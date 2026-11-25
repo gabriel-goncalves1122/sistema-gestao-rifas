@@ -1,7 +1,10 @@
 import { Bilhete, ProvedorPagamento, StatusBilhete } from "../../types/models";
-import type { AnaliseOcrDTO } from "../ocr/contracts/ocrContracts";
+import type {
+  AnaliseOcrDTO,
+  ConflitoE2eOcrDTO,
+} from "../ocr/contracts/ocrContracts";
 
-export type { AnaliseOcrDTO };
+export type { AnaliseOcrDTO, ConflitoE2eOcrDTO };
 
 export type StatusPagamentoPix =
   | "WAITING"

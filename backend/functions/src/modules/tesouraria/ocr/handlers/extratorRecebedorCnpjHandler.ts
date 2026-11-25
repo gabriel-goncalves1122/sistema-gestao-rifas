@@ -62,5 +62,24 @@ export class ExtratorRecebedorCnpjHandler extends BaseAnalisadorHandler {
         return;
       }
     }
+
+    // Fallback para bancos sem rótulo explícito (ex: C6 Bank), aceitando ruído OCR comum em dígitos
+    if (!contexto.cnpjRecebedorDetectado) {
+      for (const linha of linhas) {
+        const normalizada = linha
+          .replace(/S/g, "5")
+          .replace(/O/g, "0")
+          .replace(/[IL]/g, "1")
+          .replace(/B/g, "8");
+        const matchCnpj = normalizada.match(/(\d{2}\.?\d{3}\.?\d{3}\/\d{4}-?\d{2})/);
+        if (matchCnpj) {
+          const digitos = matchCnpj[1].replace(/\D/g, "");
+          if (digitos.length === 14) {
+            contexto.cnpjRecebedorDetectado = digitos;
+            break;
+          }
+        }
+      }
+    }
   }
 }
