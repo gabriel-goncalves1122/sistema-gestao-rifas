@@ -1,5 +1,8 @@
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
   Box,
+  Button,
   Stack,
   Typography,
 } from "@mui/material";
@@ -17,7 +20,6 @@ import { useTesourariaLayout } from "../../../../hooks/useTesourariaLayout";
 import { layout } from "../../../../styles/layout";
 import { AnaliseOcrDTO, PixTransacao } from "../../../../types/pixTransacoes";
 import { formatarRifasPix } from "../../../../utils/pixTransacoesFiltrosUtils";
-import { obterLabelStatusPagamento } from "../../../../utils/pixTransacoesStatusUtils";
 import { PixAnaliseOcrDetalhesSection } from "./PixAnaliseOcrDetalhesSection";
 import { PixOrigemChip } from "./PixOrigemChip";
 import { PixTransacaoAcoes } from "./PixTransacaoAcoes";
@@ -28,6 +30,10 @@ import { PixTransacaoAcoes } from "./PixTransacaoAcoes";
 export interface PixTransacaoDetalhesDialogProps {
   /** Transação selecionada para inspeção; quando `null`, o diálogo permanece fechado. */
   transacao: PixTransacao | null;
+  /** Fila atual de transações para navegação contínua Anterior/Próxima sem fechar o diálogo. */
+  fila?: PixTransacao[];
+  /** Callback para trocar a transação exibida dentro do fluxo contínuo de revisão. */
+  onSelecionarTransacao?: (transacao: PixTransacao) => void;
   /** Callback disparado ao fechar o diálogo. */
   onClose: () => void;
   /** Callback para aprovar individualmente a transação. */
@@ -83,6 +89,8 @@ function CampoDetalhe({
  */
 export function PixTransacaoDetalhesDialog({
   transacao,
+  fila = [],
+  onSelecionarTransacao,
   onClose,
   onAceitar,
   onNegar,
@@ -92,15 +100,72 @@ export function PixTransacaoDetalhesDialog({
   const { isMobile } = useTesourariaLayout();
   if (!transacao) return null;
 
+  const indiceAtual = fila.findIndex((t) => t.id === transacao.id);
+  const temNavegacao = Boolean(onSelecionarTransacao && fila.length > 1 && indiceAtual >= 0);
+  const anterior = temNavegacao && indiceAtual > 0 ? fila[indiceAtual - 1] : null;
+  const proxima =
+    temNavegacao && indiceAtual < fila.length - 1 ? fila[indiceAtual + 1] : null;
+
+  const handleConcluidoAcao = () => {
+    if (temNavegacao && onSelecionarTransacao) {
+      const proximaDaFila =
+        fila.find((t, idx) => idx > indiceAtual && t.id !== transacao.id) ??
+        fila.find((t) => t.id !== transacao.id);
+      if (proximaDaFila) {
+        onSelecionarTransacao(proximaDaFila);
+        return;
+      }
+    }
+    onClose();
+  };
+
+  const barraNavegacao = temNavegacao ? (
+    <Stack
+      data-testid="pix-detalhes-navegacao-fila"
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      spacing={1}
+      sx={{
+        p: 0.75,
+        px: 1.25,
+        borderRadius: 2,
+        bgcolor: colors.fundoSuave,
+        border: `1px solid ${colors.borda}`,
+      }}
+    >
+      <Button
+        size="small"
+        startIcon={<ArrowBackIcon fontSize="small" />}
+        disabled={!anterior}
+        onClick={() => anterior && onSelecionarTransacao?.(anterior)}
+        sx={{ textTransform: "none", fontWeight: 800, color: colors.verdeEscuro }}
+      >
+        Anterior
+      </Button>
+      <Typography sx={{ fontSize: "0.78rem", fontWeight: 850, color: colors.cinzaTexto }}>
+        {indiceAtual + 1} de {fila.length} na fila
+      </Typography>
+      <Button
+        size="small"
+        endIcon={<ArrowForwardIcon fontSize="small" />}
+        disabled={!proxima}
+        onClick={() => proxima && onSelecionarTransacao?.(proxima)}
+        sx={{ textTransform: "none", fontWeight: 800, color: colors.verdeEscuro }}
+      >
+        Próxima
+      </Button>
+    </Stack>
+  ) : null;
+
   const valor =
     transacao.statusPagamento === "PAID"
       ? transacao.valorPago
       : transacao.valorBruto;
 
-  const identificador = transacao.pixOrderId || transacao.id;
-
   const dadosCompra = (
     <Stack spacing={1.5}>
+      {barraNavegacao}
       <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
         <PixOrigemChip origem={transacao.origem} />
         <Typography sx={{ color: colors.cinzaTexto, fontSize: "0.8rem", fontWeight: 700 }}>
@@ -109,28 +174,39 @@ export function PixTransacaoDetalhesDialog({
       </Stack>
 
       <Box sx={layout.gridDois}>
-        <CampoDetalhe label="Pagador" valor={transacao.compradorNome} />
-        <CampoDetalhe label="E-mail" valor={transacao.compradorEmail} />
-        <CampoDetalhe label="Telefone" valor={transacao.compradorTelefone} />
-        <CampoDetalhe label="Documento" valor={transacao.compradorDocumento} />
+        <Box sx={cartaoDetalheSx}>
+          <Typography sx={{ ...typography.caption, color: colors.cinzaTexto }}>
+            Pagador
+          </Typography>
+          <Typography
+            sx={{
+              color: colors.pretoEsverdeado,
+              fontWeight: 800,
+              fontSize: "0.9rem",
+              mt: 0.35,
+              overflowWrap: "anywhere",
+            }}
+          >
+            {transacao.compradorNome || "Não informado"}
+          </Typography>
+          {(transacao.compradorTelefone || transacao.compradorEmail) && (
+            <Typography
+              sx={{
+                color: colors.cinzaTexto,
+                fontSize: "0.74rem",
+                mt: 0.25,
+                overflowWrap: "anywhere",
+              }}
+            >
+              {[transacao.compradorTelefone, transacao.compradorEmail]
+                .filter(Boolean)
+                .join(" · ")}
+            </Typography>
+          )}
+        </Box>
         <CampoDetalhe label="Aderido" valor={transacao.aderido?.nome} />
-        <CampoDetalhe
-          label="Tipo de aderido"
-          valor={
-            transacao.aderido?.modalidade_adesao === "meio"
-              ? "Meio-aderido"
-              : transacao.aderido
-                ? "Aderido"
-                : "Não vinculado"
-          }
-        />
         <CampoDetalhe label="Rifas" valor={formatarRifasPix(transacao)} />
-        <CampoDetalhe label="Valor" valor={formatarMoeda(valor)} />
-        <CampoDetalhe label="Identificador" valor={identificador} />
-        <CampoDetalhe
-          label="Status do pagamento"
-          valor={obterLabelStatusPagamento(transacao.statusPagamento)}
-        />
+        <CampoDetalhe label="Valor do pedido" valor={formatarMoeda(valor)} />
         {transacao.codigoAutenticacao && (
           <CampoDetalhe
             label="Código de autenticação"
@@ -154,7 +230,7 @@ export function PixTransacaoDetalhesDialog({
   const acoes = (
     <PixTransacaoAcoes
       transacao={transacao}
-      onConcluido={onClose}
+      onConcluido={handleConcluidoAcao}
       onAceitar={onAceitar}
       onNegar={onNegar}
     />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -11,20 +12,26 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Paper,
   Stack,
   Typography,
 } from "@mui/material";
-import { formatarData } from "@/shared/utils/formatadores";
+import { formatarData, formatarMoeda } from "@/shared/utils/formatadores";
 
 import { colors } from "@/shared/tokens/colors";
 import { typographyScale as typography } from "@/shared/tokens/typography";
 
-import { AnaliseOcrDTO, PixTransacao } from "../../../../types/pixTransacoes";
+import {
+  AnaliseOcrDTO,
+  ConflitoE2eOcrDTO,
+  PixTransacao,
+} from "../../../../types/pixTransacoes";
 import {
   formatarAlertaOcr,
   formatarValorCentavosOcr,
   obterConfigVisualAnaliseOcr,
 } from "../../../../utils/pixAnaliseOcrUtils";
+import { PixComparacaoE2eDialog } from "./PixComparacaoE2eDialog";
 
 /**
  * Propriedades da seção detalhada de análise OCR no diálogo de transação.
@@ -121,12 +128,19 @@ export function PixAnaliseOcrDetalhesSection({
   reanalisando = false,
 }: PixAnaliseOcrDetalhesSectionProps) {
   const [erroReanalise, setErroReanalise] = useState<string | null>(null);
+  const [conflitoComparado, setConflitoComparado] =
+    useState<ConflitoE2eOcrDTO | null>(null);
   const { analiseOcr, comprovanteUrl } = transacao;
 
   if (!analiseOcr && !comprovanteUrl) {
     return null;
   }
 
+  const valorEsperado =
+    transacao.statusPagamento === "PAID"
+      ? transacao.valorPago
+      : transacao.valorBruto;
+  const txidEsperado = transacao.pixOrderId || transacao.id;
   const visual = obterConfigVisualAnaliseOcr(analiseOcr);
 
   const handleReanalisar = async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -246,12 +260,14 @@ export function PixAnaliseOcrDetalhesSection({
                 gap: 1,
               }}
             >
-              <DadoExtraidoOcr label="Banco detectado" valor={analiseOcr.bancoDetectado} />
               <DadoExtraidoOcr
-                label="Valor extraído"
-                valor={formatarValorCentavosOcr(analiseOcr.valorLidoCentavos)}
+                label="Valor (Lido vs Pedido)"
+                valor={`${formatarValorCentavosOcr(analiseOcr.valorLidoCentavos)} (pedido: ${formatarMoeda(valorEsperado)})`}
               />
-              <DadoExtraidoOcr label="TXID lido" valor={analiseOcr.txidLido} />
+              <DadoExtraidoOcr
+                label="TXID (Lido vs Pedido)"
+                valor={`${analiseOcr.txidLido || "Não identificado"} (pedido: ${txidEsperado})`}
+              />
               <DadoExtraidoOcr
                 label="Data no comprovante"
                 valor={
@@ -260,16 +276,88 @@ export function PixAnaliseOcrDetalhesSection({
                     : null
                 }
               />
-              <DadoExtraidoOcr label="E2E ID" valor={analiseOcr.e2eIdDetectado} />
-              <DadoExtraidoOcr
-                label="Recebedor / CNPJ"
-                valor={
-                  [analiseOcr.recebedorDetectado, analiseOcr.cnpjRecebedorDetectado]
-                    .filter(Boolean)
-                    .join(" · ") || null
-                }
-              />
+              {analiseOcr.recebedorBate === false && (
+                <DadoExtraidoOcr
+                  label="Recebedor divergente detectado"
+                  valor={
+                    [analiseOcr.recebedorDetectado, analiseOcr.cnpjRecebedorDetectado]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+              )}
             </Box>
+
+            {analiseOcr.e2eConflitos && analiseOcr.e2eConflitos.length > 0 && (
+              <Alert
+                severity="error"
+                icon={<WarningAmberIcon fontSize="small" />}
+                data-testid="pix-ocr-e2e-conflitos"
+              >
+                <Stack spacing={1}>
+                  <Typography sx={{ fontSize: "0.8rem", fontWeight: 850 }}>
+                    E2E ID repetido encontrado em {analiseOcr.e2eConflitos.length} outra(s) compra(s):
+                  </Typography>
+                  {analiseOcr.e2eConflitos.map((conflito) => {
+                    const statusLabel =
+                      conflito.statusValidacao === "aceita"
+                        ? "Já aprovada"
+                        : conflito.statusValidacao === "negada"
+                          ? "Recusada"
+                          : conflito.statusPagamento || "Em análise";
+                    return (
+                      <Paper
+                        key={`${conflito.pagamentoId}-${conflito.pixOrderId || ""}`}
+                        elevation={0}
+                        sx={{
+                          p: 1,
+                          borderRadius: 1.5,
+                          bgcolor: colors.branco,
+                          border: `1px solid ${colors.borda}`,
+                        }}
+                      >
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          flexWrap="wrap"
+                          gap={1}
+                        >
+                          <Box>
+                            <Typography sx={{ fontSize: "0.78rem", fontWeight: 800, color: colors.pretoEsverdeado }}>
+                              {conflito.compradorNome || "Pagador não informado"} ·{" "}
+                              {typeof conflito.valorBruto === "number"
+                                ? formatarMoeda(conflito.valorBruto)
+                                : "Valor N/A"}{" "}
+                              ({statusLabel})
+                            </Typography>
+                            <Typography sx={{ fontSize: "0.74rem", color: colors.cinzaTexto }}>
+                              Aderido: {conflito.aderidoNome || "N/A"} · Rifas:{" "}
+                              {conflito.numerosRifas.join(", ") || "N/A"} · ID:{" "}
+                              {conflito.pixOrderId || conflito.pagamentoId}
+                            </Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<CompareArrowsIcon fontSize="small" />}
+                            onClick={() => setConflitoComparado(conflito)}
+                            sx={{
+                              textTransform: "none",
+                              fontWeight: 800,
+                              borderColor: colors.erroTexto,
+                              color: colors.erroTexto,
+                            }}
+                          >
+                            Comparar comprovantes
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    );
+                  })}
+                </Stack>
+              </Alert>
+            )}
 
             {analiseOcr.alertas.length > 0 && (
               <Alert severity="warning" icon={<WarningAmberIcon fontSize="small" />}>
@@ -282,34 +370,15 @@ export function PixAnaliseOcrDetalhesSection({
                 </Stack>
               </Alert>
             )}
-
-            {analiseOcr.motivos.length > 0 && (
-              <Box>
-                <Typography
-                  sx={{
-                    ...typography.caption,
-                    color: colors.cinzaTexto,
-                    fontWeight: 800,
-                    mb: 0.35,
-                  }}
-                >
-                  Motivos da correlação
-                </Typography>
-                <Stack spacing={0.25}>
-                  {analiseOcr.motivos.map((motivo, idx) => (
-                    <Typography
-                      key={`${idx}-${motivo}`}
-                      sx={{ color: colors.pretoEsverdeado, fontSize: "0.78rem" }}
-                    >
-                      • {motivo}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Box>
-            )}
           </>
         )}
       </Stack>
+
+      <PixComparacaoE2eDialog
+        transacaoAtual={transacao}
+        conflito={conflitoComparado}
+        onClose={() => setConflitoComparado(null)}
+      />
     </Box>
   );
 }

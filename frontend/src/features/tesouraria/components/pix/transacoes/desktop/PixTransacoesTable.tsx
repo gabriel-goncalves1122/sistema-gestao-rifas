@@ -179,6 +179,8 @@ export function PixTransacoesTable({
 
       <PixTransacaoDetalhesDialog
         transacao={transacaoDetalhadaAtiva}
+        fila={transacoes}
+        onSelecionarTransacao={setTransacaoDetalhada}
         onClose={handleFecharDetalhes}
         onAceitar={onAceitar}
         onNegar={onNegar}

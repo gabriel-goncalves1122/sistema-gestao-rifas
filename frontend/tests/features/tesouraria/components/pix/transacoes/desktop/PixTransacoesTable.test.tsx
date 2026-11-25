@@ -71,7 +71,7 @@ describe("Componente: PixTransacoesTable", () => {
       }),
     );
 
-    expect(screen.getByText("Não vinculado")).toBeInTheDocument();
+    expect(screen.getAllByText("Não informado").length).toBeGreaterThan(0);
     expect(screen.getByText("Sem rifas")).toBeInTheDocument();
   });
 

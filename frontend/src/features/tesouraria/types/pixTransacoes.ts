@@ -34,6 +34,23 @@ export type CodigoAlertaOcr =
   | "TEXTO_INSUFICIENTE";
 
 /**
+ * Detalhe de outra compra que compartilhou o mesmo End-to-End ID (`camelCase`).
+ */
+export interface ConflitoE2eOcrDTO {
+  pagamentoId: string;
+  transacaoId: string;
+  compradorNome: string | null;
+  aderidoNome: string | null;
+  numerosRifas: string[];
+  valorBruto: number | null;
+  statusValidacao: string | null;
+  statusPagamento: string | null;
+  pixOrderId: string | null;
+  comprovanteUrl: string | null;
+  dataCriacao: string | null;
+}
+
+/**
  * DTO `camelCase` da análise OCR e correlação do comprovante Pix retornado pela API.
  */
 export interface AnaliseOcrDTO {
@@ -53,6 +70,8 @@ export interface AnaliseOcrDTO {
   cnpjRecebedorDetectado: string | null;
   alertas: CodigoAlertaOcr[];
   motivos: string[];
+  e2eConflitos?: ConflitoE2eOcrDTO[];
+  aprovadoAutomaticamente?: boolean;
   tempoMs: number;
   analisadoEm: string;
   erroMensagem?: string | null;

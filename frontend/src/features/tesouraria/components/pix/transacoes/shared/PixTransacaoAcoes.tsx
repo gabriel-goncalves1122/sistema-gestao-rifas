@@ -2,7 +2,9 @@ import { useState } from "react";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import {
+  Box,
   Button,
+  Chip,
   IconButton,
   CircularProgress,
   Stack,
@@ -13,6 +15,14 @@ import {
   Typography,
   TextField,
 } from "@mui/material";
+
+const MOTIVOS_RECUSA_RAPIDOS = [
+  "Comprovante já usado em outra compra (E2E duplicado)",
+  "Valor transferido diverge do pedido",
+  "Comprovante ilegível ou cortado",
+  "Pix agendado (não efetivado)",
+  "Recebedor não é a conta da comissão",
+];
 
 import { FeedbackSnackbar } from "@/shared/components/FeedbackSnackbar";
 import { colors } from "@/shared/tokens/colors";
@@ -143,9 +153,38 @@ export function PixTransacaoAcoes({ transacao, onConcluido, compact = false, onA
       <Dialog open={modalNegarOpen} onClose={() => setModalNegarOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 800 }}>Negar Pagamento</DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 2, color: colors.cinzaTexto }}>
-            Tem certeza que deseja negar o pagamento validado pelo banco para a transação <b>{transacao.id}</b>?
+          <Typography sx={{ mb: 1.5, color: colors.cinzaTexto }}>
+            Tem certeza que deseja negar o pagamento para a transação <b>{transacao.id}</b>?
           </Typography>
+          <Box sx={{ mb: 1.75 }}>
+            <Typography sx={{ fontSize: "0.75rem", fontWeight: 800, color: colors.cinzaTexto, mb: 0.75 }}>
+              Motivos rápidos:
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={0.75}>
+              {MOTIVOS_RECUSA_RAPIDOS.map((motivoRapido) => (
+                <Chip
+                  key={motivoRapido}
+                  label={motivoRapido}
+                  size="small"
+                  clickable
+                  onClick={() => setMotivoNegar(motivoRapido)}
+                  sx={{
+                    fontSize: "0.74rem",
+                    fontWeight: 700,
+                    bgcolor:
+                      motivoNegar === motivoRapido
+                        ? colors.alertaFundo
+                        : colors.fundoSuave,
+                    color:
+                      motivoNegar === motivoRapido
+                        ? colors.alertaTexto
+                        : colors.pretoEsverdeado,
+                    border: `1px solid ${colors.borda}`,
+                  }}
+                />
+              ))}
+            </Stack>
+          </Box>
           <TextField
             autoFocus
             fullWidth

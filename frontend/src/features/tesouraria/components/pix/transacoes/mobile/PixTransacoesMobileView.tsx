@@ -168,6 +168,8 @@ export function PixTransacoesMobileView({
 
       <PixTransacaoDetalhesDialog
         transacao={transacaoSelecionadaAtiva}
+        fila={transacoes}
+        onSelecionarTransacao={setTransacaoSelecionada}
         onClose={() => setTransacaoSelecionada(null)}
         onAceitar={onAceitar}
         onNegar={onNegar}

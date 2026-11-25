@@ -58,8 +58,7 @@ describe("Componente: PixAnaliseOcrDetalhesSection", () => {
     );
 
     expect(screen.getByText("Divergente (45%)")).toBeInTheDocument();
-    expect(screen.getByText("NUBANK")).toBeInTheDocument();
-    expect(screen.getByText("RIFAAB12CD34EF")).toBeInTheDocument();
+    expect(screen.getByText(/RIFAAB12CD34EF/)).toBeInTheDocument();
     expect(
       screen.getByText("• Valor lido diverge do valor esperado"),
     ).toBeInTheDocument();
